@@ -32,7 +32,7 @@ A FLOSS, platform-independent web app for analysing verbal interaction in classr
 
 ## Download (Windows, no Python needed)
 
-Grab the latest **TalkTraceAI-v1.0.0-win64.zip** from [GitHub Releases](https://github.com/MoominVibeCoder/talktrace-ai-base/releases), unzip, and double-click `TalkTraceAI.exe`. No Python installation required.
+Grab the latest **TalkTraceAI-base-v1.0.0-win64.zip** from [GitHub Releases](https://github.com/MoominVibeCoder/talktrace-ai-base/releases), unzip, and double-click `TalkTraceAI.exe`. No Python installation required.
 
 > For macOS / Linux or if you prefer running from source, see the Quickstart below.
 
