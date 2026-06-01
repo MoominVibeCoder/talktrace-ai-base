@@ -1,0 +1,18 @@
+shiny>=0.10
+faicons
+matplotlib
+pandas
+numpy
+httpx
+openai
+anthropic
+keyring
+keyrings.alt; sys_platform == "linux"
+tiktoken
+python-docx
+pyparsing
+jinja2
+pywebview; python_version < "3.14"
+scikit-learn
+openpyxl
+docx2pdf; sys_platform != "linux"

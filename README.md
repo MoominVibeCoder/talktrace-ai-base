@@ -1,0 +1,177 @@
+# TalkTrace AI base
+
+[![PyPI](https://img.shields.io/pypi/v/talktrace-ai-base?label=PyPI)](https://pypi.org/project/talktrace-ai-base/)
+[![Python](https://img.shields.io/pypi/pyversions/talktrace-ai-base)](https://pypi.org/project/talktrace-ai-base/)
+[![License](https://img.shields.io/pypi/l/talktrace-ai-base)](LICENSE)
+
+<p align="left">
+    <picture>
+        <source media="(prefers-color-scheme: light)" srcset="images/light.png">
+        <source media="(prefers-color-scheme: dark)" srcset="images/light.png">
+        <img src="images/light.png" alt="TalkTrace AI base" width="1280">
+    </picture>
+</p>
+
+LLM-assisted analysis of classroom and small-group transcripts. Quantitative metrics, qualitative coding, structured reports — packaged as a desktop app, AGPL-3.0 licensed.
+
+> **base** is the public, slimmed-down distribution descended from the original [TalkTrace-AI](https://github.com/talktrace-ai/talktrace-ai) by Jami Schorling and Dennis Hauk (Leipzig University). base focuses on the stable, well-tested core; experimental features and the active research roadmap live in a private internal research version.
+
+**Highlights** — Big-Four LLM backends (OpenAI, Anthropic, Mistral, DeepSeek) · Streaming coding view · Code-transition heatmap and over-time views · Auto-generated methods paragraph + reproducibility fingerprint · DOCX / PDF / XLSX / HTML / CSV exports · Light/Dark themes · EN/DE UI
+
+**Full feature list** — [FEATURES.md](FEATURES.md)
+
+---
+
+## About
+
+A FLOSS, platform-independent web app for analysing verbal interaction in classroom and small-group settings. Built on [Shiny for Python](https://shiny.posit.co/py/), it leverages LLMs to produce both **quantitative** metrics (participation, conversation shares) and **qualitative** coding (speech acts), and exports them as structured reports.
+
+**Backends:** [OpenAI](https://platform.openai.com/) · [Anthropic](https://www.anthropic.com/api) · [Mistral](https://mistral.ai/) · [DeepSeek](https://platform.deepseek.com/)
+
+---
+
+## Download (Windows, no Python needed)
+
+Grab the latest **TalkTraceAI-v1.0.0-win64.zip** from [GitHub Releases](https://github.com/MoominVibeCoder/talktrace-ai-base/releases), unzip, and double-click `TalkTraceAI.exe`. No Python installation required.
+
+> For macOS / Linux or if you prefer running from source, see the Quickstart below.
+
+---
+
+## Quickstart (from source)
+
+**Python ≥ 3.12 required** (development target: 3.13). On Python 3.14, the embedded desktop window is unavailable — `pywebview` is skipped and the app opens in your default browser instead. Then pick your OS:
+
+<details>
+<summary><strong>Windows</strong></summary>
+
+Double-click `start.bat`, or from a terminal:
+
+```bat
+start.bat
+```
+
+Python install: download from [python.org](https://www.python.org/downloads/windows/) and ensure *"Add python.exe to PATH"* is enabled — otherwise `start.bat` cannot locate the interpreter.
+
+</details>
+
+<details>
+<summary><strong>macOS</strong></summary>
+
+```bash
+chmod +x start.sh
+./start.sh
+```
+
+Python install: the Python shipped with macOS is typically outdated. Install a current version from [python.org](https://www.python.org/downloads/macos/) or via Homebrew (`brew install python@3.13`).
+
+</details>
+
+<details>
+<summary><strong>Linux</strong></summary>
+
+```bash
+chmod +x start.sh
+./start.sh
+```
+
+`start.sh` detects missing `python3-venv` / `python3-pip` and offers to install them via `apt` / `dnf` / `pacman`.
+
+For a native desktop window (otherwise opens in your default browser):
+
+```bash
+sudo apt install gir1.2-webkit2-4.1 python3-gi    # Debian/Ubuntu
+```
+
+**Limitations:**
+- PDF export unavailable on Linux (relies on Microsoft Word) — use DOCX instead.
+- Without a system keyring, API keys live only for the running session. Either start a keyring daemon, or rely on the bundled `keyrings.alt` file fallback.
+
+</details>
+
+<details>
+<summary><strong>Launcher flags & development mode</strong></summary>
+
+| Flag (Unix) | Flag (Windows) | Effect |
+|---|---|---|
+| `--reinstall` | `/reinstall` | Recreate the virtual environment from scratch |
+| `--nowindow` | `/nowindow` | Start headless — open at <http://localhost:8000> |
+| `--setup-only` | — | Provision the venv + dependencies, then exit |
+
+For active development, use `dev.bat` (Windows) or `./dev.sh` (Linux/macOS) — runs the app under `shiny run --reload`, auto-restarting on `.py` saves.
+
+</details>
+
+---
+
+## Interface
+
+Three main tabs — **Analysis** · **Results** · **Options** — plus an Info tab and a sidebar with model picker, session save/restore, dark-mode toggle, EN/DE switch, live cost estimate, and a quickstart checklist.
+
+<details>
+<summary><strong>Analysis tab</strong></summary>
+
+Document Input panel:
+- **Transcript** *(required)* — must follow the [noScribe](https://github.com/kaixxx/noScribe) format. The interactive multi-stage converter handles transcripts from other tools (e.g. [aTrain](https://github.com/JuergenFleiss/aTrain)) — speaker-label detection, timestamp stripping, bracket-annotation review, per-speaker mapping, side-by-side preview.
+- **Codebook** *(required for qualitative analysis)* — see the [example codebook](images/Example%20Codebook.docx). Codes apply to **all speakers** (teacher and students).
+- **Teacher name** *(optional)* — if present in the transcript, enables teacher-specific metrics.
+- **Group identifier and metadata** — used for report labelling.
+
+Click *Analyze* in the sidebar; the app switches to Results on completion.
+
+> **Cost estimate.** The sidebar figure is a *lower bound* — transcript+codebook length × input price × ~4 for output. A cumulative cost tracker (in *Options*) sums spend across all your analyses.
+
+</details>
+
+<details>
+<summary><strong>Results tab</strong></summary>
+
+Split into quantitative and qualitative sections.
+
+**Quantitative** (deterministic): participation metrics, conversation shares (absolute + relative), per-speaker turn stats (count / mean / median), three-segment over-time view.
+
+**Qualitative** (LLM-coded): per-speaker coding (every turn carries a `Sprecher` label), code distribution plot, coded-impulse table, over-time code distribution, **Markov-style code-transition heatmap**, and an **auto-generated methods paragraph** for paper manuscripts (copy-to-clipboard, EN/DE).
+
+</details>
+
+<details>
+<summary><strong>Options tab</strong></summary>
+
+- **API configuration** — keys for OpenAI, Anthropic, Mistral, DeepSeek. Keys live in the OS keyring (Keychain / Credential Manager / SecretService).
+- **Models for LLM Selection** — edit the registry (add/remove models, set per-million-token prices); changes propagate to the sidebar in real time.
+- **Custom Prompts** — modify the system + user prompts used for qualitative coding; defaults restorable any time.
+- **Cost tracker** — cumulative spend across all analyses, per provider.
+- **Test the app** (gold-standard self-test) — runs a known fixture and shows expected vs. actual to build trust before you analyse real data.
+- **Additional Options** — defaults for teacher name, group ID, class size, advanced toggles like streaming.
+
+</details>
+
+---
+
+## Privacy
+
+TalkTrace AI does **not** store transcripts or analysis results on any external server controlled by the maintainers. All data required for an analysis are held in browser/local memory while you interact with the tool.
+
+Because LLM models are not hosted by the app, the backend communicates with external LLM providers during the qualitative coding step. The relevant transcript and codebook excerpts are transmitted via the provider's API — any server-side storage or logging then depends on that provider's policies and your account settings.
+
+Sessions can be saved/restored locally as `.pkl` files; reports can be downloaded. **API keys** live in the OS encrypted credential vault — Keychain (macOS), Credential Manager (Windows), SecretService (GNOME Keyring, KWallet) on Linux.
+
+---
+
+## Credits
+
+TalkTrace AI base is maintained by [Simon Filler](https://orcid.org/0009-0008-8736-8831) at [TU Dortmund University](https://idif.sowi.tu-dortmund.de/institut/).
+
+The original TalkTrace AI was developed by [Jami Schorling](https://orcid.org/0009-0005-9007-2896) and [Dennis Hauk](https://orcid.org/0000-0002-5779-2876) at the [Chair for Research on Teaching and Learning in Civic Education](https://www.sozphil.uni-leipzig.de/institut-fuer-politikwissenschaft/arbeitsbereiche/professur-fuer-fachdidaktik-gemeinschaftskunde/team/prof-dr-dennis-hauk), Leipzig University.
+
+See [NOTICE](NOTICE) for full attribution.
+
+## Contributing
+
+Contributions are welcome — please read [CONTRIBUTING.md](CONTRIBUTING.md) and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) before opening a pull request. Security issues: see [SECURITY.md](SECURITY.md).
+
+## License
+
+GNU Affero General Public License v3.0 — see [LICENSE](LICENSE) and [NOTICE](NOTICE).
+
+The upstream [TalkTrace-AI](https://github.com/talktrace-ai/talktrace-ai) repository carries a CC BY-NC 4.0 notice. The base distribution is released under AGPL-3.0 with the explicit consent of the original authors (Schorling, Hauk); see [NOTICE](NOTICE) for the relicensing history.

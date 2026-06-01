@@ -1,0 +1,49 @@
+name: Feature request
+description: Suggest a new capability or an improvement to an existing one.
+title: "[feature] "
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the suggestion. Some larger experimental features intentionally live in a private internal research version; this issue helps us decide whether the proposal fits in base now, somewhere upstream, or somewhere else entirely.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem you are trying to solve
+      description: What is the user pain or research need behind this request?
+      placeholder: As a researcher analysing classroom discourse, I currently have to ...
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: How would you want the app to behave? Sketch the UI / flow if helpful.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Other approaches you considered and why you discarded them.
+    validations:
+      required: false
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Where do you think this belongs?
+      multiple: false
+      options:
+        - "TalkTrace AI base (general-purpose, low-risk)"
+        - "Internal research version (research / experimental / high-effort)"
+        - "Not sure — happy to discuss"
+    validations:
+      required: true
+  - type: textarea
+    id: extra
+    attributes:
+      label: Additional context
+      description: References to similar tools, papers, screenshots, mockups.
+    validations:
+      required: false

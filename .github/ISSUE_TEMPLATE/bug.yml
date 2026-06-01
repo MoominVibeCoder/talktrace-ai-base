@@ -1,0 +1,76 @@
+name: Bug report
+description: Something is not working as documented.
+title: "[bug] "
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug report. Please fill in as much as you can — anything missing slows down the fix.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear description of the bug, plus the behaviour you expected instead.
+      placeholder: |
+        Describe what you did, what you saw, and what you expected to see.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Minimal sequence of clicks / inputs that reliably triggers the bug.
+      placeholder: |
+        1. Start the app via `start.bat`
+        2. Upload `<transcript file>`
+        3. Click `Analyze`
+        4. ...
+    validations:
+      required: true
+  - type: input
+    id: provider
+    attributes:
+      label: LLM provider + model
+      description: Which provider and model were active when the bug occurred? `n/a` if unrelated to LLM calls.
+      placeholder: e.g. OpenAI / gpt-5.1
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      placeholder: e.g. Windows 11, macOS 15.2, Ubuntu 24.04
+    validations:
+      required: true
+  - type: input
+    id: python
+    attributes:
+      label: Python version
+      description: Output of `python --version`.
+      placeholder: e.g. 3.13.1
+    validations:
+      required: true
+  - type: input
+    id: app-version
+    attributes:
+      label: TalkTrace AI base version / commit
+      description: Tag, release, or commit hash. `git log -1 --format=%h` if unsure.
+      placeholder: e.g. 0.1.0 or 5698d2b
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs / traceback
+      description: Paste the Python traceback or relevant console output. Format with triple backticks.
+      render: shell
+    validations:
+      required: false
+  - type: checkboxes
+    id: data-redaction
+    attributes:
+      label: Data redaction
+      options:
+        - label: I have redacted any personally identifiable information (student names, school names, teacher names, transcript content) from the logs and screenshots above.
+          required: true

@@ -1,0 +1,40 @@
+# Editor / tooling
+.claude/launch.json
+.claude/settings.local.json
+.obsidian/
+.vscode/
+.idea/
+
+# Virtual environments (created by start.bat / start.sh on first run)
+.venv/
+venv/
+env/
+
+# Python build artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Debug-launcher output
+pip-debug.log
+
+# User-specific runtime config & state
+talktrace_ai/config/config.ini
+talktrace_ai/config/.welcome_shown
+talktrace_ai/config/.dataprotection_acknowledged
+talktrace_ai/config/cost_log.json
+
+# Session export blobs and history index (runtime data, per-user)
+*.pkl
+talktrace_ai/history/
+talktrace_ai/utils/history/

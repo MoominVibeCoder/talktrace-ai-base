@@ -1,0 +1,35 @@
+TalkTrace AI base
+Copyright 2024-2026 Jami Schorling, Dennis Hauk, Simon Filler
+
+This product includes software originally developed by Jami Schorling and
+Dennis Hauk at the Chair for Research on Teaching and Learning in Civic
+Education, Leipzig University, as TalkTrace AI
+(https://github.com/talktrace-ai/talktrace-ai).
+
+The base distribution is maintained by Simon Filler at TU Dortmund University
+(https://idif.sowi.tu-dortmund.de/institut/) and is a reduced, AGPL-3.0
+licensed sibling of an actively developed internal research fork.
+
+Original authors:
+  - Jami Schorling   (ORCID: 0009-0005-9007-2896)
+  - Dennis Hauk      (ORCID: 0000-0002-5779-2876)
+
+Maintainer of the base distribution:
+  - Simon Filler     (ORCID: 0009-0008-8736-8831)
+
+
+Licensing history
+-----------------
+
+The upstream repository (talktrace-ai/talktrace-ai) carries a Creative Commons
+Attribution-NonCommercial 4.0 International (CC BY-NC 4.0) notice. The base
+distribution is released under the GNU Affero General Public License,
+Version 3.0 (AGPL-3.0), with the explicit consent of the original authors
+Jami Schorling and Dennis Hauk to relicense the derived work under a
+different OSI-approved license.
+
+Consent was given on 2026-05-26.
+
+(Maintainer: keep the underlying written consent — email, signed message,
+or equivalent — on file with the project records in case the licensing
+chain is ever questioned.)

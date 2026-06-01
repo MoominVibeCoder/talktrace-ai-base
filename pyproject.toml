@@ -1,0 +1,78 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "talktrace-ai-base"
+version = "1.0.0"
+description = "LLM-assisted analysis of classroom and small-group transcripts. Quantitative metrics, qualitative coding, structured reports."
+readme = "README.md"
+requires-python = ">=3.12"
+license = "AGPL-3.0-or-later"
+license-files = ["LICENSE", "NOTICE"]
+authors = [
+    { name = "Simon Filler", email = "simonfiller93@gmail.com" },
+    { name = "Jami Schorling" },
+    { name = "Dennis Hauk" },
+]
+keywords = [
+    "llm",
+    "qualitative-analysis",
+    "education-research",
+    "inter-coder-reliability",
+    "classroom-discourse",
+    "transcript-analysis",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Education",
+    "Intended Audience :: Science/Research",
+
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Text Processing :: Linguistic",
+]
+dependencies = [
+    "shiny>=0.10",
+    "faicons",
+    "matplotlib",
+    "pandas",
+    "numpy",
+    "httpx",
+    "openai",
+    "anthropic",
+    "keyring",
+    "keyrings.alt; sys_platform == 'linux'",
+    "tiktoken",
+    "python-docx",
+    "pyparsing",
+    "jinja2",
+    "pywebview; python_version < '3.14'",
+    "scikit-learn",
+    "openpyxl",
+    "docx2pdf; sys_platform != 'linux'",
+]
+
+[project.urls]
+Homepage = "https://github.com/MoominVibeCoder/talktrace-ai-base"
+Source = "https://github.com/MoominVibeCoder/talktrace-ai-base"
+Issues = "https://github.com/MoominVibeCoder/talktrace-ai-base/issues"
+Upstream = "https://github.com/talktrace-ai/talktrace-ai"
+
+[project.scripts]
+talktrace-ai-base = "talktrace_ai.app:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["talktrace_ai*"]
+exclude = ["tests*", "docs*"]
+
+[tool.setuptools.package-data]
+talktrace_ai = [
+    "static/**/*",
+    "config/*.ini",
+    "examples/**/*",
+]
