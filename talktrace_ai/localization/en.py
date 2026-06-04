@@ -161,7 +161,9 @@ STRINGS = {
         "transitions_title": "Code transitions",
         "transitions_intro": "Probability that a code (row) is followed by the next code (column). Only consecutive coded turns count; uncoded turns are skipped. With multi-coding, the first (priority-resolved) code per turn is used.",
         "transitions_n_pairs": "Transitions",
-        "transitions_no_data": "At least two consecutive coded turns are needed."
+        "transitions_no_data": "At least two consecutive coded turns are needed.",
+        "edit_code_hint": "Double-click the Shortcode column to correct a code.",
+        "edit_code_invalid": "'{code}' is not a valid code. Valid codes: {valid}",
     },
     "options": {
         "tab_title": "Options",

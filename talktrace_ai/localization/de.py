@@ -161,7 +161,9 @@ STRINGS = {
         "transitions_title": "Code-Übergänge",
         "transitions_intro": "Wahrscheinlichkeit, mit der ein Code (Zeile) auf den nächsten Code (Spalte) folgt. Nur aufeinanderfolgende codierte Beiträge zählen; nicht-codierte Beiträge werden übersprungen. Bei Mehrfach-Codierung wird der erste (priorisierte) Code pro Beitrag verwendet.",
         "transitions_n_pairs": "Übergänge",
-        "transitions_no_data": "Mindestens zwei aufeinanderfolgende codierte Beiträge nötig."
+        "transitions_no_data": "Mindestens zwei aufeinanderfolgende codierte Beiträge nötig.",
+        "edit_code_hint": "Doppelklick auf die Shortcode-Spalte, um einen Code zu korrigieren.",
+        "edit_code_invalid": "'{code}' ist kein gültiger Code. Gültige Codes: {valid}",
     },
     "options": {
         "tab_title": "Optionen",

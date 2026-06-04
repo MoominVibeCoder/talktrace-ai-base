@@ -51,6 +51,7 @@ class AppState:
     sim_plot: Any
     qual_plot: Any
     qual_stats_df: Any
+    code_edits: Any
     placeholder_plot: Any
     model_deleted: Any
     current_lang: Any
@@ -158,6 +159,7 @@ def build_app_state(input, output, session) -> AppState:
         sim_plot=reactive.value(None),
         qual_plot=reactive.value(),
         qual_stats_df=reactive.value(None),
+        code_edits=reactive.value({}),
         placeholder_plot=reactive.value(),
         model_deleted=reactive.value(0),
         current_lang=current_lang,

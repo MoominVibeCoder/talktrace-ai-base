@@ -59,6 +59,7 @@ def register(state):
     stats = state.stats
     stats_per_speaker = state.stats_per_speaker
     llm_analysis_data = state.llm_analysis_data
+    code_edits = state.code_edits
     model = state.model
     teacher_impulses_count = state.teacher_impulses_count
     analysis_state = state.analysis_state
@@ -295,6 +296,8 @@ def register(state):
         # ist (Reactive-Updates aus einer Task werden ohne explizites
         # Flushen nicht weitergereicht).
         async with reactive.lock():
+            # Clear manual code corrections from previous analysis
+            code_edits.set({})
             num_participants.set(stats_result["num_participants"])
             stats.set(stats_result["stats"])
             stats_per_speaker.set(stats_result["stats_per_speaker"])
@@ -545,6 +548,7 @@ def register(state):
                     "llm_analysis_data": llm_analysis_data.get(),
                     "analysis_llm_state": analysis_llm_state.get(),
                     "code_legend_storage": code_legend_storage.get(),
+                    "code_edits": code_edits.get(),
                 }
                 try:
                     n_turns = int(stats.get()['Anzahl_Beitraege'].sum())

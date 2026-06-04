@@ -45,6 +45,7 @@ def register(state):
         llm_analysis_data.set(session_data.get("llm_analysis_data") or [])
         analysis_llm_state.set(bool(session_data.get("analysis_llm_state")))
         code_legend_storage.set(session_data.get("code_legend_storage") or "")
+        state.code_edits.set(session_data.get("code_edits") or {})
         if "placeholder_plot" in session_data:
             placeholder_plot.set(session_data.get("placeholder_plot"))
 
@@ -129,6 +130,7 @@ def register(state):
             "llm_analysis_data": llm_analysis_data.get(),
             "analysis_llm_state": analysis_llm_state.get(),
             "code_legend_storage": code_legend_storage.get(),
+            "code_edits": state.code_edits.get(),
         }
 
         # serialize the dictionary to a pickle file

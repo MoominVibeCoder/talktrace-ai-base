@@ -54,6 +54,7 @@ def register(state):
     sim_plot = state.sim_plot
     qual_plot = state.qual_plot
     qual_stats_df = state.qual_stats_df
+    code_edits = state.code_edits
     placeholder_plot = state.placeholder_plot
     code_legend_storage = state.code_legend_storage
 
@@ -650,7 +651,13 @@ def register(state):
     # DataFrame of Coded Impulses
     @render.ui
     def loc_impulses_coding():
-        ui.p(t("results", "impulses_coding"))
+        return ui.span(
+            t("results", "impulses_coding"),
+            ui.tags.small(
+                " — ", t("results", "edit_code_hint"),
+                class_="text-muted",
+            ),
+        )
 
 
     # Create a DataFrame for qualitative statistics
@@ -734,6 +741,14 @@ def register(state):
             merged = merged[['#', 'Sprecher', 'Impuls', 'Shortcode']].copy()
             merged["Shortcode"] = merged["Shortcode"].fillna("").astype(str)
             merged.columns = cols
+            # Human-in-the-loop: apply manual code corrections
+            _edits = code_edits.get()
+            if _edits:
+                _num_col, _sc_col = cols[0], cols[3]
+                for _turn, _code in _edits.items():
+                    _mask = merged[_num_col] == _turn
+                    if _mask.any():
+                        merged.loc[_mask, _sc_col] = _code
             qual_stats_df.set(merged)
             return merged
         else:
@@ -741,14 +756,78 @@ def register(state):
             analysis_df['#'] = analysis_df.reset_index().index + 1
             analysis_df = analysis_df[['#', "Sprecher", "Impuls", "Shortcode"]]
             analysis_df.columns = cols
+            # Human-in-the-loop: apply manual code corrections
+            _edits = code_edits.get()
+            if _edits:
+                _num_col, _sc_col = cols[0], cols[3]
+                for _turn, _code in _edits.items():
+                    _mask = analysis_df[_num_col] == _turn
+                    if _mask.any():
+                        analysis_df.loc[_mask, _sc_col] = _code
             qual_stats_df.set(analysis_df)
             return analysis_df
 
 
-# DataFrame für qualitative Statistik generieren
-    @render.table()
-    def qualitative_stats_df():
-        return make_qualitative_stats_df()
+# DataFrame für qualitative Statistik generieren (editable DataGrid)
+    @render.data_frame
+    def qualitative_stats_df_grid():
+        df = make_qualitative_stats_df()
+        shortcode_col = t("report", "shortcode")
+        sc_idx = list(df.columns).index(shortcode_col) if shortcode_col in df.columns else -1
+        return render.DataGrid(
+            df,
+            editable=True,
+            filters=False,
+            width="100%",
+            height="400px",
+            styles=[
+                # Highlight editable Shortcode column
+                {
+                    "cols": [sc_idx] if sc_idx >= 0 else [],
+                    "style": {"background-color": "var(--bs-primary-bg-subtle, #cfe2ff)"},
+                },
+            ],
+        )
+
+    @qualitative_stats_df_grid.set_patch_fn
+    def _(*, patch):
+        """Validate cell edits: only Shortcode column, only valid codebook codes."""
+        df = make_qualitative_stats_df()
+        shortcode_col = t("report", "shortcode")
+        sc_col_idx = list(df.columns).index(shortcode_col) if shortcode_col in df.columns else -1
+
+        # Reject edits to non-Shortcode columns
+        if patch["column_index"] != sc_col_idx:
+            return df.iloc[patch["row_index"], patch["column_index"]]
+
+        new_code = str(patch["value"]).strip()
+        # Allow clearing a code (empty string)
+        if not new_code:
+            turn_num = int(df.iloc[patch["row_index"], 0])
+            edits = dict(code_edits.get())
+            edits[turn_num] = ""
+            code_edits.set(edits)
+            return ""
+
+        # Validate against codebook
+        valid_codes = set(build_priority_lookup(codebook_data.get()).keys())
+        if new_code not in valid_codes:
+            ui.notification_show(
+                t("results", "edit_code_invalid").format(
+                    code=new_code,
+                    valid=", ".join(sorted(valid_codes)),
+                ),
+                type="warning",
+                duration=5,
+            )
+            return df.iloc[patch["row_index"], sc_col_idx]
+
+        # Store the edit
+        turn_num = int(df.iloc[patch["row_index"], 0])
+        edits = dict(code_edits.get())
+        edits[turn_num] = new_code
+        code_edits.set(edits)
+        return new_code
 
 
     # DataFrame für qualitative Statistik
@@ -757,7 +836,7 @@ def register(state):
         if not llm_analysis_data.get():
             return ui.output_plot("placeholder")
         else:
-            return ui.output_table("qualitative_stats_df")
+            return ui.output_data_frame("qualitative_stats_df_grid")
 
 
     # Placeholder Plot, wenn noch keine Daten vorhanden sind
