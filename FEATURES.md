@@ -34,7 +34,7 @@
 - **Multi-coding** — multiple codes per utterance, opt-in toggle
 - **Codebook priority hierarchy** — priority line, explicit column, or codebook order
 - **Code distribution plot** — frequency of each code across the conversation
-- **Coded-impulse table** — speaker, turn index, code(s), utterance text
+- **Coded-impulse table** — speaker, turn index, code(s), utterance text; **editable** — double-click any Shortcode cell to correct the LLM assignment (validated against the codebook, changes propagate to all plots and reports instantly)
 - **Over-time code distribution** — which codes emerge when in the lesson
 - **Code-transition heatmap** — Markov-style matrix of which code follows which (uncoded turns skipped, multi-coding takes priority-resolved code). Surfaces dialogue dynamics like IRE patterns that frequency plots hide. Optional report section in DOCX/HTML/XLSX/CSV.
 - **Most-frequent-code summary** + teacher talking rate with per-student breakdown

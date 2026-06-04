@@ -16,7 +16,7 @@ LLM-assisted analysis of classroom and small-group transcripts. Quantitative met
 
 > **base** is the public, slimmed-down distribution descended from the original [TalkTrace-AI](https://github.com/talktrace-ai/talktrace-ai) by Jami Schorling and Dennis Hauk (Leipzig University). base focuses on the stable, well-tested core; experimental features and the active research roadmap live in a private internal research version.
 
-**Highlights** — Big-Four LLM backends (OpenAI, Anthropic, Mistral, DeepSeek) · Streaming coding view · Code-transition heatmap and over-time views · Auto-generated methods paragraph + reproducibility fingerprint · DOCX / PDF / XLSX / HTML / CSV exports · Light/Dark themes · EN/DE UI
+**Highlights** — Big-Four LLM backends (OpenAI, Anthropic, Mistral, DeepSeek) · Streaming coding view · Human-in-the-loop code editing · Code-transition heatmap and over-time views · Auto-generated methods paragraph + reproducibility fingerprint · DOCX / PDF / XLSX / HTML / CSV exports · Light/Dark themes · EN/DE UI
 
 **Full feature list** — [FEATURES.md](FEATURES.md)
 
