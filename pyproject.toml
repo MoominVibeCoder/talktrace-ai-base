@@ -56,6 +56,11 @@ dependencies = [
     "docx2pdf; sys_platform != 'linux'",
 ]
 
+[project.optional-dependencies]
+dev = [
+    "pytest>=7",
+]
+
 [project.urls]
 Homepage = "https://github.com/MoominVibeCoder/talktrace-ai-base"
 Source = "https://github.com/MoominVibeCoder/talktrace-ai-base"
@@ -76,3 +81,7 @@ talktrace_ai = [
     "config/*.ini",
     "examples/**/*",
 ]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

@@ -46,12 +46,15 @@ def test_client_factories_build():
     instead of crashing in production on the first real API call.
     """
     from talktrace_ai.utils.llm_clients import (
-        get_groq_client, get_openai_client, get_anthropic_client,
+        get_openai_client, get_anthropic_client,
+        get_mistral_client, get_deepseek_client,
     )
 
-    assert type(get_groq_client("sk-test")).__name__ == "Groq"
     assert type(get_openai_client("sk-test")).__name__ == "OpenAI"
     assert type(get_anthropic_client("sk-test")).__name__ == "Anthropic"
+    # Mistral and DeepSeek reuse the OpenAI SDK pointed at their endpoints.
+    assert type(get_mistral_client("sk-test")).__name__ == "OpenAI"
+    assert type(get_deepseek_client("sk-test")).__name__ == "OpenAI"
 
 
 def test_cache_key_resolves_format_codebook():
@@ -72,21 +75,22 @@ def test_cache_key_resolves_format_codebook():
 def test_llm_analysis_provider_subpackage():
     """All four providers must remain importable from the public path."""
     from talktrace_ai.utils.llm_analysis import (
-        llm_analysis_groq, llm_analysis_openai,
-        llm_analysis_anthropic, llm_analysis_ollama,
+        llm_analysis_openai, llm_analysis_anthropic,
+        llm_analysis_mistral, llm_analysis_deepseek,
     )
 
-    for fn in (llm_analysis_groq, llm_analysis_openai,
-               llm_analysis_anthropic, llm_analysis_ollama):
+    for fn in (llm_analysis_openai, llm_analysis_anthropic,
+               llm_analysis_mistral, llm_analysis_deepseek):
         assert callable(fn)
 
 
 def test_handler_sections_export_register():
-    """Each of the six handler section modules exports a callable register."""
+    """Each handler section module exports a callable register."""
     from talktrace_ai.handlers import (
-        onboarding, sidebar, analysis, testing, results, options,
+        onboarding, sidebar, analysis, noscribe, consent, results, options, info,
     )
-    for mod in (onboarding, sidebar, analysis, testing, results, options):
+    for mod in (onboarding, sidebar, analysis, noscribe, consent,
+                results, options, info):
         assert callable(getattr(mod, "register", None)), (
             f"{mod.__name__} missing callable register(state)"
         )
