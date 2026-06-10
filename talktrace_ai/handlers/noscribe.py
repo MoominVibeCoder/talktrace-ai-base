@@ -344,6 +344,26 @@ def register(state):
     def _view_busy(kind):
         title_key = "installing_title" if kind == "installing" else "running_title"
         return ui.div(
+            # Own indeterminate-bar + spinner animation, NOT gated by
+            # prefers-reduced-motion (Bootstrap disables its striped-bar and
+            # slows its spinner under reduced-motion — which made the
+            # indeterminate bar look like a finished, static full bar).
+            # Defined once here (per run), used by noscribe_progress_view.
+            ui.tags.style(
+                "@keyframes ttai-indet {0%{left:-45%;}100%{left:100%;}}"
+                "@keyframes ttai-spin {to{transform:rotate(360deg);}}"
+                ".ttai-indet-track{position:relative;overflow:hidden;"
+                "background:rgba(0,0,0,0.08);border-radius:0.25rem;}"
+                ".ttai-indet-bar{position:absolute;top:0;bottom:0;width:45%;"
+                "left:-45%;border-radius:0.25rem;"
+                "background:var(--bs-primary,#0d6efd);"
+                "animation:ttai-indet 1.1s infinite ease-in-out;}"
+                ".ttai-spin{display:inline-block;width:1rem;height:1rem;"
+                "border:0.16rem solid rgba(0,0,0,0.2);"
+                "border-top-color:var(--bs-primary,#0d6efd);border-radius:50%;"
+                "animation:ttai-spin 0.7s linear infinite;"
+                "vertical-align:-0.15em;margin-right:0.45rem;}"
+            ),
             ui.h5(t("noscribe", title_key)),
             ui.output_ui("noscribe_progress_view"),
             ui.input_action_button(
@@ -404,20 +424,9 @@ def register(state):
             step_txt = t("noscribe", "step_of").format(
                 n=steps.index(phase_key) + 1, total=len(steps))
 
-        bar_inner_style = (
-            f"width: {max(0, min(100, value))}%;" if value is not None
-            else "width: 100%;"
-        )
-        bar_classes = "progress-bar" + (
-            " progress-bar-striped progress-bar-animated" if value is None else ""
-        )
-
         header_bits = [
             ui.tags.span(
-                ui.tags.span(class_="spinner-border spinner-border-sm",
-                             role="status",
-                             style="margin-right: 0.4rem; vertical-align: -0.1em;")
-                if is_live else None,
+                ui.tags.span(class_="ttai-spin") if is_live else None,
                 ui.tags.strong(phase_label),
             ),
         ]
@@ -428,6 +437,26 @@ def register(state):
             meta_bits.append(ui.tags.span(
                 icon_svg("clock"), " ", elapsed_txt, class_="text-muted"))
 
+        # Determinate (known %) → filled bar with the number. Indeterminate
+        # (value None, e.g. setup / model-load / pyannote compute) → our own
+        # sliding bar so it visibly reads as "working", never a static full bar.
+        if value is not None:
+            bar = ui.div(
+                ui.div(
+                    f"{value}%",
+                    class_="progress-bar", role="progressbar",
+                    style=f"width: {max(0, min(100, value))}%;",
+                ),
+                class_="progress",
+                style="height: 1.4rem; margin-bottom: 0.3rem;",
+            )
+        else:
+            bar = ui.div(
+                ui.div(class_="ttai-indet-bar"),
+                class_="ttai-indet-track",
+                style="height: 1.4rem; margin-bottom: 0.3rem;",
+            )
+
         parts = [
             ui.div(
                 ui.div(*header_bits),
@@ -435,14 +464,7 @@ def register(state):
                 style=("display: flex; justify-content: space-between; "
                        "align-items: baseline; margin-bottom: 0.3rem;"),
             ),
-            ui.div(
-                ui.div(
-                    (f"{value}%" if value is not None else ""),
-                    class_=bar_classes, role="progressbar", style=bar_inner_style,
-                ),
-                class_="progress",
-                style="height: 1.4rem; margin-bottom: 0.3rem;",
-            ),
+            bar,
         ]
         if detail:
             parts.append(ui.div(detail, class_="text-muted",
