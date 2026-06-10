@@ -18,9 +18,16 @@ The options exposed mirror the noScribe GUI: audio in, output filename,
 start/stop range, language, model (fast/precise, downloaded on demand),
 speaker count, mark-pause, overlapping speech, disfluencies, timestamps.
 """
+import time
+
 from ._common import *
 
 from ..utils import noscribe_engine
+
+
+# Ordered phase keys per run type — drives the "step X of N" indicator.
+_TRANSCRIBE_PHASES = ["setup", "diarize", "whisper_load", "transcribe", "save"]
+_INSTALL_PHASES = ["preflight", "uv", "python", "noscribe", "deps", "model", "health"]
 
 
 # Engine speaker labels start at S00; the handoff text is already
@@ -158,9 +165,13 @@ def register(state):
         engine_status = noscribe_engine_status.get()
         is_desktop = engine_status is not None and engine_status.mode == "desktop"
 
-        # speaker count prefill: known group size beats "auto"
+        # speaker count prefill: known group size beats "auto". Read inside
+        # isolate() so an unrelated group-size change on the Analysis tab
+        # doesn't re-render this whole section (which would wipe the editor
+        # and the file input).
         try:
-            n = int(input.num_pupils() or 0)
+            with reactive.isolate():
+                n = int(input.num_pupils() or 0)
         except Exception:
             n = 0
         spk_choices = {"none": t("noscribe", "speakers_none"),
@@ -263,6 +274,13 @@ def register(state):
                 ui.output_ui("noscribe_result_note"),
                 style="display: flex; gap: 0.75rem; align-items: center;",
             ),
+            # --- editable transcript (human-in-the-loop) -----------------
+            # Pre-filled from the current transcript (read via isolate so
+            # typing here isn't wiped when transcript_data changes elsewhere).
+            # After a transcription the section re-renders and this shows the
+            # fresh result; "Apply" writes edits back into the shared
+            # transcript_data that feeds the analysis.
+            _transcript_editor(),
             ui.tags.hr(),
             ui.div(
                 ui.tags.small(
@@ -278,6 +296,49 @@ def register(state):
                 style=("display: flex; gap: 1rem; align-items: center; "
                        "justify-content: space-between;"),
             ),
+        )
+
+    def _transcript_editor():
+        with reactive.isolate():
+            current = transcript_data.get() or ""
+        return ui.div(
+            ui.tags.hr(),
+            ui.h6(t("noscribe", "editor_title")),
+            ui.p(t("noscribe", "editor_hint"),
+                 class_="text-muted", style="font-size: 0.85rem;"),
+            ui.input_text_area(
+                "noscribe_transcript_editor", None,
+                value=current, width="100%", height="300px",
+                placeholder=t("noscribe", "editor_placeholder"),
+                spellcheck="true",
+            ),
+            ui.div(
+                ui.input_action_button(
+                    "noscribe_apply_edit", t("noscribe", "editor_apply"),
+                    icon=icon_svg("check"), class_="btn-primary",
+                ),
+                ui.tags.small(t("noscribe", "editor_apply_hint"),
+                              class_="text-muted"),
+                style="display: flex; gap: 0.75rem; align-items: center;",
+            ),
+        )
+
+    @reactive.effect
+    @reactive.event(input.noscribe_apply_edit)
+    def _apply_transcript_edit():
+        try:
+            text = input.noscribe_transcript_editor() or ""
+        except Exception:
+            text = ""
+        transcript_data.set(text)
+        try:
+            teacher = input.name_teacher() or None
+        except Exception:
+            teacher = None
+        valid = is_valid_transcript_format(text, teacher)
+        state.transcript_format_status.set("valid" if valid else "invalid")
+        ui.notification_show(
+            t("noscribe", "editor_applied"), duration=4, type="message",
         )
 
     def _view_busy(kind):
@@ -319,9 +380,29 @@ def register(state):
         if not prog:
             return None
         phase_label = prog.get("phase_label") or ""
+        phase_key = prog.get("phase")
         value = prog.get("value")
         detail = prog.get("detail") or ""
         log = prog.get("log") or []
+        steps = prog.get("steps") or []
+        t0 = prog.get("t0")
+
+        # Tick the elapsed-time clock once a second while a run is live —
+        # gives a visible "still working" signal during noScribe's long
+        # silent compute phases (pyannote can churn for minutes with no
+        # output line). invalidate_later re-runs this render on a timer.
+        is_live = not prog.get("done") and not prog.get("error")
+        if is_live and t0 is not None:
+            reactive.invalidate_later(1.0)
+            elapsed = max(0, int(time.monotonic() - t0))
+            elapsed_txt = f"{elapsed // 60:d}:{elapsed % 60:02d}"
+        else:
+            elapsed_txt = None
+
+        step_txt = ""
+        if steps and phase_key in steps:
+            step_txt = t("noscribe", "step_of").format(
+                n=steps.index(phase_key) + 1, total=len(steps))
 
         bar_inner_style = (
             f"width: {max(0, min(100, value))}%;" if value is not None
@@ -330,11 +411,29 @@ def register(state):
         bar_classes = "progress-bar" + (
             " progress-bar-striped progress-bar-animated" if value is None else ""
         )
+
+        header_bits = [
+            ui.tags.span(
+                ui.tags.span(class_="spinner-border spinner-border-sm",
+                             role="status",
+                             style="margin-right: 0.4rem; vertical-align: -0.1em;")
+                if is_live else None,
+                ui.tags.strong(phase_label),
+            ),
+        ]
+        meta_bits = []
+        if step_txt:
+            meta_bits.append(ui.tags.span(step_txt, class_="text-muted"))
+        if elapsed_txt is not None:
+            meta_bits.append(ui.tags.span(
+                icon_svg("clock"), " ", elapsed_txt, class_="text-muted"))
+
         parts = [
             ui.div(
-                ui.tags.strong(phase_label),
-                (ui.tags.span(f"  {detail}", class_="text-muted") if detail else None),
-                style="margin-bottom: 0.25rem;",
+                ui.div(*header_bits),
+                ui.div(*meta_bits, style="display: flex; gap: 1rem;"),
+                style=("display: flex; justify-content: space-between; "
+                       "align-items: baseline; margin-bottom: 0.3rem;"),
             ),
             ui.div(
                 ui.div(
@@ -342,15 +441,23 @@ def register(state):
                     class_=bar_classes, role="progressbar", style=bar_inner_style,
                 ),
                 class_="progress",
-                style="height: 1.25rem; margin-bottom: 0.5rem;",
+                style="height: 1.4rem; margin-bottom: 0.3rem;",
             ),
         ]
+        if detail:
+            parts.append(ui.div(detail, class_="text-muted",
+                                style="font-size: 0.8rem; margin-bottom: 0.5rem;"))
         if log:
-            parts.append(ui.tags.pre(
-                "\n".join(log[-_LOG_KEEP:]),
-                style=("max-height: 160px; overflow: auto; font-size: 0.8rem; "
-                       "background: rgba(0,0,0,0.04); padding: 0.5rem; "
-                       "border-radius: 4px; margin: 0;"),
+            parts.append(ui.tags.details(
+                ui.tags.summary(t("noscribe", "progress_log_summary"),
+                                style="font-size: 0.8rem; cursor: pointer;"),
+                ui.tags.pre(
+                    "\n".join(log[-_LOG_KEEP:]),
+                    style=("max-height: 160px; overflow: auto; font-size: 0.8rem; "
+                           "background: rgba(0,0,0,0.04); padding: 0.5rem; "
+                           "border-radius: 4px; margin: 0.3rem 0 0 0;"),
+                ),
+                open=True,
             ))
         return ui.div(*parts, style="margin-bottom: 0.75rem;")
 
@@ -451,7 +558,8 @@ def register(state):
     def _kick_off_install():
         state.noscribe_cancel.reset()
         noscribe_progress.set({"phase_label": t("noscribe", "phase_preflight"),
-                               "value": None})
+                               "value": None, "steps": list(_INSTALL_PHASES),
+                               "t0": time.monotonic()})
         noscribe_status.set("installing")
         asyncio.create_task(_run_install())
 
@@ -593,9 +701,11 @@ def register(state):
             model, noscribe_engine_status.get())
 
         state.noscribe_cancel.reset()
+        steps = (["model"] if need_model else []) + list(_TRANSCRIBE_PHASES)
         first_phase = "phase_model" if need_model else "phase_setup"
         noscribe_progress.set({"phase_label": t("noscribe", first_phase),
-                               "value": None})
+                               "value": None, "steps": steps,
+                               "t0": time.monotonic()})
         noscribe_status.set("running")
         asyncio.create_task(
             _run_transcription(audio_path, output_path, opts, need_model))

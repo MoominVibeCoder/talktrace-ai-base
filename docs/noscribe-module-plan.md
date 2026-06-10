@@ -4,6 +4,27 @@
 parity), verified in a live app; ready for Phase 3 (polish & ship).
 Drafted 2026-06-10, last revised 2026-06-10.
 
+## Phase 2 revision 2 (2026-06-10) — editor + richer progress
+
+After a user test of the dedicated tab, two UX additions:
+
+- **Editable transcript field** in the Transcription tab (human-in-the-
+  loop): an `input_text_area` pre-filled from the current `transcript_data`
+  (read via `reactive.isolate()` so typing isn't wiped on unrelated
+  re-renders, and `num_pupils` is isolated too so a group-size change on
+  the Analysis tab no longer resets the form). An **Apply** button writes
+  edits back into the shared `transcript_data` and re-validates the format
+  — so labels / spelling can be fixed before analysis. Verified live: text
+  typed in the editor + Apply shows up in the Analysis-tab transcript
+  preview with a green "format valid" status.
+- **Richer progress**: prominent phase title with a spinner, a **step
+  X / N** counter (from an ordered phase list stored in the progress
+  dict), the percentage bar, and a live **elapsed-time clock** driven by
+  `reactive.invalidate_later(1)` so the user sees activity even during
+  noScribe's long silent compute phases. The raw log is demoted into a
+  collapsible details block (it used to dominate the view — the reason the
+  old display felt like "just printed output, then suddenly done").
+
 ## Phase 2 revision (2026-06-10) — dedicated tab + full noScribe parity
 
 Per user request the transcription UI moved from a collapsed accordion in
