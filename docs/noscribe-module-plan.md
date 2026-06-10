@@ -1,7 +1,60 @@
 # noScribe Transcription Module Plan
 
-**Status:** Phase 0 complete; ready for Phase 1 (backend
-implementation). Drafted 2026-06-10, last revised 2026-06-10.
+**Status:** Phase 1 complete (backend module + smoke tests); ready for
+Phase 2 (UI integration). Drafted 2026-06-10, last revised 2026-06-10.
+
+## Phase 1 findings (2026-06-10) — completed
+
+`talktrace_ai/utils/noscribe_engine.py` implemented as a **stdlib-only,
+import-free** module (no talktrace_ai imports → standalone smoke-testable
+via `python -m talktrace_ai.utils.noscribe_engine <detect|install|
+transcribe|uninstall>`, and maximal GPL/AGPL separation). Sync generators
+of event dicts, designed to be driven through the existing
+`llm_analysis._stream_bridge.async_stream` (same `_cancel_token` duck-type
+convention as the LLM providers).
+
+Smoke-tested against the Phase-0 engine — all green:
+
+1. **detect()** adopts a structurally complete engine without
+   `engine.json` (backfills the marker with `"adopted": true`) — the
+   manual Phase-0 install is recognized as ready.
+2. **renumber_speakers()** `S00→S01 … S10→S11`, line-anchored, single
+   pass (no collisions), mid-line "S00:" untouched.
+3. **Fresh-install flow** (sandboxed, stopped before the 2-GB deps
+   step): preflight → uv resolution → managed CPython 3.10 venv →
+   pinned-commit source zip all work; a half-done install is detected
+   as `broken` (repairable, idempotent re-run).
+4. **End-to-end transcription**: all 5 phases fire in order with live
+   percentages; success anchor recognized; output renumbered. 278 s for
+   176 s audio ≈ 1.6× realtime on CPU.
+5. **Cancel mid-diarization**: process tree killed, no orphan
+   processes, partial output deleted.
+
+Hard-won details (would bite again):
+
+- **`PYTHONUNBUFFERED=1` is mandatory for the child.** With a pipe
+  (no tty), noScribe's stdout is block-buffered: status lines and
+  pyannote percentages arrive kilobytes late and out of order relative
+  to stderr. `PYTHONIOENCODING=utf-8` likewise, or German umlauts
+  arrive mangled on cp1252 systems.
+- **A cancel watchdog thread is mandatory.** Checking the cancel token
+  between output lines is not enough — pyannote computes silently for
+  minutes on CPU. Without the watchdog, cancel latency was 96 s; with
+  it (0.3 s token poll → `taskkill /F /T`), ~1.3 s.
+- **Locale-independent parse anchors only.** noScribe's i18n status
+  lines arrive in the *system* language; the load-bearing anchors are
+  the hard-coded English CLI lines (`Starting transcription of`,
+  `Transcription completed successfully!`, `Transcription failed`) and
+  library markers (`Processing audio with duration`, `Processing
+  segment at`, `segmentation:`/`embeddings:` percentages).
+- **Output must be split on `\r` AND `\n`** — tqdm-style progress
+  rewrites lines with bare carriage returns.
+- **noScribe streams finished paragraphs as plain `S0n: …` lines** —
+  free live-preview material for the Phase-2 UI.
+- Multiprocessing workers re-import noScribe and re-print its banner;
+  consecutive-duplicate log lines are deduped.
+
+---
 
 ## Phase 0 findings (2026-06-10) — completed
 
@@ -271,11 +324,12 @@ valid TalkTrace transcript (S00 question!), (c) what stdout emits for
 progress parsing, (d) realistic CPU timing on reference hardware.
 **Findings get appended to this doc; they gate the design above.**
 
-### Phase 1 — Engine manager backend (~1–2 days)
+### Phase 1 — Engine manager backend (~1–2 days) — DONE
 `talktrace_ai/utils/noscribe_engine.py`: detection, uv bootstrap
 (checksum-verified), pinned install, model download with progress
-callbacks, health check, async `run_transcription()` generator,
-process-tree cancel, uninstall. Pure backend + smoke tests, no UI.
+callbacks, health check, `run_transcription()` event generator,
+process-tree cancel with watchdog, uninstall. Pure backend + smoke
+tests, no UI. See "Phase 1 findings" block at top.
 
 ### Phase 2 — UI integration (~1–2 days)
 Analysis-tab section, install modal with live progress, transcription
