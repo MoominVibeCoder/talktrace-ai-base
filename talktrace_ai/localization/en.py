@@ -214,7 +214,9 @@ STRINGS = {
         "field_place_date": "Place, date (optional)",
         "per_participant_heading": "Per teacher (optional)",
         "generate_button": "Generate preview",
-        "download_button": "Download as HTML",
+        "download_docx": "As Word (.docx)",
+        "download_pdf": "As PDF",
+        "pdf_failed": "PDF generation failed (Word required): {error}",
         "preview_empty": "No preview yet. Fill in the fields and click “Generate preview”.",
         # --- prefilled defaults (generic, editable) ---
         "default_project_name": "Teacher training – analysis of one's own speaking behaviour",
@@ -474,6 +476,8 @@ STRINGS = {
         "license_text": "This project is licensed under the **GNU Affero General Public License v3.0** (AGPL-3.0). Use, sharing and adaptation — including for commercial purposes — are permitted, but any redistribution or hosted-service deployment must offer the complete corresponding source under the same license. Redistributions must carry the license text and NOTICE file, and modified files must be marked as modified.",
         "transcription_heading": "Audio transcription (optional module)",
         "transcription_text": "The **Transcription** tab creates transcripts straight from audio recordings — **entirely on your own machine**. The audio file is never sent to any server; that is the decisive privacy advantage over cloud transcription services.\n\nTranscription is powered by the standalone open-source project [noScribe](https://github.com/kaixxx/noScribe) by Kai Dröge (Whisper speech recognition + pyannote speaker diarization), licensed under the **GPL-3.0**. noScribe is downloaded once from GitHub at your request and invoked strictly as a **separate subprocess** — TalkTrace does not link, import or bundle any noScribe code. This keeps the two projects cleanly separated for licensing (TalkTrace: AGPL-3.0 · noScribe: GPL-3.0). The Whisper and pyannote models are fetched from their respective public sources; see NOTICE for details.",
+        "consent_heading": "Consent declaration (optional module)",
+        "consent_text": "The **Consent** tab generates a print-ready consent declaration under **GDPR Art. 13** for the training context — intended for the case where a trainer team works *with* teachers and each teacher consents to the processing of their **own** recording. The form is pre-filled, the preview is shown live, and it exports to **Word (.docx)** or **PDF**.\n\nThe declaration reflects the actual data flow: **local transcription** (audio never leaves the device) versus the configured **AI service as a recipient** or a possible **third-country transfer**. The wording is adapted from the **CC0**-licensed [Consent-Gen-RDMO](https://github.com/berndzey/Consent-Gen-RDMO) of TU Dortmund (Bernd Zey, Wibke Kleina).\n\n⚠️ The generated declaration is an **aid, not legal advice**. Please have it reviewed by your data protection officer before use and adapt it to the requirements of your state/institution.",
     },
     "report": {
         "header": "Dialogue analysis – Group",

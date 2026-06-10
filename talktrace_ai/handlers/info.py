@@ -70,6 +70,26 @@ def register(state):
         )
 
     @render.ui
+    def loc_info_consent_heading():
+        return ui.p(t("info", "consent_heading"))
+
+    @render.ui
+    def loc_info_consent_body():
+        return ui.div(
+            ui.tags.a(
+                ui.tags.span(
+                    "Consent-Gen-RDMO · CC0 1.0",
+                    style="display:inline-block;border:1px solid currentColor;border-radius:0.25rem;padding:0.15rem 0.6rem;font-size:0.85rem;font-weight:600;margin-bottom:0.75rem;",
+                ),
+                href="https://github.com/berndzey/Consent-Gen-RDMO",
+                target="_blank",
+                rel="noopener noreferrer",
+                style="text-decoration:none;",
+            ),
+            ui.markdown(t("info", "consent_text")),
+        )
+
+    @render.ui
     def loc_info_license_heading():
         return ui.p(t("info", "license_heading"))
 

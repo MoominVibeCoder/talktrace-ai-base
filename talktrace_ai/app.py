@@ -73,8 +73,8 @@ app_ui = ui.page_sidebar(
     ui.navset_tab(
         build_analysis_tab(),
         build_transcription_tab(),
-        build_consent_tab(),
         build_results_tab(),
+        build_consent_tab(),
         build_options_tab(),
         ui.nav_spacer(),
         build_info_tab(),

@@ -23,6 +23,16 @@ Own **Transcription** tab — turn an audio recording into a transcript that flo
 - **Automatic handoff** — speaker labels renumbered to the TalkTrace `S01+` convention, metadata header stripped, format validated, loaded into the Analysis tab
 - **Engine management** — version shown, one-click uninstall to reclaim the disk space
 
+## Consent declaration (optional)
+
+Own **Consent** tab — generate a print-ready **GDPR Art. 13** consent declaration for the training context, where a trainer team works *with* teachers and each teacher consents to processing their **own** recording. Wording adapted from the **CC0**-licensed [Consent-Gen-RDMO](https://github.com/berndzey/Consent-Gen-RDMO) (TU Dortmund).
+
+- **Pre-filled form + live preview** — sensible training-context defaults; the document re-renders as you edit
+- **Reflects the real data flow** — local transcription (audio stays on device) vs. the configured LLM as recipient; a cloud/local toggle drives the **third-country transfer** paragraph and a separate consent checkbox, with the provider pre-filled from the active backend
+- **Export to Word (.docx) or PDF** — editable native document; PDF via the installed Word (docx2pdf)
+- **Required-field guards** — missing mandatory fields surface as red `!!! … !!!` markers on the document
+- **Visible disclaimer** — an aid, not legal advice; shown in the form and the document footer (review by your DPO required)
+
 ## LLM backends
 
 - **Big-Four providers** — OpenAI, Anthropic, Mistral, DeepSeek

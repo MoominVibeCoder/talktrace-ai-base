@@ -16,7 +16,7 @@ LLM-assisted analysis of classroom and small-group transcripts. Quantitative met
 
 > **base** is the public, slimmed-down distribution descended from the original [TalkTrace-AI](https://github.com/talktrace-ai/talktrace-ai) by Jami Schorling and Dennis Hauk (Leipzig University). base focuses on the stable, well-tested core; experimental features and the active research roadmap live in a private internal research version.
 
-**Highlights** — Big-Four LLM backends (OpenAI, Anthropic, Mistral, DeepSeek) · Local audio transcription (optional noScribe engine, 100% on-device) · Streaming coding view · Human-in-the-loop code editing · Code-transition heatmap and over-time views · Auto-generated methods paragraph + reproducibility fingerprint · DOCX / PDF / XLSX / HTML / CSV exports · Light/Dark themes · EN/DE UI
+**Highlights** — Big-Four LLM backends (OpenAI, Anthropic, Mistral, DeepSeek) · Local audio transcription (optional noScribe engine, 100% on-device) · GDPR Art. 13 consent-declaration generator (DOCX/PDF) · Streaming coding view · Human-in-the-loop code editing · Code-transition heatmap and over-time views · Auto-generated methods paragraph + reproducibility fingerprint · DOCX / PDF / XLSX / HTML / CSV exports · Light/Dark themes · EN/DE UI
 
 **Full feature list** — [FEATURES.md](FEATURES.md)
 
@@ -106,7 +106,7 @@ For active development, use `dev.bat` (Windows) or `./dev.sh` (Linux/macOS) — 
 
 ## Interface
 
-Four main tabs — **Analysis** · **Transcription** · **Results** · **Options** — plus an Info tab and a sidebar with model picker, session save/restore, dark-mode toggle, EN/DE switch, live cost estimate, and a quickstart checklist.
+Five main tabs — **Analysis** · **Transcription** · **Results** · **Consent** · **Options** — plus an Info tab and a sidebar with model picker, session save/restore, dark-mode toggle, EN/DE switch, live cost estimate, and a quickstart checklist.
 
 <details>
 <summary><strong>Analysis tab</strong></summary>
@@ -131,6 +131,17 @@ Turn an audio recording into a transcript **entirely on your machine** — the a
 Exposes the full set of noScribe options: audio in, output filename, start/stop range, language, **model (fast / precise)**, speaker count (pre-filled from the group size), mark-pause, overlapping speech, disfluencies, timestamps. A live progress display (step, percentage, elapsed time) shows what's happening, and an **editable transcript field** lets you fix speaker labels or spelling before the result is handed straight into the Analysis tab.
 
 Best suited to **10–15 minute small-group recordings** (CPU transcription ≈ 1.5× realtime with the *fast* model). See the in-app Info / License tab and [NOTICE](NOTICE) for the licensing and privacy details.
+
+</details>
+
+<details>
+<summary><strong>Consent tab</strong> (optional)</summary>
+
+Generate a print-ready **GDPR Art. 13** consent declaration for the training context — where a trainer team works *with* teachers and each teacher consents to processing their **own** recording. A pre-filled form (left) renders a live document preview (right) that you export to **Word (.docx)** or **PDF**.
+
+The declaration reflects the real data flow: local transcription (audio stays on device) vs. the configured LLM as recipient. A cloud/local toggle drives the **third-country transfer** paragraph and a separate consent checkbox; missing mandatory fields surface as red `!!! … !!!` markers. The wording is adapted from the **CC0**-licensed [Consent-Gen-RDMO](https://github.com/berndzey/Consent-Gen-RDMO) (TU Dortmund).
+
+It is an **aid, not legal advice** — the disclaimer is shown in the form and the document footer; have it reviewed by your data protection officer before use. See [NOTICE](NOTICE).
 
 </details>
 

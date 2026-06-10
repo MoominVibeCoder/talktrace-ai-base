@@ -109,8 +109,12 @@ def register(state):
                     icon=icon_svg("wand-magic-sparkles"), class_="btn-primary",
                 ),
                 ui.download_button(
-                    "consent_download", t("consent", "download_button"),
-                    icon=icon_svg("download"), class_="btn-success",
+                    "consent_download_docx", t("consent", "download_docx"),
+                    icon=icon_svg("file-word"), class_="btn-success",
+                ),
+                ui.download_button(
+                    "consent_download_pdf", t("consent", "download_pdf"),
+                    icon=icon_svg("file-pdf"), class_="btn-danger",
                 ),
                 style="display:flex; gap:0.6rem; margin-top:0.75rem; flex-wrap:wrap;",
             ),
@@ -160,25 +164,62 @@ def register(state):
         consent_preview_html.set(consent_mod.build_consent_preview(data, _S()))
 
     # ------------------------------------------------------------------
-    # Download: standalone, print-ready HTML
+    # Download: editable Word (.docx) and PDF (Word → PDF via docx2pdf)
     # ------------------------------------------------------------------
-    def _download_name():
+    def _stem():
         with reactive.isolate():
-            data = _collect()
-        who = (data.get("participant_name") or "").strip()
-        stem = "Einwilligung"
+            who = (_collect().get("participant_name") or "").strip()
         if who:
             safe = re.sub(r"[^\w\-]+", "_", who).strip("_")
             if safe:
-                stem = f"Einwilligung_{safe}"
-        return f"{stem}.html"
+                return f"Einwilligung_{safe}"
+        return "Einwilligung"
 
-    @render.download(filename=_download_name)
-    def consent_download():
+    def _write_docx(target_path):
         with reactive.isolate():
             data = _collect()
             S = _S()
-        yield consent_mod.build_consent_standalone(data, S).encode("utf-8")
+        consent_mod.write_consent_docx(target_path, data, S)
+
+    @render.download(filename=lambda: f"{_stem()}.docx")
+    def consent_download_docx():
+        with tempfile.NamedTemporaryFile(suffix=".docx", delete=False) as tmp:
+            tmp_path = tmp.name
+        _write_docx(tmp_path)
+        with open(tmp_path, "rb") as fh:
+            yield fh.read()
+        try:
+            os.remove(tmp_path)
+        except OSError:
+            pass
+
+    @render.download(filename=lambda: f"{_stem()}.pdf")
+    def consent_download_pdf():
+        # Build the .docx first, then convert it to PDF. docx2pdf drives the
+        # installed Word (COM on Windows / AppleScript on macOS); if it's
+        # unavailable or fails, surface a notification rather than handing
+        # back a broken file.
+        with tempfile.NamedTemporaryFile(suffix=".docx", delete=False) as tmp:
+            docx_path = tmp.name
+        pdf_path = docx_path[:-5] + ".pdf"
+        try:
+            _write_docx(docx_path)
+            from docx2pdf import convert as _docx2pdf_convert
+            _docx2pdf_convert(docx_path, pdf_path)
+            with open(pdf_path, "rb") as fh:
+                yield fh.read()
+        except Exception as exc:  # noqa: BLE001 — surface any conversion failure
+            ui.notification_show(
+                t("consent", "pdf_failed").format(error=str(exc)),
+                type="error", duration=8,
+            )
+            return
+        finally:
+            for p in (docx_path, pdf_path):
+                try:
+                    os.remove(p)
+                except OSError:
+                    pass
 
 
 # Localization keys that have a default_<name> / ph_<name> entry. Kept as

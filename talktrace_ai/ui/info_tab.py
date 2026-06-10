@@ -31,5 +31,9 @@ def build_info_tab():
             ui.card_header(ui.output_ui("loc_info_transcription_heading")),
             ui.output_ui("loc_info_transcription_body"),
         ),
+        ui.card(
+            ui.card_header(ui.output_ui("loc_info_consent_heading")),
+            ui.output_ui("loc_info_consent_body"),
+        ),
         icon=icon_svg("circle-info"),
     )

@@ -214,7 +214,9 @@ STRINGS = {
         "field_place_date": "Ort, Datum (optional)",
         "per_participant_heading": "Pro Lehrkraft (optional)",
         "generate_button": "Vorschau erzeugen",
-        "download_button": "Als HTML herunterladen",
+        "download_docx": "Als Word (.docx)",
+        "download_pdf": "Als PDF",
+        "pdf_failed": "PDF-Erzeugung fehlgeschlagen (Word erforderlich): {error}",
         "preview_empty": "Noch keine Vorschau. Felder ausfüllen und „Vorschau erzeugen“ klicken.",
         # --- prefilled defaults (generic, editable) ---
         "default_project_name": "Lehrkräftefortbildung – Analyse des eigenen Sprechverhaltens",
@@ -476,6 +478,8 @@ STRINGS = {
         "license_text": "Dieses Projekt steht unter der **GNU Affero General Public License v3.0** (AGPL-3.0). Nutzung, Weitergabe und Bearbeitung — auch zu kommerziellen Zwecken — sind erlaubt, aber jede Weitergabe oder Bereitstellung als Online-Dienst muss den vollständigen entsprechenden Quellcode unter derselben Lizenz mitliefern. Beim Weitergeben sind Lizenztext und NOTICE-Datei mitzuführen, geänderte Dateien sind als geändert zu kennzeichnen.",
         "transcription_heading": "Audio-Transkription (optionales Modul)",
         "transcription_text": "Der Tab **Transkription** erzeugt Transkripte direkt aus Audioaufnahmen — **vollständig lokal auf deinem Rechner**. Die Audiodatei wird zu keinem Zeitpunkt an einen Server übertragen; das ist der entscheidende Datenschutz-Vorteil gegenüber Cloud-Transkriptionsdiensten.\n\nDie Transkription nutzt das eigenständige Open-Source-Projekt [noScribe](https://github.com/kaixxx/noScribe) von Kai Dröge (Whisper-Spracherkennung + pyannote-Sprechertrennung), das unter der **GPL-3.0** steht. noScribe wird auf deinen Wunsch hin einmalig von GitHub heruntergeladen und ausschließlich als **separater Subprozess** aufgerufen — TalkTrace bindet, importiert oder bündelt keinen noScribe-Code. Dadurch bleiben beide Projekte lizenzrechtlich sauber getrennt (TalkTrace: AGPL-3.0 · noScribe: GPL-3.0). Die Whisper-Modelle sowie die pyannote-Modelle werden aus den jeweiligen öffentlichen Quellen geladen; Einzelheiten siehe NOTICE.",
+        "consent_heading": "Einwilligungserklärung (optionales Modul)",
+        "consent_text": "Der Tab **Einwilligung** erzeugt eine druckfertige Einwilligungserklärung nach **DSGVO Art. 13** für den Fortbildungskontext — gedacht für den Fall, dass ein Fortbildungsteam *mit* Lehrkräften arbeitet und jede Lehrkraft in die Verarbeitung ihrer **eigenen** Aufnahme einwilligt. Das Formular ist vorausgefüllt, die Vorschau wird live angezeigt und als **Word (.docx)** oder **PDF** exportiert.\n\nDie Erklärung bildet den tatsächlichen Datenfluss ab: **lokale Transkription** (Audio verlässt das Gerät nicht) gegenüber dem konfigurierten **KI-Dienst als Empfänger** bzw. einer möglichen **Drittlandübermittlung**. Der Wortlaut ist vom **CC0**-lizenzierten [Consent-Gen-RDMO](https://github.com/berndzey/Consent-Gen-RDMO) der TU Dortmund (Bernd Zey, Wibke Kleina) adaptiert.\n\n⚠️ Die erzeugte Erklärung ist eine **Hilfestellung, keine Rechtsberatung**. Bitte vor dem Einsatz von der/dem Datenschutzbeauftragten prüfen und an die Gegebenheiten des Bundeslands/der Einrichtung anpassen lassen.",
     },
     "report": {
         "header": "Gesprächsanalyse – Gruppe",
