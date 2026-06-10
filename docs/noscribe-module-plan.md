@@ -1,0 +1,304 @@
+# noScribe Transcription Module Plan
+
+**Status:** Phase 0 complete; ready for Phase 1 (backend
+implementation). Drafted 2026-06-10, last revised 2026-06-10.
+
+## Phase 0 findings (2026-06-10) — completed
+
+Verified end-to-end by manual install + headless transcription on
+Windows 11 (PowerShell). 2:56 min audio → 4:07 min transcription run,
+exit code 0, transcript content well-formed.
+
+### Install pinning (all required)
+
+- **Engine Python = 3.10**, not 3.11 or 3.12. `cpufeature 0.2.1` has no
+  pre-built wheels for 3.11+ on Windows; 3.12 fails with "Microsoft
+  Visual C++ 14.0 or greater is required". `uv venv --python 3.10`
+  works without a system Python. Matches noScribe's own Dockerfile.
+- **Install method = clone + manual deps**, not `pip install git+…`.
+  noScribe's `pyproject.toml` is tool-config-only and lacks
+  `[project].version`, so PEP 517 install errors out.
+- **Right tag is `v0.7.2`** (latest release). `v0.7.0` does not exist.
+- **All torch-family packages must be pinned**:
+  `torch==2.8.*`, `torchaudio==2.8.*`, `torchcodec==0.7.*`. Without
+  pinning, uv pulls torch 2.12 (latest) which is incompatible with
+  the torchcodec DLLs that pyannote.audio 4.x depends on. Pyannote 4
+  → torchcodec → matched torch is a tight version chain; one drift
+  breaks step 2 (diarization).
+- **`soundfile` must be installed explicitly**. Even with pinned
+  torchcodec, the bundled DLLs on Windows can't load without
+  system-wide FFmpeg. `soundfile` (libsndfile) gives torchaudio a
+  working WAV backend, which is what pyannote actually uses for the
+  intermediate `tmp_audio.wav`. With `soundfile` present, the
+  torchcodec warning is emitted but harmless.
+- **Requirements file has a typo**: `pyinstaller=6.14.1` (single `=`).
+  We don't need pyinstaller anyway and install deps explicitly.
+
+### Runtime behavior
+
+- **First speaker label = `S00:`**, not `S01:`. The TalkTrace handoff
+  layer must renumber `S00 → S01`, `S01 → S02`, … (trivial regex).
+- **Model directory** found automatically at `src/models/fast/`
+  (relative to the cloned repo root). No env var needed.
+- **Realtime factor ≈ 1.4× on CPU** with the "fast" int8 model.
+  10-min audio ≈ 14-min transcription, 15-min audio ≈ 21-min.
+- **Stdout format is well-defined and parseable** — see "Progress
+  parsing" below.
+- **Exit code 0 on success**, exit 1 on processing failure (observed
+  during the torchcodec debugging).
+
+### Non-fatal warnings to suppress in the UI
+
+These all fire even on a successful run and must be filtered out of
+the user-visible log:
+- `torchcodec is not installed correctly` (full traceback) — fallback
+  via soundfile/torchaudio works fine.
+- `torchaudio … 2.9 deprecation` — cosmetic.
+- `pyannote pooling std() … degrees of freedom` — algorithm-internal.
+- `ctranslate2 … int8_float16 → int8_float32 conversion` — normal on
+  CPU.
+
+Heuristic: suppress everything except lines from noScribe's own
+status output (phase markers, percent updates, "Transkription beendet",
+"Gespeichert unter", final summary block).
+
+### Progress parsing
+
+Five UI phases, each with concrete stdout markers:
+
+| UI phase | Trigger lines | Progress source |
+|---|---|---|
+| 1. Setup | `=== Warteschlange wird gestartet ===` → `Audioumwandlung…` → `Umwandlung fertig.` | indeterminate, ~5 s |
+| 2. Diarisierung | `Sprecher:innen identifizieren…` + `Pyannote laden` | `segmentation: N%` and `embeddings: N%` (real percentages, two sub-phases) |
+| 3. Whisper-Load | `Transkription…` + `Whisper laden` + `Sprachaktivitätserkennung…` | indeterminate, ~5–15 s |
+| 4. Transkription | per segment: `DEBUG:faster_whisper:Processing segment at MM:SS` | derived from segment timestamp vs. total audio duration (we know duration from `Processing audio with duration MM:SS`) |
+| 5. Speichern | `Transkription beendet.` + `Gespeichert unter: <path>` | done |
+
+### Still open (deferred to Phase 1)
+
+- Does noScribe read `config.yml` from the user-config dir and silently
+  override CLI flags? Mitigation: we set every important option
+  explicitly. If we observe drift, point `NOSCRIBE_CONFIG` (or whatever
+  env var noScribe exposes) at an empty config file.
+- macOS / Linux behavior — out of scope for v1.
+
+---
+
+
+Goal: integrate [noScribe](https://github.com/kaixxx/noScribe) (local
+Whisper transcription + pyannote speaker diarization) as an optional,
+on-demand-installed engine, so users can go **audio recording → transcript
+→ LLM coding** entirely inside TalkTrace — with the transcription step
+running 100 % locally (no audio ever leaves the machine).
+
+Primary use case: **10–15 minute small-group recordings**, not full
+lessons. That keeps CPU transcription times in the comfortable range
+(roughly 3–10 min with the int8 "fast" model on a modern laptop CPU).
+
+---
+
+## Why this is feasible now
+
+noScribe 0.7 turned the project from a GUI-only app into a scriptable
+package:
+
+- **Official CLI with headless mode** — `python -m noScribe <audio>
+  <out.txt> --no-gui --language de --speaker-detection 4 …`
+  (argparse in `noScribe/main.py`; documented in the README).
+- **Output format = our input format** — TXT export produces
+  `S01: text…` paragraphs, which is exactly the transcript format
+  TalkTrace already expects. No converter needed.
+- **No HuggingFace token** — the pyannote diarization models are bundled
+  in the noScribe repo (CC-BY-4.0); the two Whisper variants
+  (large-v3-turbo fp16 ≈ 1.6 GB "precise", int8 ≈ 0.8 GB "fast") are
+  public, ungated HF repos.
+- **No system ffmpeg** — audio decoding goes through PyAV wheels
+  (bundled ffmpeg libs).
+
+## License boundary
+
+noScribe is **GPL-3.0**; TalkTrace base is AGPL-3.0. We invoke noScribe
+strictly as a **separate subprocess** and do not link, import, embed, or
+redistribute its code or models. The install step downloads noScribe from
+upstream onto the user's machine at the user's request. This keeps both
+codebases cleanly separated — no derivative work, no relicensing
+questions. A short note goes into NOTICE for transparency.
+
+---
+
+## Architecture
+
+### Engine isolation: dedicated environment, managed by `uv`
+
+noScribe drags in torch 2.8 + torchaudio + pyannote (~2 GB installed).
+That must never enter the TalkTrace venv, and it must also work for users
+of the **standalone exe who have no Python at all**. Both problems have
+the same answer:
+
+- Download a **pinned `uv` binary** (single static ~20 MB exe from GitHub
+  releases, checksum-verified) into the engine directory.
+- `uv venv --python 3.10 venv` — uv fetches a managed CPython 3.10
+  automatically; no system Python required. **3.10 is required**, not a
+  fallback: `cpufeature` has no Windows wheels for 3.11+ and 3.12 fails
+  to build from source without MSVC Build Tools. 3.10 also matches
+  noScribe's own Dockerfile.
+- **Clone noScribe at a pinned tag** (`v0.7.2`) into `src/` rather
+  than `pip install git+…` — noScribe's `pyproject.toml` lacks a
+  `project.version` field, so PEP 517 install fails.
+- `uv pip install --python venv\Scripts\python.exe <deps>` — install
+  the runtime dependencies explicitly. **All torch-family packages
+  MUST be version-pinned**, otherwise uv grabs latest torch (2.12 at
+  time of write), which is incompatible with the torchcodec DLLs that
+  pyannote.audio 4.x requires:
+  ```
+  torch==2.8.*
+  torchaudio==2.8.*
+  torchcodec==0.7.*
+  soundfile                     # WAV backend for torchaudio; without
+                                # this, diarization fails on Windows
+  av AdvancedHTMLParser appdirs cpufeature customtkinter CTkToolTip
+  faster-whisper Pillow
+  pyannote.audio>=4.0,<5
+  python-i18n PyYAML
+  huggingface_hub
+  ```
+  We skip pyinstaller from noScribe's requirements file (a) because we
+  don't bundle, and (b) because the line has a typo (`pyinstaller=…`).
+- Download the Whisper "fast" model (int8, ~0.8 GB) via
+  `huggingface_hub.snapshot_download` into noScribe's model directory
+  ("precise" offered as an opt-in later; download resumes on retry).
+
+Result: identical install path for source installs and the exe. Total
+disk footprint ≈ **3 GB** (engine env ~2 GB + model ~0.8 GB); we check
+free disk space (≥ 5 GB) before starting.
+
+### Engine location
+
+`%LOCALAPPDATA%\TalkTraceAI\noscribe-engine\` (via `appdirs`, same
+convention as our config):
+
+```
+noscribe-engine/
+├── uv.exe                  # pinned bootstrap binary
+├── venv/                   # uv-managed CPython 3.10 + torch + deps
+├── src/                    # cloned noScribe repo @ pinned tag
+├── models/                 # whisper model(s), HF snapshot layout
+└── engine.json             # installed versions, health-check timestamp
+```
+
+### Detection order (cheap → expensive)
+
+1. **Engine env present + healthy** (`engine.json` + `--help` smoke run)
+   → ready.
+2. **Desktop noScribe found** (standard install paths, e.g.
+   `%PROGRAMFILES%\noScribe\noScribe.exe`) → use it directly via
+   `noScribe.exe … --no-gui`; skip our install entirely (saves ~3 GB for
+   existing noScribe users).
+3. Neither → show the install button.
+
+### Transcription run
+
+- Async subprocess (same pattern as our streaming LLM calls). Because
+  noScribe runs from the clone, the working directory is `src/`:
+  `cd src && ..\venv\Scripts\python.exe -m noScribe <audio> <out.txt>
+  --no-gui --language <de|en|auto> --speaker-detection <n|auto>
+  --no-timestamps --pause none`
+- **Progress**: parse stdout/log lines; if unparsable, fall back to an
+  indeterminate spinner + elapsed time. (Phase 0 verifies what headless
+  stdout actually emits.)
+- **Cancel**: red cancel button, terminates the process tree
+  (`CREATE_NEW_PROCESS_GROUP` + `taskkill /T` on Windows).
+- **Handoff**: on success, load the TXT into `transcript_data`, run the
+  existing format check, show the green status icon — from there the
+  normal analysis flow takes over. Offer the transcript as a download
+  too (same pattern as the format wizard).
+
+### Synergy detail: speaker count
+
+Small-group recordings have a *known* participant count. The UI passes
+the group size straight to `--speaker-detection <n>`, which measurably
+improves pyannote's clustering vs. `auto`. Optional teacher present →
+n + 1. One detail to verify in Phase 0: pyannote labels start at
+`SPEAKER_00` → noScribe emits `S00`; our parser must accept `S00` or we
+re-number to `S01+` during handoff (trivial regex either way).
+
+---
+
+## UI design
+
+New collapsible section **"Audio transcription (local)"** in the Analysis
+tab, *above* the transcript upload (it produces what that input consumes):
+
+- **Not installed**: explainer (what gets downloaded, ~3 GB, fully local,
+  GPL-3.0 upstream link) + **Install button** → modal with phase progress
+  (uv → Python → noScribe → model), cancellable, resumable.
+- **Installed**: audio upload (`.wav/.mp3/.m4a/.ogg/...`), language
+  select, speaker count (pre-filled from group size), Start button →
+  progress + cancel → on success auto-fills the transcript input.
+- **Footer**: engine version + "Uninstall engine" (deletes the engine
+  dir, frees the 3 GB).
+
+State additions (`state.py`): `noscribe_status`
+(`not_installed | installing | ready | running | error`),
+`noscribe_progress`, `noscribe_audio_file`.
+
+Config additions: engine path override, last-used language/speaker
+options, model choice.
+
+---
+
+## Error taxonomy
+
+| Failure | Handling |
+|---|---|
+| No internet during install | Detect early (HEAD request), friendly modal, retry button |
+| Disk < 5 GB free | Pre-flight check, abort with message before downloading |
+| Install interrupted | `engine.json` written last → absence marks env broken; offer repair (idempotent re-run, HF downloads resume) |
+| Unsupported/corrupt audio | Surface noScribe's stderr in a modal; suggest wav/mp3 |
+| Transcription exit ≠ 0 | Show tail of engine log, keep audio file, offer retry |
+| Cancel mid-run | Kill process tree, delete partial output, status back to ready |
+| Upstream repo/tag vanishes | We pin tag + commit hash; install uses the hash, not the branch |
+
+---
+
+## Phases
+
+### Phase 0 — Spike (manual, ~half a day)
+Validate the whole chain by hand on Windows before writing app code:
+install noScribe per CLI docs, transcribe a 10-min fixture, confirm
+(a) headless mode needs no display/interaction, (b) TXT output parses as
+valid TalkTrace transcript (S00 question!), (c) what stdout emits for
+progress parsing, (d) realistic CPU timing on reference hardware.
+**Findings get appended to this doc; they gate the design above.**
+
+### Phase 1 — Engine manager backend (~1–2 days)
+`talktrace_ai/utils/noscribe_engine.py`: detection, uv bootstrap
+(checksum-verified), pinned install, model download with progress
+callbacks, health check, async `run_transcription()` generator,
+process-tree cancel, uninstall. Pure backend + smoke tests, no UI.
+
+### Phase 2 — UI integration (~1–2 days)
+Analysis-tab section, install modal with live progress, transcription
+flow with progress/cancel, handoff into `transcript_data`, status icons.
+Reuses the cancel/progress patterns from the streaming LLM path.
+
+### Phase 3 — Polish & ship (~1 day)
+EN/DE localization, config persistence, error-path walkthrough, NOTICE
+note, README + FEATURES update ("Local transcription (optional noScribe
+engine)"), GDPR docs update (audio never leaves the machine — strongest
+selling point of the module).
+
+### Phase 4 — Later / optional
+- CUDA variant of the engine env (NVIDIA ≥ 6 GB VRAM) for ~5–10× speed
+- "precise" model as selectable second engine
+- macOS (Apple Silicon / MPS) — upstream supports it; mark experimental
+- Linux — upstream 0.7 has known issues; wait for upstream fix
+- Batch mode: queue multiple audio segments
+
+---
+
+## Open questions
+
+All Phase 0 questions resolved (see "Phase 0 findings" block at top).
+The one item carried into Phase 1 is the `config.yml` shadow-override
+risk — handled defensively by always passing every relevant CLI flag.
