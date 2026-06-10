@@ -70,3 +70,22 @@ upstream sources:
 
 All transcription runs entirely on the user's machine; audio data is not
 transmitted to any maintainer-controlled or third-party server.
+
+
+Consent-declaration generator
+------------------------------
+
+TalkTrace AI base ships an optional consent-declaration generator (the
+"Consent" tab) that produces a print-ready GDPR Art. 13 consent form for the
+training context. The wording is adapted from:
+
+  Consent-Gen-RDMO — Bernd Zey and Wibke Kleina,
+  Research Data Management group, TU Dortmund University
+  https://github.com/berndzey/Consent-Gen-RDMO
+  Dedicated to the public domain under CC0 1.0 Universal.
+
+Because the upstream project is released under CC0 1.0, its text may be
+reused and adapted without restriction. The generated declaration is an aid,
+not legal advice; the generator surfaces this disclaimer in the form and in
+the document footer. Each deployment must have it reviewed by its own data
+protection officer and adapt it to local/regional legal requirements.

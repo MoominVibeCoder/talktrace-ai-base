@@ -187,6 +187,135 @@ STRINGS = {
         "phase_transcribe": "Transcribing",
         "phase_save": "Saving transcript",
     },
+    "consent": {
+        # --- tab / form UI ---
+        "tab_title": "Consent",
+        "section_title": "Generate consent declaration",
+        "intro_hint": "Generate a print-ready consent declaration (GDPR Art. 13) for teachers "
+                      "who have their own speaking behaviour analysed. Adjust the fields, generate "
+                      "a preview, download it as HTML and print it.",
+        "disclaimer": "This template is an aid, not legal advice. Please have it reviewed by your "
+                      "data protection officer before use and adapt it to your state/institution "
+                      "where necessary.",
+        "field_project_name": "Name of the training/project",
+        "field_responsible": "Responsible party (name, institution, contact)",
+        "field_dpo": "Data protection officer (optional)",
+        "field_purpose": "Purpose of processing",
+        "field_legal_basis": "Legal basis",
+        "field_data_categories": "Data categories",
+        "field_llm_mode": "Analysis by AI service",
+        "field_llm_mode_cloud": "Cloud provider (e.g. OpenAI)",
+        "field_llm_mode_local": "Local / EU (no third-country transfer)",
+        "field_llm_provider": "AI service (name, country)",
+        "field_storage": "Storage duration",
+        "field_revocation": "Contact for withdrawal",
+        "field_authority": "Supervisory authority (optional)",
+        "field_participant_name": "Teacher's name (optional, for the output)",
+        "field_place_date": "Place, date (optional)",
+        "per_participant_heading": "Per teacher (optional)",
+        "generate_button": "Generate preview",
+        "download_button": "Download as HTML",
+        "preview_empty": "No preview yet. Fill in the fields and click “Generate preview”.",
+        # --- prefilled defaults (generic, editable) ---
+        "default_project_name": "Teacher training – analysis of one's own speaking behaviour",
+        "default_purpose": "Analysis of your own speaking and conversational behaviour for training "
+                           "and reflection purposes.",
+        "default_legal_basis": "Consent (Art. 6(1)(a) GDPR)",
+        "default_data_categories": "An audio recording of your own voice and the transcript "
+                                   "automatically generated from it.",
+        "default_storage": "until the end of the training",
+        # --- placeholders (institution-specific, must be filled) ---
+        "ph_responsible": "e.g. TU Dortmund, Institute …, Prof. …, address, e-mail",
+        "ph_dpo": "Name and contact of the data protection officer",
+        "ph_revocation": "e.g. functional e-mail of the training team",
+        "ph_authority": "e.g. State Data Protection Commissioner, contact",
+        "ph_participant_name": "First and last name",
+        "ph_place_date": "e.g. Dortmund, 2026-06-10",
+        "ph_llm_provider": "e.g. OpenAI, USA",
+        # --- 'field missing' inline warnings on the document ---
+        "missing_responsible": "Responsible party missing",
+        "missing_purpose": "Purpose missing",
+        "missing_legal_basis": "Legal basis missing",
+        "missing_data_categories": "Data categories missing",
+        "missing_storage": "Storage duration missing",
+        "missing_revocation": "Withdrawal contact missing",
+        # --- generated document ---
+        "doc_lang": "en",
+        "doc_title": "Consent Declaration",
+        "doc_project_generic": "this training",
+        "doc_provider_generic": "the configured AI service",
+        "doc_purpose_generic": "the purpose stated above",
+        "doc_part1_heading": "Study information",
+        "doc_part2_heading": "Data protection information (Art. 13 GDPR)",
+        "doc_part3_heading": "Consent declaration",
+        "doc_intro": "As part of {project} we analyse your own use of language in order to give you "
+                     "feedback on your speaking and conversational behaviour. For this purpose an "
+                     "audio recording of your own utterances is made.",
+        "doc_pipeline": "The recording is first transcribed directly on the device (speech "
+                        "recognition); the audio file does not leave the device in the process. "
+                        "The transcript (text) is then evaluated for the analysis.",
+        "doc_art13_intro": "We process your data in accordance with the provisions of the General "
+                           "Data Protection Regulation (GDPR). With the following notes we fulfil "
+                           "our duty to inform under Article 13 GDPR.",
+        "doc_responsible_label": "Responsible party",
+        "doc_dpo_label": "Data protection officer",
+        "doc_purpose_label": "Purpose of processing",
+        "doc_legal_basis_label": "Legal basis",
+        "doc_data_categories_label": "Data categories",
+        "doc_recipients_label": "Recipients of the data",
+        "doc_transcription_note": "Transcription: speech recognition runs locally on the device "
+                                  "used. The audio recording is not transmitted to third parties.",
+        "doc_recipients_cloud": "Analysis: for the evaluation, the transcript text is transmitted "
+                                "to the following service: {provider}. If this provider processes "
+                                "outside the EU/EEA, this constitutes a transfer to a third country; "
+                                "a level of data protection equivalent to that of the EU cannot "
+                                "always be guaranteed there.",
+        "doc_recipients_local": "Analysis: the transcript is evaluated locally or on a service "
+                                "within the EU/EEA. No transfer to a third country takes place.",
+        "doc_storage_label": "Storage",
+        "doc_storage_sentence": "We store your personal data {duration}. The data are then deleted "
+                                "or anonymised.",
+        "doc_rights_label": "Your data subject rights",
+        "right_withdraw": "Right to withdraw: you have the right to withdraw your consent at any "
+                          "time with effect for the future.",
+        "right_access": "Right of access: you have the right to know which personal data of yours "
+                        "are being processed.",
+        "right_rectify": "Right to rectification: you have the right to have incorrect personal "
+                         "data corrected.",
+        "right_erase": "Right to erasure: you can request the deletion of your data at any time.",
+        "right_restrict": "Right to restriction of processing: you can request the restriction of "
+                          "processing.",
+        "right_portability": "Right to data portability: you have the right to receive the personal "
+                             "data concerning you in a structured, commonly used and machine-readable "
+                             "format.",
+        "right_object": "Right to object: you can object to the processing of the data concerning "
+                        "you at any time.",
+        "right_complaint": "Right to lodge a complaint with a supervisory authority: if you believe "
+                           "that data protection regulations have not been observed in the processing "
+                           "of your data, you can contact the competent supervisory authority.",
+        "doc_rights_contact": "To exercise your rights, please contact: {responsible}",
+        "doc_revocation_sentence": "Please send your withdrawal to: {revocation}",
+        "doc_authority_label": "Supervisory authority",
+        "doc_voluntary": "I am aware that my participation is voluntary and that I will not suffer "
+                         "any disadvantage if I refuse my consent. I can withdraw my consent at any "
+                         "time with effect for the future. No reasons need be given for withdrawing "
+                         "consent and no disadvantages arise from it. In the event of withdrawal, my "
+                         "personal data will be deleted immediately. Withdrawal of consent does not "
+                         "affect the lawfulness of the processing carried out on the basis of the "
+                         "consent up to the withdrawal.",
+        "doc_consent_main": "I consent to my audio recording and the transcript generated from it "
+                            "being processed for the following purpose: {purpose}",
+        "doc_consent_cloud": "I consent to the transcript text being transmitted to {provider} for "
+                             "analysis (possibly a third-country transfer, see above).",
+        "doc_consent_participate": "I hereby consent to take part in {project}.",
+        "doc_yes": "Yes",
+        "doc_no": "No",
+        "doc_name_line": "First and last name in block letters",
+        "doc_signature_line": "Place, date, signature",
+        "doc_footer": "Template based on the CC0-licensed Consent-Gen-RDMO (TU Dortmund). This "
+                      "declaration is an aid and not legal advice — please have it reviewed by your "
+                      "data protection officer before use.",
+    },
     "results": {
         "tab_title": "Results",
         "no_results": "Please perform the analysis first!",

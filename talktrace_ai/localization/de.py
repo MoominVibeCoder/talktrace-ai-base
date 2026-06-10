@@ -187,6 +187,137 @@ STRINGS = {
         "phase_transcribe": "Transkription läuft",
         "phase_save": "Transkript wird gespeichert",
     },
+    "consent": {
+        # --- tab / form UI ---
+        "tab_title": "Einwilligung",
+        "section_title": "Einwilligungserklärung erzeugen",
+        "intro_hint": "Erzeugen Sie eine druckfertige Einwilligungserklärung (DSGVO Art. 13) "
+                      "für Lehrkräfte, die ihr eigenes Sprechverhalten analysieren lassen. "
+                      "Felder anpassen, Vorschau erzeugen, als HTML herunterladen und ausdrucken.",
+        "disclaimer": "Diese Vorlage ist eine Hilfestellung, keine Rechtsberatung. Bitte vor dem "
+                      "Einsatz von Ihrer/Ihrem Datenschutzbeauftragten prüfen lassen und ggf. an "
+                      "Ihr Bundesland/Ihre Einrichtung anpassen.",
+        "field_project_name": "Bezeichnung der Fortbildung/des Projekts",
+        "field_responsible": "Verantwortliche Stelle (Name, Einrichtung, Kontakt)",
+        "field_dpo": "Datenschutzbeauftragte:r (optional)",
+        "field_purpose": "Zweck der Verarbeitung",
+        "field_legal_basis": "Rechtsgrundlage",
+        "field_data_categories": "Datenkategorien",
+        "field_llm_mode": "Analyse durch KI-Dienst",
+        "field_llm_mode_cloud": "Cloud-Anbieter (z. B. OpenAI)",
+        "field_llm_mode_local": "Lokal / EU (keine Drittlandübermittlung)",
+        "field_llm_provider": "KI-Dienst (Name, Land)",
+        "field_storage": "Speicherdauer",
+        "field_revocation": "Kontakt für Widerruf",
+        "field_authority": "Aufsichtsbehörde (optional)",
+        "field_participant_name": "Name der Lehrkraft (optional, für die Ausgabe)",
+        "field_place_date": "Ort, Datum (optional)",
+        "per_participant_heading": "Pro Lehrkraft (optional)",
+        "generate_button": "Vorschau erzeugen",
+        "download_button": "Als HTML herunterladen",
+        "preview_empty": "Noch keine Vorschau. Felder ausfüllen und „Vorschau erzeugen“ klicken.",
+        # --- prefilled defaults (generic, editable) ---
+        "default_project_name": "Lehrkräftefortbildung – Analyse des eigenen Sprechverhaltens",
+        "default_purpose": "Analyse des eigenen Sprech- und Gesprächsverhaltens zu Fortbildungs- "
+                           "und Reflexionszwecken.",
+        "default_legal_basis": "Einwilligung (Art. 6 Abs. 1 lit. a DSGVO)",
+        "default_data_categories": "Audioaufnahme Ihrer eigenen Stimme sowie das daraus "
+                                   "automatisch erzeugte Transkript.",
+        "default_storage": "bis zum Abschluss der Fortbildung",
+        # --- placeholders (institution-specific, must be filled) ---
+        "ph_responsible": "z. B. TU Dortmund, Institut …, Prof. … , Anschrift, E-Mail",
+        "ph_dpo": "Name und Kontakt der/des Datenschutzbeauftragten",
+        "ph_revocation": "z. B. Funktions-E-Mail des Fortbildungsteams",
+        "ph_authority": "z. B. Landesbeauftragte für Datenschutz NRW, Kontakt",
+        "ph_participant_name": "Vor- und Nachname",
+        "ph_place_date": "z. B. Dortmund, 10.06.2026",
+        "ph_llm_provider": "z. B. OpenAI, USA",
+        # --- 'field missing' inline warnings on the document ---
+        "missing_responsible": "Verantwortliche Stelle fehlt",
+        "missing_purpose": "Zweck fehlt",
+        "missing_legal_basis": "Rechtsgrundlage fehlt",
+        "missing_data_categories": "Datenkategorien fehlen",
+        "missing_storage": "Speicherdauer fehlt",
+        "missing_revocation": "Widerrufs-Kontakt fehlt",
+        # --- generated document ---
+        "doc_lang": "de",
+        "doc_title": "Einwilligungserklärung",
+        "doc_project_generic": "dieser Fortbildung",
+        "doc_provider_generic": "dem konfigurierten KI-Dienst",
+        "doc_purpose_generic": "dem oben genannten Zweck",
+        "doc_part1_heading": "Studieninformation",
+        "doc_part2_heading": "Informationspflichten zum Datenschutz (Art. 13 DSGVO)",
+        "doc_part3_heading": "Einwilligungserklärung",
+        "doc_intro": "Im Rahmen von {project} analysieren wir Ihr eigenes sprachliches Handeln, "
+                     "um Ihnen ein Feedback zu Ihrem Sprech- und Gesprächsverhalten zu geben. "
+                     "Dazu wird eine Audioaufnahme Ihrer eigenen Äußerungen angefertigt.",
+        "doc_pipeline": "Die Aufnahme wird zunächst direkt auf dem Gerät transkribiert "
+                        "(Spracherkennung); die Audiodatei verlässt das Gerät dabei nicht. "
+                        "Anschließend wird das Transkript (Text) für die Analyse ausgewertet.",
+        "doc_art13_intro": "Wir verarbeiten Ihre Daten gemäß den Vorschriften der "
+                           "Datenschutz-Grundverordnung (DSGVO). Mit den folgenden Hinweisen kommen "
+                           "wir unserer Informationspflicht nach Artikel 13 DSGVO nach.",
+        "doc_responsible_label": "Verantwortliche Stelle",
+        "doc_dpo_label": "Datenschutzbeauftragte:r",
+        "doc_purpose_label": "Zweck der Verarbeitung",
+        "doc_legal_basis_label": "Rechtsgrundlage",
+        "doc_data_categories_label": "Datenkategorien",
+        "doc_recipients_label": "Empfänger der Daten",
+        "doc_transcription_note": "Transkription: Die Spracherkennung läuft lokal auf dem "
+                                  "verwendeten Gerät. Die Audioaufnahme wird nicht an Dritte übermittelt.",
+        "doc_recipients_cloud": "Analyse: Für die Auswertung wird der Transkript-Text an den "
+                                "folgenden Dienst übermittelt: {provider}. Sofern dieser Anbieter "
+                                "außerhalb der EU/des EWR verarbeitet, handelt es sich um eine "
+                                "Übermittlung in ein Drittland; ein der EU gleichwertiges "
+                                "Datenschutzniveau kann dort nicht in jedem Fall gewährleistet werden.",
+        "doc_recipients_local": "Analyse: Die Auswertung des Transkripts erfolgt lokal bzw. auf "
+                                "einem Dienst innerhalb der EU/des EWR. Eine Übermittlung in ein "
+                                "Drittland findet nicht statt.",
+        "doc_storage_label": "Speicherung",
+        "doc_storage_sentence": "Wir speichern Ihre personenbezogenen Daten {duration}. Anschließend "
+                                "werden die Daten gelöscht oder anonymisiert.",
+        "doc_rights_label": "Ihre Betroffenenrechte",
+        "right_withdraw": "Widerrufsrecht: Sie haben das Recht, Ihre Einwilligung jederzeit mit "
+                          "Wirkung für die Zukunft zu widerrufen.",
+        "right_access": "Auskunftsrecht: Sie haben das Recht zu erfahren, welche personenbezogenen "
+                        "Daten von Ihnen verarbeitet werden.",
+        "right_rectify": "Recht auf Berichtigung: Sie haben das Recht, falsche personenbezogene "
+                         "Daten berichtigen zu lassen.",
+        "right_erase": "Recht auf Löschung: Sie können jederzeit die Löschung Ihrer Daten verlangen.",
+        "right_restrict": "Recht auf Einschränkung der Verarbeitung: Sie können die Einschränkung "
+                          "der Verarbeitung verlangen.",
+        "right_portability": "Recht auf Datenübertragbarkeit: Sie haben das Recht, die Sie "
+                             "betreffenden personenbezogenen Daten in einem strukturierten, gängigen "
+                             "und maschinenlesbaren Format zu erhalten.",
+        "right_object": "Widerspruchsrecht: Sie können jederzeit gegen die Verarbeitung der Sie "
+                        "betreffenden Daten Widerspruch einlegen.",
+        "right_complaint": "Beschwerderecht bei einer Aufsichtsbehörde: Wenn Sie der Auffassung sind, "
+                           "dass bei der Verarbeitung Ihrer Daten datenschutzrechtliche Vorschriften "
+                           "nicht beachtet wurden, können Sie sich an die zuständige Aufsichtsbehörde wenden.",
+        "doc_rights_contact": "Zur Geltendmachung Ihrer Rechte wenden Sie sich bitte an: {responsible}",
+        "doc_revocation_sentence": "Ihren Widerruf richten Sie bitte an: {revocation}",
+        "doc_authority_label": "Aufsichtsbehörde",
+        "doc_voluntary": "Mir ist bewusst, dass meine Teilnahme freiwillig ist und ich bei einer "
+                         "Verweigerung meiner Einwilligung keinerlei Nachteile erleide. Meine "
+                         "Einwilligung kann ich jederzeit mit Wirkung für die Zukunft widerrufen. "
+                         "Für einen Widerruf der Einwilligung bedarf es keiner Begründung und es "
+                         "entstehen daraus keinerlei Nachteile. Im Fall eines Widerrufs werden meine "
+                         "personenbezogenen Daten unmittelbar gelöscht. Durch den Widerruf der "
+                         "Einwilligung wird die Rechtmäßigkeit der aufgrund der Einwilligung bis zum "
+                         "Widerruf erfolgten Verarbeitung nicht berührt.",
+        "doc_consent_main": "Ich willige ein, dass meine Audioaufnahme und das daraus erzeugte "
+                            "Transkript zu folgendem Zweck verarbeitet werden: {purpose}",
+        "doc_consent_cloud": "Ich willige ein, dass der Transkript-Text zur Analyse an {provider} "
+                             "übermittelt wird (ggf. Drittlandübermittlung, siehe oben).",
+        "doc_consent_participate": "Hiermit willige ich ein, an {project} teilzunehmen.",
+        "doc_yes": "Ja",
+        "doc_no": "Nein",
+        "doc_name_line": "Vor- und Nachname in Druckschrift",
+        "doc_signature_line": "Ort, Datum, Unterschrift",
+        "doc_footer": "Vorlage auf Basis des CC0-lizenzierten Consent-Gen-RDMO (TU Dortmund). Diese "
+                      "Erklärung ist eine Hilfestellung und keine Rechtsberatung — bitte vor dem "
+                      "Einsatz von Ihrer/Ihrem Datenschutzbeauftragten prüfen lassen.",
+    },
     "results": {
         "tab_title": "Ergebnisse",
         "no_results": "Bitte zuerst eine Analyse durchführen!",
