@@ -94,6 +94,15 @@ class AppState:
     analysis_running: Any
     analysis_cancelled: Any
     autopilot_cancel_requested: Any
+    # noScribe local-transcription engine (optional module).
+    # status: None|"not_installed"|"broken"|"ready"|"installing"|"running"|"error"
+    # engine_status holds the last EngineStatus from detect(); progress is a
+    # dict the progress view renders; noscribe_cancel is a dedicated
+    # CancelToken (separate from the LLM one so they never collide).
+    noscribe_status: Any
+    noscribe_engine_status: Any
+    noscribe_progress: Any
+    noscribe_cancel: Any
 
     run_analysis: Optional[Callable[..., Any]] = None
     select_api_choices: Optional[Callable[..., Any]] = None
@@ -200,4 +209,8 @@ def build_app_state(input, output, session) -> AppState:
         analysis_running=reactive.value(False),
         analysis_cancelled=reactive.value(False),
         autopilot_cancel_requested=reactive.value(False),
+        noscribe_status=reactive.value(None),
+        noscribe_engine_status=reactive.value(None),
+        noscribe_progress=reactive.value(None),
+        noscribe_cancel=CancelToken(),
     )

@@ -1,7 +1,56 @@
 # noScribe Transcription Module Plan
 
-**Status:** Phase 1 complete (backend module + smoke tests); ready for
-Phase 2 (UI integration). Drafted 2026-06-10, last revised 2026-06-10.
+**Status:** Phase 2 complete (UI integration, verified in a live app);
+ready for Phase 3 (polish & ship). Drafted 2026-06-10, last revised
+2026-06-10.
+
+## Phase 2 findings (2026-06-10) — completed
+
+UI integrated into the Analysis tab as a collapsed accordion section
+"Audio transcription (local)", directly above the transcript upload
+(it produces what that input consumes). New handler
+`talktrace_ai/handlers/noscribe.py` drives the engine through the same
+`async_stream` + `CancelToken` plumbing as the LLM streaming path; new
+state fields in `state.py` (`noscribe_status`, `noscribe_engine_status`,
+`noscribe_progress`, `noscribe_cancel`); EN/DE strings under a `noscribe`
+localization section (44 keys, parity-checked). Verified against the
+Phase-0 engine in a running app: the `ready` view renders correctly
+(audio upload, language, speaker count prefilled from group size,
+transcribe button, engine version, uninstall link); effects fire without
+error; the no-audio-selected modal works; the handoff transform
+(`_strip_noscribe_header` + `is_valid_transcript_format`) produces a
+valid transcript.
+
+Implementation notes that matter:
+
+- **Two split outputs, not one.** `noscribe_section` depends only on
+  `noscribe_status` (structural layout — renders once per state change so
+  the file/select inputs aren't recreated on every tick).
+  `noscribe_progress_view` depends only on `noscribe_progress` (rapid
+  bar/phase/live-log updates). Folding both into one output would thrash
+  the inputs during install/transcription.
+- **Shiny suspends hidden outputs.** While the accordion is collapsed
+  (its default), `noscribe_section` does not render — it materializes on
+  first expand. This is fine: the handoff target (the transcript preview
+  card) is always visible, so a finished transcription lands even if the
+  section is collapsed. Trade-off: the Cancel button lives inside the
+  suspended output, so cancelling requires the accordion to be open.
+- **Dedicated CancelToken** (`state.noscribe_cancel`), separate from the
+  LLM `cancel_token`, so a transcription cancel can never abort an LLM
+  run or vice-versa.
+- **Handoff** strips noScribe's metadata header (everything before the
+  first `S\\d+:` line — the engine already renumbered S00→S01), sets
+  `transcript_data`, and sets `transcript_format_status` from
+  `is_valid_transcript_format`, so the normal analysis flow takes over.
+
+Carried into Phase 3: NOTICE entry for the GPL-3.0 upstream, README +
+FEATURES mention, GDPR doc note (audio never leaves the machine), config
+persistence of last-used language/speaker choices, and a real
+file-upload click-through (the preview harness can't upload a file, so
+the upload→transcribe→handoff click path is the one step still verified
+only at the component level, not through the browser).
+
+---
 
 ## Phase 1 findings (2026-06-10) — completed
 
@@ -331,10 +380,13 @@ callbacks, health check, `run_transcription()` event generator,
 process-tree cancel with watchdog, uninstall. Pure backend + smoke
 tests, no UI. See "Phase 1 findings" block at top.
 
-### Phase 2 — UI integration (~1–2 days)
-Analysis-tab section, install modal with live progress, transcription
-flow with progress/cancel, handoff into `transcript_data`, status icons.
-Reuses the cancel/progress patterns from the streaming LLM path.
+### Phase 2 — UI integration (~1–2 days) — DONE
+Analysis-tab accordion section, inline live progress, transcription flow
+with progress/cancel, handoff into `transcript_data`, status icons.
+Reuses the cancel/progress patterns from the streaming LLM path. See
+"Phase 2 findings" block at top. (Note: progress is shown inline in the
+section rather than in a blocking modal — cleaner with the reactive
+streaming model and gives a free live transcript preview.)
 
 ### Phase 3 — Polish & ship (~1 day)
 EN/DE localization, config persistence, error-path walkthrough, NOTICE

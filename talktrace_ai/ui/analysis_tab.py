@@ -14,6 +14,19 @@ def build_analysis_tab():
                 ui.output_ui("loc_name_teacher"),
             ),
         ),
+        # Row 1.5: optional local audio transcription (noScribe engine).
+        # Collapsed by default — it produces what the transcript input below
+        # consumes, so it sits directly above it. Hidden behind an accordion
+        # to avoid cluttering the default upload-an-existing-transcript flow.
+        ui.accordion(
+            ui.accordion_panel(
+                ui.output_ui("noscribe_section_title"),
+                ui.output_ui("noscribe_section"),
+                value="noscribe",
+            ),
+            id="noscribe_accordion",
+            open=False,
+        ),
         # Row 2: Document Input — 2 columns (transcript left, codebook right)
         ui.card(
             ui.card_header(ui.output_ui("loc_document_input")),
