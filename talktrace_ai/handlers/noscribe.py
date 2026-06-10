@@ -60,6 +60,40 @@ def _noscribe_header(text: str) -> str:
     return text[:m.start()] if m else ""
 
 
+# A turn line: "<speaker>: <text>" (S01:, Trinity:, …). Restrictive enough
+# that prose with a mid-sentence colon doesn't get split into a new turn.
+_TURN_LINE_RE = re.compile(r"^\s*([A-Za-z0-9ÄÖÜäöüß_./*\- ]{1,40}?):\s+(.*)$")
+
+
+def _parse_turns_to_df(text: str, col_spk: str, col_txt: str):
+    """Header-stripped transcript → one row per turn (speaker, utterance).
+    Non-matching continuation lines fold into the previous turn's text."""
+    import pandas as pd
+    rows: list = []
+    for line in (text or "").splitlines():
+        if not line.strip():
+            continue
+        m = _TURN_LINE_RE.match(line)
+        if m:
+            rows.append([m.group(1).strip(), m.group(2).strip()])
+        elif rows:
+            rows[-1][1] = (rows[-1][1] + " " + line.strip()).strip()
+    return pd.DataFrame(rows, columns=[col_spk, col_txt])
+
+
+def _df_to_transcript(df) -> str:
+    """Turn rows → 'S0X: text' lines (the format the analysis consumes)."""
+    if df is None:
+        return ""
+    lines = []
+    for i in range(len(df)):
+        spk = str(df.iat[i, 0]).strip()
+        txt = str(df.iat[i, 1]).strip()
+        if spk or txt:
+            lines.append(f"{spk}: {txt}" if spk else txt)
+    return "\n".join(lines)
+
+
 def _strip_inline_timestamps(text: str) -> str:
     out_lines = []
     for line in text.splitlines():
@@ -98,6 +132,10 @@ def register(state):
     # (provenance) while preserving the header.
     last_output_path = reactive.value(None)
     last_header = reactive.value("")
+
+    # Turn-based editor state: one row per turn (speaker, utterance). Kept in
+    # sync from transcript_data; cell edits update it; "Apply" reassembles it.
+    turn_table_df = reactive.value(None)
 
     # ---- one-time detection (runs synchronously during server setup) ----
     initial = noscribe_engine.detect()
@@ -315,19 +353,12 @@ def register(state):
         )
 
     def _transcript_editor():
-        with reactive.isolate():
-            current = transcript_data.get() or ""
         return ui.div(
             ui.tags.hr(),
             ui.h6(t("noscribe", "editor_title")),
             ui.p(t("noscribe", "editor_hint"),
                  class_="text-muted", style="font-size: 0.85rem;"),
-            ui.input_text_area(
-                "noscribe_transcript_editor", None,
-                value=current, width="100%", height="300px",
-                placeholder=t("noscribe", "editor_placeholder"),
-                spellcheck="true",
-            ),
+            ui.output_data_frame("noscribe_turn_table"),
             ui.div(
                 ui.input_action_button(
                     "noscribe_apply_edit", t("noscribe", "editor_apply"),
@@ -335,17 +366,54 @@ def register(state):
                 ),
                 ui.tags.small(t("noscribe", "editor_apply_hint"),
                               class_="text-muted"),
-                style="display: flex; gap: 0.75rem; align-items: center;",
+                style=("display: flex; gap: 0.75rem; align-items: center; "
+                       "margin-top: 0.5rem;"),
             ),
         )
+
+    # Keep the turn table in sync with the current transcript. Fires when
+    # transcript_data changes (new transcription, upload, or Apply) and on a
+    # language switch (column labels). Cell edits update turn_table_df
+    # directly (below) without touching transcript_data, so they survive.
+    @reactive.effect
+    def _sync_turn_table():
+        txt = transcript_data.get()
+        turn_table_df.set(_parse_turns_to_df(
+            txt or "", t("noscribe", "editor_col_speaker"),
+            t("noscribe", "editor_col_text")))
+
+    @render.data_frame
+    def noscribe_turn_table():
+        df = turn_table_df.get()
+        if df is None:
+            df = _parse_turns_to_df(
+                "", t("noscribe", "editor_col_speaker"),
+                t("noscribe", "editor_col_text"))
+        return render.DataGrid(
+            df, editable=True, filters=False, width="100%", height="360px",
+            styles=[{
+                "cols": [0],
+                "style": {"max-width": "110px", "font-family": "monospace",
+                          "background-color": "var(--bs-primary-bg-subtle, #cfe2ff)"},
+            }],
+        )
+
+    @noscribe_turn_table.set_patch_fn
+    def _(*, patch):
+        df = turn_table_df.get()
+        if df is None:
+            return patch["value"]
+        df = df.copy()
+        val = str(patch["value"]).strip()
+        df.iat[patch["row_index"], patch["column_index"]] = val
+        turn_table_df.set(df)
+        return val
 
     @reactive.effect
     @reactive.event(input.noscribe_apply_edit)
     def _apply_transcript_edit():
-        try:
-            text = input.noscribe_transcript_editor() or ""
-        except Exception:
-            text = ""
+        # reassemble the edited turn table into the S0X: transcript
+        text = _df_to_transcript(turn_table_df.get())
         # 1) feed the analysis (in-memory transcript)
         transcript_data.set(text)
         try:
