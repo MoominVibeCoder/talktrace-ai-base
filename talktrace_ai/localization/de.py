@@ -334,6 +334,8 @@ STRINGS = {
         "dev_origin": "Ursprungsversion",
         "license_heading": "Lizenz",
         "license_text": "Dieses Projekt steht unter der **GNU Affero General Public License v3.0** (AGPL-3.0). Nutzung, Weitergabe und Bearbeitung — auch zu kommerziellen Zwecken — sind erlaubt, aber jede Weitergabe oder Bereitstellung als Online-Dienst muss den vollständigen entsprechenden Quellcode unter derselben Lizenz mitliefern. Beim Weitergeben sind Lizenztext und NOTICE-Datei mitzuführen, geänderte Dateien sind als geändert zu kennzeichnen.",
+        "transcription_heading": "Audio-Transkription (optionales Modul)",
+        "transcription_text": "Der Tab **Transkription** erzeugt Transkripte direkt aus Audioaufnahmen — **vollständig lokal auf deinem Rechner**. Die Audiodatei wird zu keinem Zeitpunkt an einen Server übertragen; das ist der entscheidende Datenschutz-Vorteil gegenüber Cloud-Transkriptionsdiensten.\n\nDie Transkription nutzt das eigenständige Open-Source-Projekt [noScribe](https://github.com/kaixxx/noScribe) von Kai Dröge (Whisper-Spracherkennung + pyannote-Sprechertrennung), das unter der **GPL-3.0** steht. noScribe wird auf deinen Wunsch hin einmalig von GitHub heruntergeladen und ausschließlich als **separater Subprozess** aufgerufen — TalkTrace bindet, importiert oder bündelt keinen noScribe-Code. Dadurch bleiben beide Projekte lizenzrechtlich sauber getrennt (TalkTrace: AGPL-3.0 · noScribe: GPL-3.0). Die Whisper-Modelle sowie die pyannote-Modelle werden aus den jeweiligen öffentlichen Quellen geladen; Einzelheiten siehe NOTICE.",
     },
     "report": {
         "header": "Gesprächsanalyse – Gruppe",

@@ -33,3 +33,40 @@ Consent was given on 2026-05-26.
 (Maintainer: keep the underlying written consent — email, signed message,
 or equivalent — on file with the project records in case the licensing
 chain is ever questioned.)
+
+
+Optional audio-transcription module (noScribe)
+----------------------------------------------
+
+TalkTrace AI base ships an optional local audio-transcription feature (the
+"Transcription" tab). It does NOT bundle, link against, import, or
+redistribute any transcription engine. Instead, at the user's explicit
+request, it downloads the standalone open-source project noScribe and
+invokes it strictly as a separate subprocess:
+
+  noScribe — Copyright (c) Kai Dröge
+  https://github.com/kaixxx/noScribe
+  Licensed under the GNU General Public License, Version 3.0 (GPL-3.0).
+
+Because noScribe runs only as an independent program at arm's length (no
+shared address space, no linking, no shared code), it is not a derivative
+work of TalkTrace AI base and TalkTrace AI base is not a derivative work of
+noScribe. The two licenses (AGPL-3.0 for TalkTrace, GPL-3.0 for noScribe)
+therefore apply independently to their respective codebases.
+
+The engine is installed on demand into a per-user directory
+(%LOCALAPPDATA%\TalkTraceAI\noscribe-engine on Windows) using the `uv`
+package manager, and pulls these third-party components from their public
+upstream sources:
+
+  - faster-whisper (CTranslate2) Whisper models:
+      "fast"    — mukowaty/faster-whisper-int8
+                  (faster-whisper-large-v3-turbo-int8)
+      "precise" — mobiuslabsgmbh/faster-whisper-large-v3-turbo
+  - pyannote.audio speaker-diarization models (bundled with noScribe,
+      CC-BY-4.0)
+  - PyTorch, torchaudio, torchcodec, pyannote.audio, faster-whisper and
+      their transitive dependencies, each under its own license.
+
+All transcription runs entirely on the user's machine; audio data is not
+transmitted to any maintainer-controlled or third-party server.

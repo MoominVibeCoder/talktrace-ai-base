@@ -16,7 +16,7 @@ LLM-assisted analysis of classroom and small-group transcripts. Quantitative met
 
 > **base** is the public, slimmed-down distribution descended from the original [TalkTrace-AI](https://github.com/talktrace-ai/talktrace-ai) by Jami Schorling and Dennis Hauk (Leipzig University). base focuses on the stable, well-tested core; experimental features and the active research roadmap live in a private internal research version.
 
-**Highlights** — Big-Four LLM backends (OpenAI, Anthropic, Mistral, DeepSeek) · Streaming coding view · Human-in-the-loop code editing · Code-transition heatmap and over-time views · Auto-generated methods paragraph + reproducibility fingerprint · DOCX / PDF / XLSX / HTML / CSV exports · Light/Dark themes · EN/DE UI
+**Highlights** — Big-Four LLM backends (OpenAI, Anthropic, Mistral, DeepSeek) · Local audio transcription (optional noScribe engine, 100% on-device) · Streaming coding view · Human-in-the-loop code editing · Code-transition heatmap and over-time views · Auto-generated methods paragraph + reproducibility fingerprint · DOCX / PDF / XLSX / HTML / CSV exports · Light/Dark themes · EN/DE UI
 
 **Full feature list** — [FEATURES.md](FEATURES.md)
 
@@ -106,7 +106,7 @@ For active development, use `dev.bat` (Windows) or `./dev.sh` (Linux/macOS) — 
 
 ## Interface
 
-Three main tabs — **Analysis** · **Results** · **Options** — plus an Info tab and a sidebar with model picker, session save/restore, dark-mode toggle, EN/DE switch, live cost estimate, and a quickstart checklist.
+Four main tabs — **Analysis** · **Transcription** · **Results** · **Options** — plus an Info tab and a sidebar with model picker, session save/restore, dark-mode toggle, EN/DE switch, live cost estimate, and a quickstart checklist.
 
 <details>
 <summary><strong>Analysis tab</strong></summary>
@@ -120,6 +120,17 @@ Document Input panel:
 Click *Analyze* in the sidebar; the app switches to Results on completion.
 
 > **Cost estimate.** The sidebar figure is a *lower bound* — transcript+codebook length × input price × ~4 for output. A cumulative cost tracker (in *Options*) sums spend across all your analyses.
+
+</details>
+
+<details>
+<summary><strong>Transcription tab</strong> (optional, local)</summary>
+
+Turn an audio recording into a transcript **entirely on your machine** — the audio never leaves your computer. Powered by the standalone open-source engine [noScribe](https://github.com/kaixxx/noScribe) (Whisper + pyannote), GPL-3.0, invoked only as a separate subprocess and installed on demand (~3 GB, one time, Windows).
+
+Exposes the full set of noScribe options: audio in, output filename, start/stop range, language, **model (fast / precise)**, speaker count (pre-filled from the group size), mark-pause, overlapping speech, disfluencies, timestamps. A live progress display (step, percentage, elapsed time) shows what's happening, and an **editable transcript field** lets you fix speaker labels or spelling before the result is handed straight into the Analysis tab.
+
+Best suited to **10–15 minute small-group recordings** (CPU transcription ≈ 1.5× realtime with the *fast* model). See the in-app Info / License tab and [NOTICE](NOTICE) for the licensing and privacy details.
 
 </details>
 
@@ -153,6 +164,8 @@ Split into quantitative and qualitative sections.
 TalkTrace AI does **not** store transcripts or analysis results on any external server controlled by the maintainers. All data required for an analysis are held in browser/local memory while you interact with the tool.
 
 Because LLM models are not hosted by the app, the backend communicates with external LLM providers during the qualitative coding step. The relevant transcript and codebook excerpts are transmitted via the provider's API — any server-side storage or logging then depends on that provider's policies and your account settings.
+
+**Audio transcription is fully local.** The optional Transcription tab runs the noScribe engine on your own machine — the audio file is never uploaded to any maintainer-controlled or third-party server. This makes it a privacy-preserving alternative to cloud transcription services. See [NOTICE](NOTICE) for the third-party engine/model details and licensing boundary.
 
 Sessions can be saved/restored locally as `.pkl` files; reports can be downloaded. **API keys** live in the OS encrypted credential vault — Keychain (macOS), Credential Manager (Windows), SecretService (GNOME Keyring, KWallet) on Linux.
 

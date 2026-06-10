@@ -27,5 +27,9 @@ def build_info_tab():
             ),
             col_widths=[6, 6],
         ),
+        ui.card(
+            ui.card_header(ui.output_ui("loc_info_transcription_heading")),
+            ui.output_ui("loc_info_transcription_body"),
+        ),
         icon=icon_svg("circle-info"),
     )

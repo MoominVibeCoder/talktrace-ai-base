@@ -1,8 +1,24 @@
 # noScribe Transcription Module Plan
 
-**Status:** Phase 2 complete + revised (dedicated tab, full option
-parity), verified in a live app; ready for Phase 3 (polish & ship).
+**Status:** Phases 0–3 complete (backend, dedicated tab with full option
+parity, editor + progress, docs), verified in a live app. Module shipped.
 Drafted 2026-06-10, last revised 2026-06-10.
+
+## Phase 3 (2026-06-10) — docs & licensing, completed
+
+- **Info / License tab**: new full-width card "Audio transcription
+  (optional module)" with a noScribe · GPL-3.0 badge, explaining the
+  local/on-device privacy benefit and the subprocess licensing boundary
+  (AGPL-3.0 ↔ GPL-3.0). EN/DE. Verified live.
+- **NOTICE**: section documenting noScribe as an optional, on-demand,
+  subprocess-only dependency (not bundled/linked) with its model sources
+  (fast: mukowaty/faster-whisper-int8; precise:
+  mobiuslabsgmbh/faster-whisper-large-v3-turbo; pyannote CC-BY-4.0) and
+  the "audio never leaves the machine" statement.
+- **README**: transcription added to highlights; a Transcription-tab
+  details section; tab count updated to four; a "audio transcription is
+  fully local" paragraph in Privacy.
+- **FEATURES**: new "Local audio transcription (optional)" section.
 
 ## Phase 2 revision 2 (2026-06-10) — editor + richer progress
 

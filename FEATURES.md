@@ -11,6 +11,18 @@
 - **Multi-stage format converter** — speaker mapping, bracket/timestamp stripping, side-by-side preview before download
 - **Group metadata** — class ID, class size, teacher name (all optional)
 
+## Local audio transcription (optional)
+
+Own **Transcription** tab — turn an audio recording into a transcript that flows straight into the analysis, **100% on-device** (the audio never leaves the machine). Powered by the standalone open-source engine [noScribe](https://github.com/kaixxx/noScribe) (Whisper + pyannote, GPL-3.0), invoked only as a separate subprocess.
+
+- **On-demand install** — one button downloads an isolated engine (uv-managed Python + torch/pyannote + Whisper model, ~3 GB, one time); never touches the main app environment. Detects an existing desktop noScribe install and uses it instead.
+- **Full noScribe option parity** — audio in, output filename, start/stop range, language, **model selection (fast / precise)**, speaker count (pre-filled from group size), mark-pause, overlapping speech, disfluencies, timestamps
+- **Whisper model choice** — *fast* (int8, ~0.8 GB) or *precise* (fp16, ~1.6 GB); a not-yet-installed model is downloaded on demand before the run
+- **Live progress** — phase, step (X of N), percentage, and an elapsed-time clock; cancellable (kills the whole process tree)
+- **Editable transcript field** — fix speaker labels or spelling before analysis (human-in-the-loop); changes apply to the shared transcript that feeds the pipeline
+- **Automatic handoff** — speaker labels renumbered to the TalkTrace `S01+` convention, metadata header stripped, format validated, loaded into the Analysis tab
+- **Engine management** — version shown, one-click uninstall to reclaim the disk space
+
 ## LLM backends
 
 - **Big-Four providers** — OpenAI, Anthropic, Mistral, DeepSeek
