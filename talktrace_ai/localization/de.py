@@ -137,6 +137,11 @@ STRINGS = {
         "speakers_label": "Sprecher:innen",
         "speakers_auto": "Automatisch",
         "speakers_none": "Keine",
+        "speakers_hint_auto": "Tipp: Eine feste Sprecher:innen-Zahl verbessert die "
+                              "automatische Sprechertrennung deutlich. „Automatisch\" "
+                              "nur wählen, wenn die Anzahl wirklich unbekannt ist.",
+        "speakers_hint_fixed": "Feste Sprecher:innen-Zahl gesetzt – das verbessert "
+                               "die Sprechertrennung.",
         "pause_label": "Pausen markieren",
         "pause_none": "Keine",
         "start_time_label": "Start (hh:mm:ss)",

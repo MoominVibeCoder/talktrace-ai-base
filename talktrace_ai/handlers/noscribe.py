@@ -301,6 +301,9 @@ def register(state):
                                 choices=spk_choices, selected=spk_selected),
                 col_widths=[4, 4, 4],
             ),
+            # quality nudge: a fixed speaker count is the biggest free lever on
+            # diarization quality, so reflect the current choice right here.
+            ui.output_ui("noscribe_speakers_hint"),
             ui.layout_columns(
                 ui.input_select("noscribe_pause", t("noscribe", "pause_label"),
                                 choices=pause_choices, selected="none"),
@@ -605,6 +608,28 @@ def register(state):
                 style="color: #d9534f;",
             )
         return None
+
+    @render.ui
+    def noscribe_speakers_hint():
+        try:
+            sel = input.noscribe_speakers()
+        except Exception:
+            sel = "auto"
+        if sel == "auto":
+            return ui.div(
+                icon_svg("circle-info"), " ",
+                t("noscribe", "speakers_hint_auto"),
+                class_="alert alert-warning py-2 px-3 mb-3",
+                role="alert", style="font-size: 0.9rem;",
+            )
+        if sel == "none":
+            return None
+        return ui.div(
+            icon_svg("check"), " ",
+            t("noscribe", "speakers_hint_fixed"),
+            class_="text-success mb-3",
+            style="font-size: 0.9rem;",
+        )
 
     # prefill the output filename from the chosen audio file's stem
     @reactive.effect

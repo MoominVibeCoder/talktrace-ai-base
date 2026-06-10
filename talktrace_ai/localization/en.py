@@ -137,6 +137,11 @@ STRINGS = {
         "speakers_label": "Speakers",
         "speakers_auto": "Automatic",
         "speakers_none": "None",
+        "speakers_hint_auto": "Tip: Setting a fixed number of speakers markedly "
+                              "improves automatic speaker separation. Only choose "
+                              "\"Automatic\" if the count is genuinely unknown.",
+        "speakers_hint_fixed": "Fixed speaker count set – this improves speaker "
+                               "separation.",
         "pause_label": "Mark pauses",
         "pause_none": "None",
         "start_time_label": "Start (hh:mm:ss)",
