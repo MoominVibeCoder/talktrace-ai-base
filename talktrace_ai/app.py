@@ -24,6 +24,7 @@ from .paths import _WELCOME_FLAG_FILE, _welcome_shown, _mark_welcome_shown, reso
 from .ui.sidebar import build_sidebar
 from .ui.head import head_content
 from .ui.analysis_tab import build_analysis_tab
+from .ui.transcription_tab import build_transcription_tab
 from .ui.results_tab import build_results_tab
 from .ui.options_tab import build_options_tab
 from .ui.info_tab import build_info_tab
@@ -70,6 +71,7 @@ app_ui = ui.page_sidebar(
     ui.output_ui("tt_demo_button_top"),
     ui.navset_tab(
         build_analysis_tab(),
+        build_transcription_tab(),
         build_results_tab(),
         build_options_tab(),
         ui.nav_spacer(),

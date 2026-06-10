@@ -98,10 +98,27 @@ ENGINE_DEPS = [
     "huggingface_hub",
 ]
 
-# Whisper "fast" model (large-v3-turbo int8, ~0.8 GB). The HF repo hosts 17
-# models; allow_patterns keeps the download to the one we need (4.63 GB -> 0.8 GB).
-HF_MODEL_REPO = "mukowaty/faster-whisper-int8"
-HF_MODEL_SUBDIR = "faster-whisper-large-v3-turbo-int8"
+# Whisper models. noScribe discovers models as sub-directories of
+# ``src/models/`` (the directory name IS the model name passed to --model).
+# These are the two the desktop noScribe app ships:
+#   fast    — large-v3-turbo int8 (~0.8 GB), ~30% faster on CPU
+#   precise — large-v3-turbo fp16 (~1.6 GB), higher quality
+# "fast" lives in a sub-folder of a 17-model HF repo, so it needs an
+# allow_patterns filter; "precise" is a standalone repo downloaded whole.
+# Sources are taken verbatim from noScribe's own models/<name>/NOSCRIBE_README.txt.
+MODELS = {
+    "fast": {
+        "repo": "mukowaty/faster-whisper-int8",
+        "subdir": "faster-whisper-large-v3-turbo-int8",
+        "approx_gb": 0.8,
+    },
+    "precise": {
+        "repo": "mobiuslabsgmbh/faster-whisper-large-v3-turbo",
+        "subdir": None,
+        "approx_gb": 1.6,
+    },
+}
+DEFAULT_MODEL = "fast"
 
 MIN_FREE_BYTES = 5 * 1024**3  # install pre-flight: engine + model + headroom
 
@@ -147,9 +164,34 @@ def _engine_paths(root: Path) -> dict:
         "python": root / "venv" / "Scripts" / "python.exe",
         "src": root / "src",
         "main": root / "src" / "noScribe.py",
-        "model": root / "src" / "models" / "fast" / "model.bin",
+        # "model" = the default model's weights; presence gates "ready".
+        "model": root / "src" / "models" / DEFAULT_MODEL / "model.bin",
+        "models_dir": root / "src" / "models",
         "marker": root / ENGINE_MARKER,
     }
+
+
+def installed_models(engine_status=None) -> list:
+    """Names of Whisper models present in the engine (sub-dirs of
+    ``src/models/`` that contain a ``model.bin``). For a desktop noScribe
+    install we can't easily introspect, so we optimistically report both
+    shipped models and let noScribe validate at run time.
+    """
+    status = engine_status if engine_status is not None else detect()
+    if status.mode == "desktop":
+        return list(MODELS.keys())
+    root = status.engine_dir or engine_dir()
+    models_dir = _engine_paths(root)["models_dir"]
+    found = []
+    if models_dir.exists():
+        for entry in sorted(models_dir.iterdir()):
+            if entry.is_dir() and (entry / "model.bin").exists():
+                found.append(entry.name)
+    return found
+
+
+def is_model_installed(model_name: str, engine_status=None) -> bool:
+    return model_name in installed_models(engine_status)
 
 
 def _find_desktop_noscribe() -> Optional[Path]:
@@ -438,6 +480,92 @@ def _resolve_uv(root: Path, token: Any, log_tail: deque) -> Iterator[dict]:
 _PCT_RE = re.compile(r"(\d{1,3})%")
 
 
+def _download_model_step(model_name: str, python: Path, src: Path,
+                         root: Path, token: Any, log_tail: deque) -> Iterator[dict]:
+    """Download one Whisper model into ``src/models/<name>/`` (idempotent).
+
+    Yields {"type": "progress", ...} events parsed from the hf download.
+    Raises _StepFailed on a missing/failed download. Shared by
+    install_engine (the default model) and download_model (on demand).
+    """
+    spec = MODELS.get(model_name)
+    if spec is None:
+        raise _StepFailed(f"unknown model: {model_name!r}")
+    model_dst = src / "models" / model_name
+    if (model_dst / "model.bin").exists():
+        return  # already present
+    model_dst.mkdir(parents=True, exist_ok=True)
+    dl_dir = root / f"_model_dl_{model_name}"
+    allow = (f"[{spec['subdir'] + '/*'!r}]" if spec["subdir"] else "None")
+    script = (
+        "from huggingface_hub import snapshot_download\n"
+        f"snapshot_download(repo_id={spec['repo']!r}, "
+        f"allow_patterns={allow}, "
+        f"local_dir={str(dl_dir)!r})\n"
+    )
+    for ev in _run_step([str(python), "-c", script],
+                        cwd=root, token=token, log_tail=log_tail):
+        m = _PCT_RE.search(ev["line"])
+        if m:
+            yield {"type": "progress", "value": min(int(m.group(1)), 100),
+                   "detail": f"{model_name} model"}
+    # The snapshot lands either in a subdir (fast) or at dl_dir root (precise).
+    src_files = dl_dir / spec["subdir"] if spec["subdir"] else dl_dir
+    if not (src_files / "model.bin").exists():
+        raise _StepFailed("model download finished but model.bin is missing "
+                          f"for {model_name!r}")
+    for f in src_files.iterdir():
+        # HF caches a .huggingface/ metadata dir — skip it.
+        if f.name.startswith("."):
+            continue
+        dest = model_dst / f.name
+        if dest.exists():
+            continue
+        shutil.move(str(f), str(dest))
+    shutil.rmtree(dl_dir, ignore_errors=True)
+
+
+def download_model(model_name: str, _cancel_token: Any = None) -> Iterator[dict]:
+    """Public: fetch an additional Whisper model on demand (e.g. "precise").
+
+    Event protocol matches install_engine: phase / progress / done / error /
+    cancelled. Requires a ready engine (the default model + venv must exist).
+    """
+    token = _cancel_token
+    root = engine_dir()
+    p = _engine_paths(root)
+    log_tail: deque = deque(maxlen=80)
+    spec = MODELS.get(model_name)
+    try:
+        if spec is None:
+            yield {"type": "error", "message": f"unknown model: {model_name}",
+                   "log_tail": []}
+            return
+        if not p["python"].exists():
+            yield {"type": "error", "message": "engine not installed",
+                   "log_tail": []}
+            return
+        free = shutil.disk_usage(root).free
+        if free < int(spec["approx_gb"] * 2 * 1024**3):
+            yield {"type": "error",
+                   "message": f"not enough free disk space for the {model_name} model",
+                   "log_tail": []}
+            return
+        yield {"type": "phase", "key": "model",
+               "label": f"Whisper model „{model_name}“ (~{spec['approx_gb']} GB)"}
+        for ev in _download_model_step(model_name, p["python"], p["src"],
+                                       root, token, log_tail):
+            yield ev
+        yield {"type": "done", "model": model_name}
+    except _StepCancelled:
+        yield {"type": "cancelled"}
+    except _StepFailed as exc:
+        yield {"type": "error", "message": str(exc), "log_tail": list(log_tail)}
+    except OSError as exc:
+        yield {"type": "error", "message": f"{type(exc).__name__}: {exc}",
+               "log_tail": list(log_tail)}
+
+
 def install_engine(_cancel_token: Any = None) -> Iterator[dict]:
     """Install (or repair) the engine. Sync generator of event dicts.
 
@@ -518,33 +646,13 @@ def install_engine(_cancel_token: Any = None) -> Iterator[dict]:
                            "detail": ev["line"][:100]}
             deps_marker.write_text(json.dumps(ENGINE_DEPS), encoding="utf-8")
 
-        # -- Whisper model ------------------------------------------------------
-        yield {"type": "phase", "key": "model", "label": "Whisper model „fast“ (~0.8 GB)"}
-        if not p["model"].exists():
-            model_dst = p["src"] / "models" / "fast"
-            model_dst.mkdir(parents=True, exist_ok=True)
-            dl_dir = root / "_model_dl"
-            script = (
-                "from huggingface_hub import snapshot_download\n"
-                f"snapshot_download(repo_id={HF_MODEL_REPO!r}, "
-                f"allow_patterns=[{HF_MODEL_SUBDIR + '/*'!r}], "
-                f"local_dir={str(dl_dir)!r})\n"
-            )
-            for ev in _run_step(
-                [str(p["python"]), "-c", script],
-                cwd=root, token=token, log_tail=log_tail,
-            ):
-                m = _PCT_RE.search(ev["line"])
-                if m:
-                    yield {"type": "progress", "value": min(int(m.group(1)), 100),
-                           "detail": "model download"}
-            src_files = dl_dir / HF_MODEL_SUBDIR
-            if not src_files.exists():
-                raise _StepFailed("model download finished but the expected "
-                                  f"directory {HF_MODEL_SUBDIR} is missing")
-            for f in src_files.iterdir():
-                shutil.move(str(f), str(model_dst / f.name))
-            shutil.rmtree(dl_dir, ignore_errors=True)
+        # -- Whisper model (default = "fast") -----------------------------------
+        spec = MODELS[DEFAULT_MODEL]
+        yield {"type": "phase", "key": "model",
+               "label": f"Whisper model „{DEFAULT_MODEL}“ (~{spec['approx_gb']} GB)"}
+        for ev in _download_model_step(DEFAULT_MODEL, p["python"], p["src"],
+                                       root, token, log_tail):
+            yield ev
 
         # -- health check --------------------------------------------------------
         yield {"type": "phase", "key": "health", "label": "Verifying installation"}
@@ -619,24 +727,39 @@ def renumber_speakers(text: str) -> str:
     )
 
 
+_VALID_PAUSE = ("none", "1sec+", "2sec+", "3sec+")
+_CLOCK_RE = re.compile(r"^\d{1,2}:\d{2}:\d{2}$")
+
+
 def run_transcription(
     audio_path,
     output_path=None,
     language: str = "auto",
+    model: str = DEFAULT_MODEL,
     speaker_detection: str = "auto",
     overlapping: bool = True,
     disfluencies: bool = True,
+    timestamps: bool = False,
+    pause: str = "none",
+    start: Optional[str] = None,
+    stop: Optional[str] = None,
     _cancel_token: Any = None,
 ) -> Iterator[dict]:
     """Transcribe one audio file through the engine. Sync generator of events.
 
-    `speaker_detection` is "none", "auto", or "1".."10" — small groups with
-    a known size should pass the exact count (improves pyannote clustering).
-    Every relevant noScribe option is passed explicitly so a stray user
-    config.yml can never shadow our settings.
+    Mirrors every option the noScribe GUI exposes:
+    - `language`: "auto" or an ISO code ("de", "en", …).
+    - `model`: an installed Whisper model name ("fast", "precise").
+    - `speaker_detection`: "none", "auto", or "1".."10" — a known small-group
+      size beats "auto" for pyannote clustering.
+    - `overlapping` / `disfluencies` / `timestamps`: booleans → the matching
+      --…/--no-… flag pair.
+    - `pause`: "none" | "1sec+" | "2sec+" | "3sec+" (mark silences).
+    - `start` / `stop`: optional "HH:MM:SS" bounds to transcribe a sub-range.
 
-    The final {"type": "done"} carries `text` (speaker labels already
-    renumbered S01+) and `output_path`.
+    Every option is passed explicitly so a stray user config.yml can't shadow
+    our settings. The final {"type": "done"} carries `text` (speaker labels
+    renumbered S01+, GUI metadata header preserved) and `output_path`.
     """
     token = _cancel_token
     status = detect()
@@ -653,23 +776,36 @@ def run_transcription(
                "log_tail": []}
         return
 
+    if model not in MODELS and not is_model_installed(model, status):
+        yield {"type": "error", "message": f"model not available: {model}",
+               "log_tail": []}
+        return
+
     if output_path is None:
         jobs = (status.engine_dir or engine_dir()) / "transcripts"
         jobs.mkdir(parents=True, exist_ok=True)
         stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
         output_path = jobs / f"{audio.stem}-{stamp}.txt"
     out = Path(output_path)
+    out.parent.mkdir(parents=True, exist_ok=True)
 
+    pause = pause if pause in _VALID_PAUSE else "none"
     opts = [
         "--no-gui",
         "--language", language,
-        "--model", "fast",
+        "--model", str(model),
         "--speaker-detection", str(speaker_detection),
-        "--no-timestamps",
-        "--pause", "none",
+        "--timestamps" if timestamps else "--no-timestamps",
+        "--pause", pause,
         "--overlapping" if overlapping else "--no-overlapping",
         "--disfluencies" if disfluencies else "--no-disfluencies",
     ]
+    # Optional sub-range. noScribe expects HH:MM:SS; ignore malformed input
+    # rather than handing noScribe a value it would reject.
+    if start and _CLOCK_RE.match(start.strip()):
+        opts += ["--start", start.strip()]
+    if stop and _CLOCK_RE.match(stop.strip()):
+        opts += ["--stop", stop.strip()]
     if status.mode == "desktop":
         cmd = [str(status.desktop_exe), str(audio), str(out), *opts]
         cwd = status.desktop_exe.parent

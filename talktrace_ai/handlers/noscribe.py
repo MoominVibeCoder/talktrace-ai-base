@@ -1,18 +1,22 @@
-"""noScribe local-transcription module: Analysis-tab section.
+"""noScribe local-transcription module: dedicated Transcription tab.
 
-Drives the engine in ``utils.noscribe_engine`` (install / transcribe /
-cancel / uninstall) through the same sync-generator → ``async_stream``
-bridge the LLM streaming path uses. On a successful transcription the
-result is handed off into ``transcript_data`` so the normal analysis flow
-takes over.
+Drives the engine in ``utils.noscribe_engine`` (install / download model /
+transcribe / cancel / uninstall) through the same sync-generator →
+``async_stream`` bridge the LLM streaming path uses. On a successful
+transcription the result is handed off into ``transcript_data`` so the
+normal analysis flow on the Analysis tab takes over.
 
-UI is split into two reactive outputs to avoid input thrash:
+The tab body is two reactive outputs to avoid input thrash:
 - ``noscribe_section`` depends on ``noscribe_status`` only → renders the
-  structural layout (install button / audio form / progress shell) once
-  per state transition, so the file/select inputs aren't recreated on
+  structural layout (install button / full options form / progress shell)
+  once per state transition, so the file/select inputs aren't recreated on
   every progress tick.
 - ``noscribe_progress_view`` depends on ``noscribe_progress`` only →
   re-renders rapidly during install/transcription (bar, phase, live log).
+
+The options exposed mirror the noScribe GUI: audio in, output filename,
+start/stop range, language, model (fast/precise, downloaded on demand),
+speaker count, mark-pause, overlapping speech, disfluencies, timestamps.
 """
 from ._common import *
 
@@ -20,12 +24,15 @@ from ..utils import noscribe_engine
 
 
 # Engine speaker labels start at S00; the handoff text is already
-# renumbered to S01+ by the engine. We only need to drop noScribe's
-# metadata header (everything before the first speaker line) so the
-# preview and downstream parsers see a clean transcript.
+# renumbered to S01+ by the engine. We drop noScribe's metadata header
+# (everything before the first speaker line) so the preview and downstream
+# parsers see a clean transcript.
 _FIRST_SPEAKER_RE = re.compile(r"^S\d+:", re.MULTILINE)
 
-# How many recent log lines to keep in the live view.
+# Inline timestamp tokens noScribe writes when --timestamps is on. Stripped
+# only for the analysis handoff (the saved/downloaded file keeps them).
+_TS_TOKEN_RE = re.compile(r"\[?\d{1,2}:\d{2}:\d{2}(?:\.\d+)?\]?")
+
 _LOG_KEEP = 8
 
 
@@ -36,8 +43,20 @@ def _strip_noscribe_header(text: str) -> str:
     return text[m.start():] if m else text
 
 
+def _strip_inline_timestamps(text: str) -> str:
+    out_lines = []
+    for line in text.splitlines():
+        m = _FIRST_SPEAKER_RE.match(line)
+        if m:
+            label = line[:m.end()]
+            body = _TS_TOKEN_RE.sub("", line[m.end():])
+            out_lines.append((label + " " + body.strip()).rstrip())
+        else:
+            out_lines.append(line)
+    return "\n".join(out_lines)
+
+
 def _map_engine_state(engine_status) -> str:
-    """EngineStatus.state → our reactive noscribe_status vocabulary."""
     if engine_status is None:
         return "not_installed"
     return {
@@ -62,11 +81,8 @@ def register(state):
     noscribe_engine_status.set(initial)
     noscribe_status.set(_map_engine_state(initial))
 
-    # Phase keys (from the engine events) → localized labels. Falls back to
-    # the event's own English label if a key isn't mapped.
     def _phase_label(key: str, fallback: str) -> str:
         mapping = {
-            # install phases
             "preflight": t("noscribe", "phase_preflight"),
             "uv": t("noscribe", "phase_uv"),
             "python": t("noscribe", "phase_python"),
@@ -74,7 +90,6 @@ def register(state):
             "deps": t("noscribe", "phase_deps"),
             "model": t("noscribe", "phase_model"),
             "health": t("noscribe", "phase_health"),
-            # transcription phases
             "setup": t("noscribe", "phase_setup"),
             "diarize": t("noscribe", "phase_diarize"),
             "whisper_load": t("noscribe", "phase_whisper_load"),
@@ -87,11 +102,13 @@ def register(state):
     # Rendering
     # =====================================================================
 
+    @render.text
+    def loc_title_transcription():
+        return t("noscribe", "tab_title")
+
     @render.ui
     def noscribe_section_title():
-        return ui.span(
-            icon_svg("microphone"), " ", t("noscribe", "section_title"),
-        )
+        return ui.span(icon_svg("microphone"), " ", t("noscribe", "section_title"))
 
     @render.ui
     def noscribe_section():
@@ -146,7 +163,8 @@ def register(state):
             n = int(input.num_pupils() or 0)
         except Exception:
             n = 0
-        spk_choices = {"auto": t("noscribe", "speakers_auto")}
+        spk_choices = {"none": t("noscribe", "speakers_none"),
+                       "auto": t("noscribe", "speakers_auto")}
         for i in range(1, 11):
             spk_choices[str(i)] = str(i)
         spk_selected = str(n) if 1 <= n <= 10 else "auto"
@@ -159,6 +177,27 @@ def register(state):
         }
         lang_selected = ui_lang if ui_lang in ("de", "en") else "auto"
 
+        # model dropdown: installed models plain, known-but-missing flagged.
+        inst = set(noscribe_engine.installed_models(engine_status))
+        model_choices = {}
+        for name, spec in noscribe_engine.MODELS.items():
+            if name in inst:
+                model_choices[name] = name
+            else:
+                model_choices[name] = t("noscribe", "model_needs_download").format(
+                    name=name, gb=spec["approx_gb"]
+                )
+        for name in sorted(inst):
+            model_choices.setdefault(name, name)
+        model_selected = (noscribe_engine.DEFAULT_MODEL
+                          if noscribe_engine.DEFAULT_MODEL in model_choices
+                          else next(iter(model_choices)))
+
+        pause_choices = {
+            "none": t("noscribe", "pause_none"),
+            "1sec+": "1 sec+", "2sec+": "2 sec+", "3sec+": "3 sec+",
+        }
+
         header = []
         if is_desktop:
             header.append(ui.div(
@@ -169,33 +208,57 @@ def register(state):
         return ui.div(
             *header,
             ui.p(t("noscribe", "ready_intro")),
+            # --- file in / out -------------------------------------------
             ui.layout_columns(
                 ui.input_file(
                     "noscribe_audio",
                     t("noscribe", "audio_label"),
                     multiple=False,
-                    accept=[".wav", ".mp3", ".m4a", ".ogg", ".flac", ".aac", ".wma", ".opus"],
+                    accept=[".wav", ".mp3", ".m4a", ".ogg", ".flac",
+                            ".aac", ".wma", ".opus", ".mp4", ".mkv", ".mov"],
                     button_label=t("analysis", "browse"),
                     placeholder=t("analysis", "placeholder"),
                 ),
-                ui.input_select(
-                    "noscribe_language",
-                    t("noscribe", "language_label"),
-                    choices=lang_choices, selected=lang_selected,
+                ui.input_text(
+                    "noscribe_output_name",
+                    t("noscribe", "output_label"),
+                    value="", placeholder=t("noscribe", "output_placeholder"),
                 ),
-                ui.input_select(
-                    "noscribe_speakers",
-                    t("noscribe", "speakers_label"),
-                    choices=spk_choices, selected=spk_selected,
-                ),
-                col_widths=[6, 3, 3],
+                col_widths=[6, 6],
+            ),
+            # --- core options --------------------------------------------
+            ui.layout_columns(
+                ui.input_select("noscribe_language", t("noscribe", "language_label"),
+                                choices=lang_choices, selected=lang_selected),
+                ui.input_select("noscribe_model", t("noscribe", "model_label"),
+                                choices=model_choices, selected=model_selected),
+                ui.input_select("noscribe_speakers", t("noscribe", "speakers_label"),
+                                choices=spk_choices, selected=spk_selected),
+                col_widths=[4, 4, 4],
+            ),
+            ui.layout_columns(
+                ui.input_select("noscribe_pause", t("noscribe", "pause_label"),
+                                choices=pause_choices, selected="none"),
+                ui.input_text("noscribe_start_time", t("noscribe", "start_time_label"),
+                              value="", placeholder="00:00:00"),
+                ui.input_text("noscribe_stop_time", t("noscribe", "stop_time_label"),
+                              value="", placeholder="00:00:00"),
+                col_widths=[4, 4, 4],
+            ),
+            # --- toggles -------------------------------------------------
+            ui.layout_columns(
+                ui.input_checkbox("noscribe_overlapping",
+                                  t("noscribe", "overlapping_label"), value=True),
+                ui.input_checkbox("noscribe_disfluencies",
+                                  t("noscribe", "disfluencies_label"), value=True),
+                ui.input_checkbox("noscribe_timestamps",
+                                  t("noscribe", "timestamps_label"), value=False),
+                col_widths=[4, 4, 4],
             ),
             ui.div(
                 ui.input_action_button(
-                    "noscribe_start",
-                    t("noscribe", "start_button"),
-                    icon=icon_svg("wand-magic-sparkles"),
-                    class_="btn-success",
+                    "noscribe_start", t("noscribe", "start_button"),
+                    icon=icon_svg("wand-magic-sparkles"), class_="btn-success",
                 ),
                 ui.output_ui("noscribe_result_note"),
                 style="display: flex; gap: 0.75rem; align-items: center;",
@@ -210,24 +273,21 @@ def register(state):
                     class_="text-muted",
                 ),
                 ui.input_action_link(
-                    "noscribe_uninstall",
-                    t("noscribe", "uninstall_button"),
+                    "noscribe_uninstall", t("noscribe", "uninstall_button"),
                 ) if not is_desktop else None,
-                style="display: flex; gap: 1rem; align-items: center; justify-content: space-between;",
+                style=("display: flex; gap: 1rem; align-items: center; "
+                       "justify-content: space-between;"),
             ),
         )
 
     def _view_busy(kind):
-        # kind: "installing" | "running"
         title_key = "installing_title" if kind == "installing" else "running_title"
         return ui.div(
             ui.h5(t("noscribe", title_key)),
             ui.output_ui("noscribe_progress_view"),
             ui.input_action_button(
-                "noscribe_cancel_btn",
-                t("noscribe", "cancel_button"),
-                icon=icon_svg("circle-stop"),
-                class_="btn-danger",
+                "noscribe_cancel_btn", t("noscribe", "cancel_button"),
+                icon=icon_svg("circle-stop"), class_="btn-danger",
             ),
         )
 
@@ -248,10 +308,8 @@ def register(state):
                 ),
             ) if prog.get("log_tail") else None,
             ui.input_action_button(
-                "noscribe_install",
-                t("noscribe", "error_retry"),
-                icon=icon_svg("rotate-right"),
-                class_="btn-warning",
+                "noscribe_retry", t("noscribe", "error_retry"),
+                icon=icon_svg("rotate-right"), class_="btn-warning",
             ),
         )
 
@@ -275,16 +333,13 @@ def register(state):
         parts = [
             ui.div(
                 ui.tags.strong(phase_label),
-                (ui.tags.span(f"  {detail}", class_="text-muted")
-                 if detail else None),
+                (ui.tags.span(f"  {detail}", class_="text-muted") if detail else None),
                 style="margin-bottom: 0.25rem;",
             ),
             ui.div(
                 ui.div(
                     (f"{value}%" if value is not None else ""),
-                    class_=bar_classes,
-                    role="progressbar",
-                    style=bar_inner_style,
+                    class_=bar_classes, role="progressbar", style=bar_inner_style,
                 ),
                 class_="progress",
                 style="height: 1.25rem; margin-bottom: 0.5rem;",
@@ -314,12 +369,23 @@ def register(state):
             )
         return None
 
+    # prefill the output filename from the chosen audio file's stem
+    @reactive.effect
+    @reactive.event(input.noscribe_audio)
+    def _prefill_output_name():
+        try:
+            file = input.noscribe_audio()
+        except Exception:
+            file = None
+        if file:
+            stem = os.path.splitext(file[0].get("name", "transcript"))[0]
+            ui.update_text("noscribe_output_name", value=stem)
+
     # =====================================================================
-    # Progress-state helpers (called inside reactive.lock)
+    # Progress-state helper (called inside reactive.lock)
     # =====================================================================
 
     def _apply_event(ev):
-        """Fold one engine event into the noscribe_progress dict."""
         cur = dict(noscribe_progress.get() or {})
         cur.pop("done", None)
         cur.pop("error", None)
@@ -335,22 +401,18 @@ def register(state):
         elif etype == "log":
             log = list(cur.get("log") or [])
             log.append(ev.get("line", ""))
-            cur["log"] = log[-_LOG_KEEP * 3:]  # keep a little history for context
+            cur["log"] = log[-_LOG_KEEP * 3:]
         noscribe_progress.set(cur)
 
     # =====================================================================
-    # Install
+    # Install / repair
     # =====================================================================
 
     async def _run_install():
-        error = None
-        cancelled = False
-        log_tail = []
+        error, cancelled, log_tail = None, False, []
         try:
-            async for ev in async_stream(
-                noscribe_engine.install_engine,
-                cancel_token=state.noscribe_cancel,
-            ):
+            async for ev in async_stream(noscribe_engine.install_engine,
+                                         cancel_token=state.noscribe_cancel):
                 etype = ev.get("type")
                 if etype == "error":
                     error = ev.get("message")
@@ -364,13 +426,12 @@ def register(state):
                 async with reactive.lock():
                     _apply_event(ev)
                     await reactive.flush()
-        except Exception as exc:  # pragma: no cover — defensive
+        except Exception as exc:  # pragma: no cover
             error = str(exc)
             print(f"[noscribe] install task failed: {exc!r}")
 
         async with reactive.lock():
             if cancelled:
-                # Partial install dir may exist → re-detect, likely "broken".
                 st = noscribe_engine.detect()
                 noscribe_engine_status.set(st)
                 noscribe_status.set(_map_engine_state(st))
@@ -386,7 +447,7 @@ def register(state):
             await reactive.flush()
 
     @reactive.effect
-    @reactive.event(input.noscribe_install)
+    @reactive.event(input.noscribe_install, input.noscribe_retry)
     def _kick_off_install():
         state.noscribe_cancel.reset()
         noscribe_progress.set({"phase_label": t("noscribe", "phase_preflight"),
@@ -395,37 +456,65 @@ def register(state):
         asyncio.create_task(_run_install())
 
     # =====================================================================
-    # Transcription
+    # Transcription (+ on-demand model download)
     # =====================================================================
 
-    async def _run_transcription(audio_path, language, speakers):
+    async def _run_transcription(audio_path, output_path, opts, need_model):
         result_text = None
-        error = None
-        cancelled = False
-        log_tail = []
+        error, cancelled, log_tail = None, False, []
+        ts_on = opts.get("timestamps", False)
         try:
-            async for ev in async_stream(
-                noscribe_engine.run_transcription,
-                audio_path,
-                cancel_token=state.noscribe_cancel,
-                language=language,
-                speaker_detection=speakers,
-            ):
-                etype = ev.get("type")
-                if etype == "done":
-                    result_text = ev.get("text")
-                    break
-                if etype == "error":
-                    error = ev.get("message")
-                    log_tail = ev.get("log_tail", [])
-                    break
-                if etype == "cancelled":
-                    cancelled = True
-                    break
-                async with reactive.lock():
-                    _apply_event(ev)
-                    await reactive.flush()
-        except Exception as exc:  # pragma: no cover — defensive
+            # 1) ensure the chosen model is present (downloads precise etc.)
+            if need_model:
+                async for ev in async_stream(noscribe_engine.download_model,
+                                             opts["model"],
+                                             cancel_token=state.noscribe_cancel):
+                    etype = ev.get("type")
+                    if etype == "error":
+                        error = ev.get("message")
+                        log_tail = ev.get("log_tail", [])
+                        break
+                    if etype == "cancelled":
+                        cancelled = True
+                        break
+                    if etype == "done":
+                        continue
+                    async with reactive.lock():
+                        _apply_event(ev)
+                        await reactive.flush()
+
+            # 2) transcribe
+            if not error and not cancelled:
+                async for ev in async_stream(
+                    noscribe_engine.run_transcription,
+                    audio_path,
+                    cancel_token=state.noscribe_cancel,
+                    output_path=output_path,
+                    language=opts["language"],
+                    model=opts["model"],
+                    speaker_detection=opts["speakers"],
+                    overlapping=opts["overlapping"],
+                    disfluencies=opts["disfluencies"],
+                    timestamps=ts_on,
+                    pause=opts["pause"],
+                    start=opts["start"],
+                    stop=opts["stop"],
+                ):
+                    etype = ev.get("type")
+                    if etype == "done":
+                        result_text = ev.get("text")
+                        break
+                    if etype == "error":
+                        error = ev.get("message")
+                        log_tail = ev.get("log_tail", [])
+                        break
+                    if etype == "cancelled":
+                        cancelled = True
+                        break
+                    async with reactive.lock():
+                        _apply_event(ev)
+                        await reactive.flush()
+        except Exception as exc:  # pragma: no cover
             error = str(exc)
             print(f"[noscribe] transcription task failed: {exc!r}")
 
@@ -438,6 +527,8 @@ def register(state):
                 noscribe_progress.set({"error": error, "log_tail": log_tail})
             else:
                 clean = _strip_noscribe_header(result_text or "")
+                if ts_on:
+                    clean = _strip_inline_timestamps(clean)
                 transcript_data.set(clean)
                 try:
                     teacher = input.name_teacher() or None
@@ -447,12 +538,13 @@ def register(state):
                 state.transcript_format_status.set("valid" if valid else "invalid")
                 noscribe_status.set("ready")
                 noscribe_progress.set({"done": True})
+                # refresh installed-model list (precise may be new)
+                noscribe_engine_status.set(noscribe_engine.detect())
             await reactive.flush()
 
     @reactive.effect
     @reactive.event(input.noscribe_start)
     def _kick_off_transcription():
-        file = None
         try:
             file = input.noscribe_audio()
         except Exception:
@@ -466,21 +558,47 @@ def register(state):
                                        class_="btn-success"),
             ))
             return
+
         audio_path = file[0]["datapath"]
-        try:
-            language = input.noscribe_language()
-        except Exception:
-            language = "auto"
-        try:
-            speakers = input.noscribe_speakers()
-        except Exception:
-            speakers = "auto"
+
+        def _g(name, default=None):
+            try:
+                return input[name]()
+            except Exception:
+                return default
+
+        model = _g("noscribe_model", noscribe_engine.DEFAULT_MODEL)
+        opts = {
+            "language": _g("noscribe_language", "auto"),
+            "model": model,
+            "speakers": _g("noscribe_speakers", "auto"),
+            "pause": _g("noscribe_pause", "none"),
+            "start": (_g("noscribe_start_time", "") or "").strip(),
+            "stop": (_g("noscribe_stop_time", "") or "").strip(),
+            "overlapping": bool(_g("noscribe_overlapping", True)),
+            "disfluencies": bool(_g("noscribe_disfluencies", True)),
+            "timestamps": bool(_g("noscribe_timestamps", False)),
+        }
+
+        # output filename → engine transcripts dir, always .txt (the format
+        # the analysis consumes). User-entered name is sanitized to a stem.
+        raw_name = (_g("noscribe_output_name", "") or "").strip()
+        stem = os.path.splitext(os.path.basename(raw_name))[0] if raw_name else \
+            os.path.splitext(file[0].get("name", "transcript"))[0]
+        stem = re.sub(r'[^\w.\- ]+', "_", stem).strip() or "transcript"
+        out_dir = noscribe_engine.engine_dir() / "transcripts"
+        output_path = str(out_dir / f"{stem}.txt")
+
+        need_model = not noscribe_engine.is_model_installed(
+            model, noscribe_engine_status.get())
 
         state.noscribe_cancel.reset()
-        noscribe_progress.set({"phase_label": t("noscribe", "phase_setup"),
+        first_phase = "phase_model" if need_model else "phase_setup"
+        noscribe_progress.set({"phase_label": t("noscribe", first_phase),
                                "value": None})
         noscribe_status.set("running")
-        asyncio.create_task(_run_transcription(audio_path, language, speakers))
+        asyncio.create_task(
+            _run_transcription(audio_path, output_path, opts, need_model))
 
     @reactive.effect
     @reactive.event(input.noscribe_cancel_btn)
@@ -502,11 +620,9 @@ def register(state):
             footer=ui.tags.div(
                 ui.modal_button(t("analysis", "modal_button_cancel"),
                                 class_="btn-secondary"),
-                ui.input_action_button(
-                    "noscribe_uninstall_confirm",
-                    t("noscribe", "uninstall_button"),
-                    class_="btn-danger",
-                ),
+                ui.input_action_button("noscribe_uninstall_confirm",
+                                       t("noscribe", "uninstall_button"),
+                                       class_="btn-danger"),
             ),
         ))
 

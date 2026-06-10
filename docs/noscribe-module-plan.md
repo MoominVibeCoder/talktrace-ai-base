@@ -1,8 +1,40 @@
 # noScribe Transcription Module Plan
 
-**Status:** Phase 2 complete (UI integration, verified in a live app);
-ready for Phase 3 (polish & ship). Drafted 2026-06-10, last revised
-2026-06-10.
+**Status:** Phase 2 complete + revised (dedicated tab, full option
+parity), verified in a live app; ready for Phase 3 (polish & ship).
+Drafted 2026-06-10, last revised 2026-06-10.
+
+## Phase 2 revision (2026-06-10) — dedicated tab + full noScribe parity
+
+Per user request the transcription UI moved from a collapsed accordion in
+the Analysis tab to its **own top-level "Transcription" tab** (between
+Analysis and Results), and now exposes **every option the noScribe GUI
+offers**:
+
+- audio in; output filename (saved into the engine's `transcripts/` dir,
+  always `.txt` — the format the analysis consumes; prefilled from the
+  audio stem)
+- start / stop range (`HH:MM:SS`, validated, passed as `--start/--stop`)
+- language (auto/de/en), **model (fast/precise)**, speaker detection
+  (none/auto/1–10), mark-pause (none/1sec+/2sec+/3sec+), overlapping
+  speech, disfluencies, timestamps
+- **precise model downloaded on demand**: the dropdown flags a
+  not-installed model ("precise (downloads ~1.6 GB)"); on Start, if the
+  chosen model is missing it is fetched first (progress shown) and then
+  transcription runs. Engine: a `MODELS` registry, `installed_models()`,
+  and a public `download_model()` generator sharing the install path's
+  download step. Precise source taken from noScribe's own
+  `models/precise/NOSCRIBE_README.txt`: `mobiuslabsgmbh/faster-whisper-
+  large-v3-turbo` (whole repo → `src/models/precise/`).
+
+Because it's a full tab now, the section is always visible — no
+output-suspension caveat. When timestamps are enabled, the saved file
+keeps them; the analysis handoff strips inline timestamps so the coded
+transcript stays clean. Verified live: all 13 inputs render, model
+dropdown signposts the precise download, the no-audio modal works; and a
+20-second `--stop` end-to-end run confirms every flag reaches noScribe
+(header echoes Stop/Language/Speakers/Overlapping/Timestamps/Disfluencies/
+Pause) with S01+ renumbering intact.
 
 ## Phase 2 findings (2026-06-10) — completed
 
