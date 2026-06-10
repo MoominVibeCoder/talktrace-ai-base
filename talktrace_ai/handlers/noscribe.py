@@ -50,6 +50,16 @@ def _strip_noscribe_header(text: str) -> str:
     return text[m.start():] if m else text
 
 
+def _noscribe_header(text: str) -> str:
+    """The metadata block noScribe writes before the first speaker line
+    (tool version, audio path, settings) — kept as provenance when we write
+    edits back to the .txt."""
+    if not text:
+        return ""
+    m = _FIRST_SPEAKER_RE.search(text)
+    return text[:m.start()] if m else ""
+
+
 def _strip_inline_timestamps(text: str) -> str:
     out_lines = []
     for line in text.splitlines():
@@ -82,6 +92,12 @@ def register(state):
     noscribe_status = state.noscribe_status
     noscribe_progress = state.noscribe_progress
     noscribe_engine_status = state.noscribe_engine_status
+
+    # Last transcription's on-disk .txt + its noScribe metadata header, so
+    # the editable transcript field can write corrections back to the file
+    # (provenance) while preserving the header.
+    last_output_path = reactive.value(None)
+    last_header = reactive.value("")
 
     # ---- one-time detection (runs synchronously during server setup) ----
     initial = noscribe_engine.detect()
@@ -330,6 +346,7 @@ def register(state):
             text = input.noscribe_transcript_editor() or ""
         except Exception:
             text = ""
+        # 1) feed the analysis (in-memory transcript)
         transcript_data.set(text)
         try:
             teacher = input.name_teacher() or None
@@ -337,9 +354,32 @@ def register(state):
             teacher = None
         valid = is_valid_transcript_format(text, teacher)
         state.transcript_format_status.set("valid" if valid else "invalid")
-        ui.notification_show(
-            t("noscribe", "editor_applied"), duration=4, type="message",
-        )
+
+        # 2) write corrections back to the on-disk .txt for provenance —
+        # preserve noScribe's metadata header and stamp a manual-edit note.
+        saved_to = None
+        out = last_output_path.get()
+        if out:
+            try:
+                header = (last_header.get() or "").rstrip()
+                marker = t("noscribe", "editor_edit_marker").format(
+                    date=date.today().isoformat())
+                parts = [p for p in (header, marker, text.strip()) if p]
+                Path(out).write_text("\n\n".join(parts) + "\n", encoding="utf-8")
+                saved_to = out
+            except OSError as exc:
+                print(f"[noscribe] could not write edited transcript: {exc!r}")
+
+        if saved_to:
+            ui.notification_show(
+                t("noscribe", "editor_applied_saved").format(
+                    file=os.path.basename(saved_to)),
+                duration=5, type="message",
+            )
+        else:
+            ui.notification_show(
+                t("noscribe", "editor_applied"), duration=4, type="message",
+            )
 
     def _view_busy(kind):
         title_key = "installing_title" if kind == "installing" else "running_title"
@@ -660,6 +700,9 @@ def register(state):
                 if ts_on:
                     clean = _strip_inline_timestamps(clean)
                 transcript_data.set(clean)
+                # remember the .txt + its header so edits can be written back
+                last_output_path.set(output_path)
+                last_header.set(_noscribe_header(result_text or ""))
                 try:
                     teacher = input.name_teacher() or None
                 except Exception:
