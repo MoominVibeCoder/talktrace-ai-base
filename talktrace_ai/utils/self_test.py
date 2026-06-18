@@ -53,14 +53,14 @@ def run_self_test(lang: str = "de") -> dict:
 
     checks = []
 
-    # -- count_pupils: demo transcript has S01..S04 -----------------------
+    # -- count_pupils: demo transcript has S01..S06 -----------------------
     try:
         n_pupils = count_pupils(transcript)
         checks.append(_result(
-            "count_pupils on demo transcript", n_pupils == 4, 4, n_pupils,
+            "count_pupils on demo transcript", n_pupils == 6, 6, n_pupils,
         ))
     except Exception as e:
-        checks.append(_result("count_pupils on demo transcript", False, 4,
+        checks.append(_result("count_pupils on demo transcript", False, 6,
                               None, detail=str(e)))
 
     # -- dialog_stats: teacher and student turn counts --------------------
@@ -70,18 +70,18 @@ def run_self_test(lang: str = "de") -> dict:
         student_row = df_stats.loc[df_stats["Sprecher"] == "Schüler:innen"]
         teacher_n = int(teacher_row["Anzahl_Beitraege"].iloc[0]) if not teacher_row.empty else None
         student_n = int(student_row["Anzahl_Beitraege"].iloc[0]) if not student_row.empty else None
-        # Ground truth (counted from talktrace_ai.examples.demo): 13 teacher
-        # turns, 9 student turns.
+        # Ground truth (counted from talktrace_ai.examples.demo): 9 teacher
+        # turns, 15 student turns.
         checks.append(_result(
             "dialog_stats teacher turn count",
-            teacher_n == 13, 13, teacher_n,
+            teacher_n == 9, 9, teacher_n,
         ))
         checks.append(_result(
             "dialog_stats student turn count",
-            student_n == 9, 9, student_n,
+            student_n == 15, 15, student_n,
         ))
     except Exception as e:
-        checks.append(_result("dialog_stats", False, "(13 teacher, 9 student)",
+        checks.append(_result("dialog_stats", False, "(9 teacher, 15 student)",
                               None, detail=str(e)))
 
     # -- intercoder: identical reports → κ=1.0, percent_agreement=1.0 -----
@@ -117,8 +117,9 @@ def run_self_test(lang: str = "de") -> dict:
         perturbed_res = compute_intercoder_agreement(expected_df.copy(),
                                                     perturbed)
         k = perturbed_res.get("kappa")
-        # We just need monotonicity here: 3 flips out of 22 → κ should be
-        # strictly < 1, and well above 0 (most codes still agree).
+        # We just need monotonicity here: 3 flips out of 11 coded rows (9
+        # unique teacher impulses) → κ should be strictly < 1, and well above
+        # 0 (most codes still agree; observed κ ≈ 0.63).
         ok = k is not None and 0.5 <= k < 1.0
         checks.append(_result(
             "intercoder agreement drops on perturbation",
