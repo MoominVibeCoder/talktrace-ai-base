@@ -469,6 +469,40 @@ STRINGS = {
         "self_test_col_expected": "Erwartet",
         "self_test_col_actual": "Tatsächlich",
     },
+    "feedback": {
+        "tab_title": "Feedback",
+        "section_title": "Unterrichts-Feedback",
+        "intro_hint": "Erzeuge ein wissenschaftlich fundiertes, formatives Feedback zur "
+                      "analysierten Stunde — auf Basis des T-SEDA-Profils der Gesprächs-Moves "
+                      "der Lehrkraft und der quantitativen Redekennzahlen. Text prüfen, "
+                      "bearbeiten und exportieren.",
+        "disclaimer": "Dieses Feedback ist eine Reflexionshilfe, keine Bewertung oder Note. "
+                      "Es wird von einem Sprachmodell aus den Analyse-Daten erzeugt — bitte "
+                      "kritisch prüfen.",
+        "empty_state": "Bitte zuerst eine Analyse mit LLM-Codierung durchführen (Tab "
+                       "„Analyse“). Das Feedback wird aus der Codierung und den "
+                       "Redekennzahlen erzeugt.",
+        "generate_button": "Feedback erzeugen",
+        "regenerate_button": "Neu erzeugen",
+        "generating": "Feedback wird erzeugt…",
+        "editor_label": "Feedback (bearbeitbar)",
+        "editor_hint": "Der Text kann vor dem Export bearbeitet werden.",
+        "preview_empty": "Noch kein Feedback erzeugt.",
+        "copy": "Kopieren",
+        "download_docx": "Als Word (.docx)",
+        "download_pdf": "Als PDF",
+        "pdf_failed": "PDF-Export fehlgeschlagen: {error}",
+        "pdf_unavailable_linux": "Der PDF-Export benötigt Microsoft Word und ist unter "
+                                 "Linux nicht verfügbar. Bitte den Word-Download (.docx) "
+                                 "verwenden.",
+        "feedback_empty": "Das Modell hat kein Feedback zurückgegeben. Bitte erneut "
+                          "versuchen oder ein anderes Modell wählen.",
+        "feedback_failed": "Feedback-Erzeugung fehlgeschlagen: {error}",
+        "no_key": "Für den gewählten Anbieter ist kein API-Schlüssel hinterlegt. Bitte "
+                  "im Tab „Optionen“ eintragen.",
+        "doc_title": "Unterrichts-Feedback",
+        "cost_estimate": "Geschätzte Kosten: {cost} €",
+    },
     "info": {
         "tab_title": "Info / Lizenz",
         "dev_heading": "Entwicklung",

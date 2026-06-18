@@ -47,6 +47,7 @@ from ..myfuncs import (
     record_cost_run, get_cost_summary, reset_cost_log,
     compute_fingerprint, build_methods_text, run_self_test,
     build_transition_matrix, plot_transition_heatmap,
+    chat_completion,
     _parse_turns,
 )
 from ..transcript_analyzer import (
@@ -252,6 +253,7 @@ __all__ = [
     "record_cost_run", "get_cost_summary", "reset_cost_log",
     "compute_fingerprint", "build_methods_text", "run_self_test",
     "build_transition_matrix", "plot_transition_heatmap",
+    "chat_completion",
     "_parse_turns",
     "analyze_transcript", "suggest_default_options",
     "convert_with_options", "ConversionOptions",

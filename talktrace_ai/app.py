@@ -27,6 +27,7 @@ from .ui.analysis_tab import build_analysis_tab
 from .ui.transcription_tab import build_transcription_tab
 from .ui.consent_tab import build_consent_tab
 from .ui.results_tab import build_results_tab
+from .ui.feedback_tab import build_feedback_tab
 from .ui.options_tab import build_options_tab
 from .ui.info_tab import build_info_tab
 from .state import build_app_state
@@ -74,6 +75,7 @@ app_ui = ui.page_sidebar(
         build_analysis_tab(),
         build_transcription_tab(),
         build_results_tab(),
+        build_feedback_tab(),
         build_consent_tab(),
         build_options_tab(),
         ui.nav_spacer(),
