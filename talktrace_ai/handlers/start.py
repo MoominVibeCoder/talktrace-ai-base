@@ -12,6 +12,7 @@ handlers/sidebar/_session). Tab switches use ``ui.update_navset`` with the
 rendered title markup, matching the convention used across the handlers.
 """
 from ._common import *
+from ..paths import _mark_dataprotection_acknowledged
 
 # A nav_panel's value is the rendered markup of its title element (Shiny
 # derives it when no explicit value= is given). Captured verbatim from the
@@ -113,6 +114,46 @@ def register(state):
         cls = "alert py-2 mb-0 " + ("alert-success" if has_key else "alert-warning")
         return ui.div(icon_svg("robot"), " ", line, class_=cls)
 
+    def _dp_section():
+        # Data-protection gate. None → must acknowledge before any LLM call;
+        # "consent"/"fictive" → acknowledged with a recorded choice; ""
+        # → acknowledged by a legacy flag file with no recorded choice.
+        kind = state.data_consent_given.get()
+        if kind is None:
+            return ui.card(
+                ui.card_header(ui.span(icon_svg("shield-halved"), " ",
+                                       t("start", "dp_section_title"))),
+                ui.p(ui.tags.strong(t("start", "dp_intro_strong"))),
+                ui.p(t("start", "dp_intro_body")),
+                ui.input_radio_buttons(
+                    "start_dp_data_kind", None,
+                    choices={
+                        "consent": t("start", "dp_choice_consent"),
+                        "fictive": t("start", "dp_choice_fictive"),
+                    },
+                    selected=None,
+                ),
+                ui.input_action_button(
+                    "start_dp_confirm", t("start", "dp_confirm"),
+                    icon=icon_svg("check"), class_="btn-success",
+                ),
+                ui.p(t("start", "dp_status_pending"),
+                     class_="text-muted small mt-2 mb-0"),
+                class_="border-warning",
+            )
+        kind_label = {"consent": t("start", "dp_kind_consent"),
+                      "fictive": t("start", "dp_kind_fictive")}.get(kind)
+        status = [icon_svg("circle-check"), " ", t("start", "dp_status_ok")]
+        if kind_label:
+            status.append(ui.tags.strong(" " + kind_label))
+        return ui.div(
+            ui.div(*status, class_="alert alert-success py-2 mb-1"),
+            ui.input_action_button(
+                "start_dp_change", t("start", "dp_change"),
+                icon=icon_svg("pen"), class_="btn-outline-secondary btn-sm",
+            ),
+        )
+
     # ------------------------------------------------------------------
     # Main section
     # ------------------------------------------------------------------
@@ -121,6 +162,7 @@ def register(state):
         return ui.div(
             ui.h2(t("start", "intro_headline")),
             ui.p(t("start", "intro_body"), class_="text-muted"),
+            _dp_section(),
             ui.card(
                 ui.card_header(t("start", "workflow_title")),
                 _workflow_strip(),
@@ -138,6 +180,8 @@ def register(state):
                 col_widths={"sm": 6, "lg": 3},
             ),
             ui.div(_config_line(), class_="mt-3"),
+            # Quick-start checklist (moved out of the floating pill).
+            ui.div(ui.output_ui("tt_quickstart_panel"), class_="mt-3"),
             ui.card(
                 ui.card_header(t("start", "whats_new_title")),
                 ui.tags.ul(
@@ -177,3 +221,26 @@ def register(state):
         fn = getattr(state, "load_demo_session", None)
         if fn is not None:
             await fn()
+
+    # ------------------------------------------------------------------
+    # Data-protection acknowledgment
+    # ------------------------------------------------------------------
+    @reactive.effect
+    @reactive.event(input.start_dp_confirm, ignore_init=True)
+    def _confirm_dp():
+        try:
+            choice = input.start_dp_data_kind()
+        except Exception:
+            choice = None
+        if choice not in ("consent", "fictive"):
+            ui.notification_show(t("start", "dp_pick_required"), type="warning", duration=4)
+            return
+        _mark_dataprotection_acknowledged(choice)
+        state.data_consent_given.set(choice)
+
+    @reactive.effect
+    @reactive.event(input.start_dp_change, ignore_init=True)
+    def _change_dp():
+        # Re-open the choice for this session. The on-disk flag is left intact;
+        # re-confirming overwrites it. (Until re-confirmed, LLM calls are gated.)
+        state.data_consent_given.set(None)

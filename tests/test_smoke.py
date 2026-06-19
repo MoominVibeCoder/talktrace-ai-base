@@ -25,6 +25,7 @@ def test_app_state_has_expected_fields():
         "transcript_data", "codebook_data", "llm_analysis_data",
         "stats", "current_api", "current_lang", "model",
         "report_a_df", "report_b_df", "run_analysis",
+        "data_consent_given",
     }
     missing = expected - fields
     assert not missing, f"AppState missing fields: {missing}"

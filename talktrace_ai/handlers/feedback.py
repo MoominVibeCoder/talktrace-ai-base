@@ -178,6 +178,10 @@ def register(state):
     async def _generate():
         if feedback_busy.get() or not _has_analysis():
             return
+        # Data-protection gate (Feedback always calls the LLM).
+        if state.data_consent_given.get() is None:
+            ui.notification_show(t("start", "dp_status_pending"), type="warning", duration=6)
+            return
         provider = config.get_current_api()
         model = state.model.get()
         key = _key_for(provider)

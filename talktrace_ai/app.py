@@ -70,9 +70,11 @@ url = "http://127.0.0.1:8000"
 app_ui = ui.page_sidebar(
     build_sidebar(),
     head_content(),
-    ui.output_ui("tt_quickstart_panel"),
     ui.output_ui("tt_demo_button_top"),
     ui.navset_tab(
+        # Start is the first tab → the default selection on launch. It hosts
+        # the quick-start checklist and the data-protection acknowledgment.
+        build_start_tab(),
         build_analysis_tab(),
         build_transcription_tab(),
         build_results_tab(),
@@ -81,9 +83,6 @@ app_ui = ui.page_sidebar(
         build_options_tab(),
         ui.nav_spacer(),
         build_info_tab(),
-        # Phase 2: Start tab registered last so the default selection stays
-        # Analysis. Phase 6 moves it to first position and makes it default.
-        build_start_tab(),
         id="main_tabs",
     ),
     ui.include_css(str(resource_path("static/styles.css"))),

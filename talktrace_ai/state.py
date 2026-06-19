@@ -6,6 +6,7 @@ from shiny import reactive
 from .config.config_manager import ConfigManager
 from .localization.translation import TRANSLATIONS
 from .utils.llm_analysis._cancel import CancelToken
+from .paths import _dataprotection_kind
 
 
 @dataclass
@@ -92,6 +93,12 @@ class AppState:
     # opt into clearing themselves on an explicit reset.
     session_reset_nonce: Any
     self_test_result: Any
+    # Data-protection acknowledgment (GDPR gate before any LLM call). Value is
+    # the data kind the user confirmed: None = not yet acknowledged (LLM calls
+    # blocked), "consent" | "fictive" = acknowledged, "" = legacy flag file
+    # with no recorded choice. Seeded from the on-disk flag so a returning user
+    # is not re-prompted; surfaced + editable in the Start tab.
+    data_consent_given: Any
     # Analysis cancellation: shared token (provider streams check it),
     # reactive flags drive UI (running/cancelled banner).
     cancel_token: Any
@@ -210,6 +217,7 @@ def build_app_state(input, output, session) -> AppState:
         cost_tracker_version=reactive.value(0),
         session_reset_nonce=reactive.value(0),
         self_test_result=reactive.value(None),
+        data_consent_given=reactive.value(_dataprotection_kind()),
         cancel_token=CancelToken(),
         analysis_running=reactive.value(False),
         analysis_cancelled=reactive.value(False),

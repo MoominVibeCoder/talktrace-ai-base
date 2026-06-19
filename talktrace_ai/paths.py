@@ -21,10 +21,27 @@ def _dataprotection_acknowledged():
     return _DATAPROTECTION_FLAG_FILE.exists()
 
 
-def _mark_dataprotection_acknowledged():
+def _dataprotection_kind():
+    """Stored data kind: 'consent' | 'fictive' (acknowledged with a recorded
+    choice), '' (acknowledged by a legacy flag file with no choice stored), or
+    None (not acknowledged). Used to seed AppState.data_consent_given so a
+    returning user is not re-prompted."""
+    if not _DATAPROTECTION_FLAG_FILE.exists():
+        return None
+    try:
+        content = _DATAPROTECTION_FLAG_FILE.read_text(encoding="utf-8").strip()
+    except OSError:
+        content = ""
+    return content if content in ("consent", "fictive") else ""
+
+
+def _mark_dataprotection_acknowledged(kind: str = ""):
+    """Persist the acknowledgment. ``kind`` ('consent'/'fictive') is stored as
+    the file content so the choice survives a restart; an empty string keeps
+    the historical touch-only behaviour."""
     try:
         _DATAPROTECTION_FLAG_FILE.parent.mkdir(parents=True, exist_ok=True)
-        _DATAPROTECTION_FLAG_FILE.touch()
+        _DATAPROTECTION_FLAG_FILE.write_text(kind or "", encoding="utf-8")
     except OSError:
         pass
 

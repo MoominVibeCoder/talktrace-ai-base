@@ -581,14 +581,12 @@ html[data-bs-theme="dark"] .form-text {
   pointer-events: none;
 }
 
-/* ---- Onboarding: floating quick-start ---- */
+/* ---- Onboarding: quick-start checklist (inline in the Start tab) ---- */
+/* Was a fixed corner pill; relocated into the Start tab in the 2026 redesign. */
 #tt-quickstart {
-  position: fixed;
-  top: 0.5rem;
-  right: 0.75rem;
-  z-index: 1050;
-  width: 230px;
-  font-size: 0.8rem;
+  width: 100%;
+  max-width: 460px;
+  font-size: 0.85rem;
   user-select: none;
 }
 #tt-quickstart .qs-header {
@@ -605,12 +603,12 @@ html[data-bs-theme="dark"] .form-text {
 #tt-quickstart.qs-pending .qs-header { background: #b02a37; }
 #tt-quickstart .qs-body {
   display: none;
-  background: rgba(255,255,255,0.97);
-  border: 1px solid rgba(0,0,0,0.1);
+  background: var(--bs-body-bg, rgba(255,255,255,0.97));
+  border: 1px solid rgba(128,128,128,0.25);
   border-top: none;
   padding: 0.4rem 0.6rem;
   border-radius: 0 0 4px 4px;
-  color: #222;
+  color: inherit;
 }
 #tt-quickstart.qs-open .qs-body { display: block; }
 #tt-quickstart .qs-item {
