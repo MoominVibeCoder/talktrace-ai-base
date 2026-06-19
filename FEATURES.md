@@ -96,11 +96,13 @@ Own **Consent** tab — generate a print-ready **GDPR Art. 13** consent declarat
 
 ## Interface
 
-- **Light & dark themes** — Soft Nordic (light) and Deep Forest (dark), toggleable in sidebar
+- **Start tab (landing page)** — workflow status strip, entry tiles, current-configuration line, "what's new", and the data-protection acknowledgment; the default tab on launch
+- **Workflow-ordered tabs** — Start → Transcription → Analysis → Results → Feedback, with Options alongside and Consent + Info on the right; LLM configuration lives in the Analysis tab, the sidebar is organisation only (language, session save/restore/reset)
+- **Light & dark themes** — Soft Nordic (light) and Deep Forest (dark), toggle in the title bar
 - **Bilingual UI** — English & German, switchable any time
 - **Onboarding tooltips** — hover help on every key control
-- **Data-protection acknowledgment gate** — first-launch dialog requires active confirmation of where transcript data will be sent before any LLM call goes out
-- **Quickstart checklist** — live ✓/✗ panel showing what's ready
+- **Data-protection acknowledgment gate** — a Start-tab choice (explicit-consent data vs. fictive test data) that must be confirmed before any LLM call goes out
+- **Quickstart checklist** — live ✓/✗ panel (on the Start tab) showing what's ready
 - **Demo button** — load a sample analysis without API keys (T-SEDA-coded civics lesson on lowering the voting age to 16)
 - **Gold-standard self-test** — one-click *Test the app* runs a known fixture and shows expected vs. actual; trust-builder before users analyse their own data
 - **Tab notification badges** — at-a-glance status of where action is needed

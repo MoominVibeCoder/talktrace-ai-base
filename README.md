@@ -106,7 +106,14 @@ For active development, use `dev.bat` (Windows) or `./dev.sh` (Linux/macOS) — 
 
 ## Interface
 
-Six main tabs — **Analysis** · **Transcription** · **Results** · **Feedback** · **Consent** · **Options** — plus an Info tab and a sidebar with model picker, session save/restore, dark-mode toggle, EN/DE switch, live cost estimate, and a quickstart checklist.
+A **Start** tab is the landing page (workflow overview, entry tiles, current-configuration line, data-protection acknowledgment, quick-start checklist). The workflow then runs left to right — **Transcription · Analysis · Results · Feedback** — with **Options** alongside and **Consent** + **Info** on the right. LLM configuration (provider, model, switches, live cost estimate, *Analyze*) lives in the **Analysis** tab; the sidebar is organisation only — EN/DE switch and session save/restore/reset. The dark-mode toggle sits in the title bar.
+
+<details>
+<summary><strong>Start tab</strong> (landing page)</summary>
+
+The first screen on launch. A workflow strip (Audio → Transcript → Analysis → Feedback → Export) shows how far you are; entry tiles jump to transcription, analysis, the session history, or a no-key demo. A configuration line reports the active provider/model, and a one-time **data-protection acknowledgment** (pick *consent* or *fictive test data*) gates LLM calls until confirmed.
+
+</details>
 
 <details>
 <summary><strong>Analysis tab</strong></summary>
@@ -117,9 +124,9 @@ Document Input panel:
 - **Teacher name** *(optional)* — if present in the transcript, enables teacher-specific metrics.
 - **Group identifier and metadata** — used for report labelling.
 
-Click *Analyze* in the sidebar; the app switches to Results on completion.
+Configure the LLM and click *Analyze* in the tab's **LLM configuration** card; the app switches to Results on completion.
 
-> **Cost estimate.** The sidebar figure is a *lower bound* — transcript+codebook length × input price × ~4 for output. A cumulative cost tracker (in *Options*) sums spend across all your analyses.
+> **Cost estimate.** The figure in the LLM-configuration card is a *lower bound* — transcript+codebook length × input price × ~4 for output. A cumulative cost tracker (in *Options*) sums spend across all your analyses.
 
 </details>
 
@@ -171,7 +178,7 @@ Split into quantitative and qualitative sections.
 <summary><strong>Options tab</strong></summary>
 
 - **API configuration** — keys for OpenAI, Anthropic, Mistral, DeepSeek. Keys live in the OS keyring (Keychain / Credential Manager / SecretService).
-- **Models for LLM Selection** — edit the registry (add/remove models, set per-million-token prices); changes propagate to the sidebar in real time.
+- **Models for LLM Selection** — edit the registry (add/remove models, set per-million-token prices); changes propagate to the Analysis-tab model picker in real time.
 - **Custom Prompts** — modify the system + user prompts used for qualitative coding; defaults restorable any time.
 - **Cost tracker** — cumulative spend across all analyses, per provider.
 - **Test the app** (gold-standard self-test) — runs a known fixture and shows expected vs. actual to build trust before you analyse real data.
