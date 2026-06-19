@@ -87,22 +87,15 @@ def register(state):
         if analysis_state.get():
             return
 
-        m = ui.modal(
-            ui.p(t("results", "no_results")),
-            ui.tags.hr(),
-            ui.p(t("onboarding", "empty_results_message")),
-            ui.input_action_button(
-                "tt_demo_open_from_modal",
-                t("onboarding", "demo_button"),
-                icon=icon_svg("vial"),
-                class_="btn-primary btn-sm",
-            ),
-            title=t("results", "no_results_title"),
-            easy_close=True,
-            footer=ui.modal_button("OK", class_="btn-success"),
-            size="m",
+        # Notification rather than a modal: a modal_show together with the
+        # immediate update_navset below could leave the Bootstrap backdrop
+        # stuck behind the next tab if the user clicked on. The demo entry
+        # now lives on the Start tab, so no in-modal demo button is needed.
+        ui.notification_show(
+            t("onboarding", "empty_results_message"),
+            type="message",
+            duration=6,
         )
-        ui.modal_show(m)
         ui.update_navset("main_tabs", selected='<div id="loc_title_analysis" class="shiny-text-output"></div>')
 
     # Anzeige der allgemeinen Informationen
