@@ -87,6 +87,10 @@ class AppState:
     tab_badge_autopilot: Any
     local_only: Any
     cost_tracker_version: Any
+    # Bumped by "Reset session" so self-contained views that deliberately avoid
+    # casual re-renders (e.g. the noScribe tab, to preserve its file input) can
+    # opt into clearing themselves on an explicit reset.
+    session_reset_nonce: Any
     self_test_result: Any
     # Analysis cancellation: shared token (provider streams check it),
     # reactive flags drive UI (running/cancelled banner).
@@ -204,6 +208,7 @@ def build_app_state(input, output, session) -> AppState:
         tab_badge_autopilot=reactive.value(None),
         local_only=reactive.value(config.get_advanced().get("local_only", False)),
         cost_tracker_version=reactive.value(0),
+        session_reset_nonce=reactive.value(0),
         self_test_result=reactive.value(None),
         cancel_token=CancelToken(),
         analysis_running=reactive.value(False),

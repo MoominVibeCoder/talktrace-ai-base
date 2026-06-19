@@ -155,6 +155,7 @@ STRINGS = {
         "trim_region": "Bereich",
         "trim_decoding": "Wellenform wird geladen …",
         "trim_failed": "Wellenform für dieses Format nicht verfügbar — Start/Stopp ggf. manuell eintragen.",
+        "download_txt": "Transkript speichern (.txt)",
         "overlapping_label": "Überlappende Sprache",
         "disfluencies_label": "Füllwörter (äh, ähm …)",
         "timestamps_label": "Zeitmarken",

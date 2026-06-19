@@ -155,6 +155,7 @@ STRINGS = {
         "trim_region": "Range",
         "trim_decoding": "Loading waveform …",
         "trim_failed": "Waveform not available for this format — enter Start/Stop manually if needed.",
+        "download_txt": "Save transcript (.txt)",
         "overlapping_label": "Overlapping speech",
         "disfluencies_label": "Disfluencies (uh, um …)",
         "timestamps_label": "Timestamps",

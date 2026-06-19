@@ -174,6 +174,10 @@ def register(state):
 
     @render.ui
     def noscribe_section():
+        # Re-render on an explicit "Reset session" so the file input, the
+        # start/stop fields and the waveform are cleared (this view otherwise
+        # avoids casual re-renders on purpose — see _view_ready).
+        state.session_reset_nonce.get()
         status = noscribe_status.get()
         if status in ("not_installed", "broken"):
             return _view_not_installed(status)
@@ -370,6 +374,11 @@ def register(state):
                     "noscribe_apply_edit", t("noscribe", "editor_apply"),
                     icon=icon_svg("check"), class_="btn-primary",
                 ),
+                # Save the (edited) transcript wherever the user wants — a
+                # browser upload only gives us a temp copy of the audio, so we
+                # can't write next to the original; a download lets the OS save
+                # dialog pick the location (e.g. beside the audio file).
+                ui.output_ui("noscribe_download_ui"),
                 ui.tags.small(t("noscribe", "editor_apply_hint"),
                               class_="text-muted"),
                 style=("display: flex; gap: 0.75rem; align-items: center; "
@@ -653,6 +662,11 @@ def register(state):
     # Audio stays on the machine — same arm's-length, local-only stance as the
     # transcription itself.
     _audio_ref = {"path": None, "mime": None}
+    # Controllable mirror of "is an audio file selected?". Shiny does NOT clear a
+    # file input's server-side value when its widget is re-rendered, so we can't
+    # rely on input.noscribe_audio() going None on reset. Gate the waveform and
+    # the transcription start on this flag instead, and clear it on reset.
+    noscribe_has_audio = reactive.value(False)
 
     @reactive.effect
     @reactive.event(input.noscribe_audio)
@@ -666,9 +680,23 @@ def register(state):
             name = file[0].get("name", "")
             _audio_ref["path"] = file[0].get("datapath")
             _audio_ref["mime"] = mimetypes.guess_type(name)[0] or "application/octet-stream"
+            noscribe_has_audio.set(True)
         else:
             _audio_ref["path"] = None
             _audio_ref["mime"] = None
+            noscribe_has_audio.set(False)
+
+    @reactive.effect
+    @reactive.event(lambda: state.session_reset_nonce.get(), ignore_init=True)
+    def _clear_audio_on_reset():
+        # "Reset session" must also drop the selected audio (the file input's
+        # server value lingers, so clear our mirror) and the range/output fields.
+        noscribe_has_audio.set(False)
+        _audio_ref["path"] = None
+        _audio_ref["mime"] = None
+        ui.update_text("noscribe_start_time", value="")
+        ui.update_text("noscribe_stop_time", value="")
+        ui.update_text("noscribe_output_name", value="")
 
     def _serve_audio(request):
         from starlette.responses import FileResponse, Response
@@ -681,16 +709,24 @@ def register(state):
 
     @render.ui
     def noscribe_waveform():
+        # Gate on our mirror so the waveform disappears on reset (the file
+        # input's server value lingers and can't be relied on).
+        if not noscribe_has_audio.get():
+            return None
         try:
             file = input.noscribe_audio()
         except Exception:
             file = None
         if not file:
             return None
-        # Cache-bust by file name so re-selecting a different file reloads the
-        # waveform (the dynamic-route URL itself is stable per session).
-        import urllib.parse
-        bust = urllib.parse.quote(file[0].get("name", "audio"))
+        # Cache-bust per UPLOAD (not per filename): each upload gets a unique
+        # datapath, so re-uploading the SAME file still yields a fresh URL —
+        # otherwise the rendered HTML would be byte-identical, Shiny would skip
+        # the DOM update, and the widget would stay on the stale (already-inited)
+        # state ("cutting blocked"). The dynamic route itself is stable.
+        import hashlib
+        dp = file[0].get("datapath", "") or file[0].get("name", "audio")
+        bust = hashlib.md5(str(dp).encode("utf-8")).hexdigest()[:12]
         url = f"{_audio_route}?v={bust}"
         return ui.div(
             ui.tags.label(t("noscribe", "trim_label"), class_="form-label"),
@@ -709,6 +745,44 @@ def register(state):
             ui.tags.small(t("noscribe", "trim_hint"), class_="text-muted"),
             style="margin-bottom:0.9rem;",
         )
+
+    # ------------------------------------------------------------------
+    # Save the transcript (.txt) — a download lets the OS save dialog pick
+    # the location (a browser upload only gives us a temp copy of the audio,
+    # so we can't write next to the original automatically).
+    # ------------------------------------------------------------------
+    def _txt_stem():
+        with reactive.isolate():
+            try:
+                raw = (input.noscribe_output_name() or "").strip()
+            except Exception:
+                raw = ""
+            try:
+                audio = input.noscribe_audio()
+            except Exception:
+                audio = None
+        stem = os.path.splitext(os.path.basename(raw))[0] if raw else ""
+        if not stem and audio:
+            stem = os.path.splitext(audio[0].get("name", "transcript"))[0]
+        stem = re.sub(r"[^\w.\- ]+", "_", stem or "").strip()
+        return stem or "transcript"
+
+    @render.ui
+    def noscribe_download_ui():
+        # Re-renders on transcript changes: button appears once a transcript
+        # exists and disappears on reset.
+        if not (transcript_data.get() or "").strip():
+            return None
+        return ui.download_button(
+            "noscribe_download_txt", t("noscribe", "download_txt"),
+            icon=icon_svg("download"), class_="btn-primary btn-sm",
+        )
+
+    @render.download(filename=lambda: f"{_txt_stem()}.txt")
+    def noscribe_download_txt():
+        with reactive.isolate():
+            txt = transcript_data.get() or ""
+        yield txt.encode("utf-8")
 
     # =====================================================================
     # Progress-state helper (called inside reactive.lock)
@@ -882,7 +956,9 @@ def register(state):
             file = input.noscribe_audio()
         except Exception:
             file = None
-        if not file:
+        # `noscribe_has_audio` is our reset-aware mirror: a stale file-input
+        # value must not let a transcription start after a reset.
+        if not file or not noscribe_has_audio.get():
             ui.modal_show(ui.modal(
                 t("noscribe", "no_audio_selected"),
                 title=t("noscribe", "section_title"),

@@ -731,6 +731,39 @@ _VALID_PAUSE = ("none", "1sec+", "2sec+", "3sec+")
 _CLOCK_RE = re.compile(r"^\d{1,2}:\d{2}:\d{2}$")
 
 
+def _pretrim_audio(venv_python: Path, src: Path, start_ms: int, stop_ms: int) -> Optional[Path]:
+    """Trim ``[start_ms, stop_ms]`` of ``src`` to a temp 16 kHz mono WAV using
+    the engine venv's ``av`` (via ``_audio_trim.py``, run as a subprocess).
+
+    Returns the temp path, or ``None`` if trimming isn't possible — letting the
+    caller fall back to noScribe's own ``--start``/``--stop``. Works around a
+    noScribe seek crash when a stream's ``start_time`` is ``None`` (e.g. WAV):
+    by handing noScribe a pre-cut file with no range args, its buggy seek never
+    runs. ``stop_ms == 0`` means "until the end".
+    """
+    script = Path(__file__).resolve().parent / "_audio_trim.py"
+    if not (venv_python and Path(venv_python).exists() and script.exists()):
+        return None
+    fd, tmp_name = tempfile.mkstemp(prefix="ttai_trim_", suffix=".wav")
+    os.close(fd)
+    tmp = Path(tmp_name)
+    flags = subprocess.CREATE_NO_WINDOW if _IS_WINDOWS else 0
+    try:
+        proc = subprocess.run(
+            [str(venv_python), str(script), str(src), str(tmp),
+             str(int(start_ms)), str(int(stop_ms))],
+            capture_output=True, text=True, timeout=900, creationflags=flags,
+        )
+        if proc.returncode == 0 and tmp.exists() and tmp.stat().st_size > 1024:
+            return tmp
+        print(f"[noscribe] pre-trim failed (rc={proc.returncode}): "
+              f"{(proc.stderr or '').strip()[-300:]}")
+    except Exception as e:  # noqa: BLE001 — fall back to noScribe's own range args
+        print(f"[noscribe] pre-trim error: {e}")
+    tmp.unlink(missing_ok=True)
+    return None
+
+
 def run_transcription(
     audio_path,
     output_path=None,
@@ -788,6 +821,28 @@ def run_transcription(
         output_path = jobs / f"{audio.stem}-{stamp}.txt"
     out = Path(output_path)
     out.parent.mkdir(parents=True, exist_ok=True)
+
+    # Pre-trim workaround: noScribe's --start seek computes
+    # `stream.start_time * time_base`, which raises when start_time is None
+    # (common for WAV). When a start is requested and we can reach the engine
+    # venv's `av`, trim the range ourselves and hand noScribe a ready-made file
+    # with no --start/--stop, so its buggy seek never runs. We only need this
+    # when a *start* is set (a stop-only range uses noScribe's stop_after, which
+    # never seeks). Falls back to the range args if trimming isn't possible.
+    trim_tmp: Optional[Path] = None
+    _start_ok = bool(start and _CLOCK_RE.match(start.strip()))
+    _stop_ok = bool(stop and _CLOCK_RE.match(stop.strip()))
+    if _start_ok and status.mode != "desktop":
+        venv_py = _engine_paths(status.engine_dir or engine_dir())["python"]
+        start_ms = int(_parse_clock(start.strip()) * 1000)
+        stop_ms = int(_parse_clock(stop.strip()) * 1000) if _stop_ok else 0
+        yield {"type": "log", "line": "Audio: trimming to selected range…"}
+        trimmed = _pretrim_audio(venv_py, audio, start_ms, stop_ms)
+        if trimmed is not None:
+            trim_tmp = trimmed
+            audio = trimmed       # noScribe transcribes the pre-cut file …
+            start = None          # … so the range args (and the buggy seek)
+            stop = None           #     are not needed.
 
     pause = pause if pause in _VALID_PAUSE else "none"
     opts = [
@@ -906,6 +961,9 @@ def run_transcription(
     finally:
         if proc.poll() is None:
             _kill_tree(proc)
+        # noScribe has finished reading the (pre-trimmed) audio by now.
+        if trim_tmp is not None:
+            trim_tmp.unlink(missing_ok=True)
 
     if _cancelled(token):
         out.unlink(missing_ok=True)

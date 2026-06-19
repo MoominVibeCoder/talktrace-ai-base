@@ -334,6 +334,10 @@ def register(state):
         # Cancellation-Banner löschen, falls die vorherige Session abgebrochen wurde.
         if hasattr(state, "analysis_cancelled"):
             state.analysis_cancelled.set(False)
+        # Clear the Transcription tab too (audio file, start/stop times,
+        # waveform): bump the shared nonce so its self-contained view, which
+        # deliberately avoids casual re-renders, re-renders once and resets.
+        state.session_reset_nonce.set(state.session_reset_nonce.get() + 1)
         ui.update_text("name_group", value=config.get_parameters()['group_id'])
         ui.update_numeric("num_pupils", value=config.get_parameters()['num_pupils'])
         ui.update_text("name_teacher", value=config.get_parameters()['teacher_name'])
