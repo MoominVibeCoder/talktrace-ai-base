@@ -130,6 +130,7 @@ def register(state):
                     choices={
                         "consent": t("start", "dp_choice_consent"),
                         "fictive": t("start", "dp_choice_fictive"),
+                        "self": t("start", "dp_choice_self"),
                     },
                     selected=None,
                 ),
@@ -142,7 +143,8 @@ def register(state):
                 class_="border-warning",
             )
         kind_label = {"consent": t("start", "dp_kind_consent"),
-                      "fictive": t("start", "dp_kind_fictive")}.get(kind)
+                      "fictive": t("start", "dp_kind_fictive"),
+                      "self": t("start", "dp_kind_self")}.get(kind)
         status = [icon_svg("circle-check"), " ", t("start", "dp_status_ok")]
         if kind_label:
             status.append(ui.tags.strong(" " + kind_label))
@@ -236,7 +238,7 @@ def register(state):
             choice = input.start_dp_data_kind()
         except Exception:
             choice = None
-        if choice not in ("consent", "fictive"):
+        if choice not in ("consent", "fictive", "self"):
             ui.notification_show(t("start", "dp_pick_required"), type="warning", duration=4)
             return
         _mark_dataprotection_acknowledged(choice)

@@ -32,7 +32,7 @@ def _dataprotection_kind():
         content = _DATAPROTECTION_FLAG_FILE.read_text(encoding="utf-8").strip()
     except OSError:
         content = ""
-    return content if content in ("consent", "fictive") else ""
+    return content if content in ("consent", "fictive", "self") else ""
 
 
 def _mark_dataprotection_acknowledged(kind: str = ""):

@@ -817,12 +817,14 @@ STRINGS = {
         "dp_intro_body": "TalkTrace sends transcripts and codebooks to the selected LLM provider. With OpenAI, Anthropic and Groq the data leaves the European Economic Area (US-hosted servers). Please confirm which kind of data you will work with:",
         "dp_choice_consent": "I will only use transcripts for which the speakers have given written consent to AI-based processing (including in the US).",
         "dp_choice_fictive": "I will only use fictive test data (e.g. invented or AI-generated) without any link to real people.",
+        "dp_choice_self": "I analyse only my own utterances (e.g. as the teacher, my own contributions); no other person's data is processed.",
         "dp_confirm": "I acknowledge",
-        "dp_pick_required": "Please pick one of the two options before continuing.",
+        "dp_pick_required": "Please pick one of the options before continuing.",
         "dp_status_pending": "Data protection not yet acknowledged — required before the first analysis.",
         "dp_status_ok": "Data protection acknowledged:",
         "dp_kind_consent": "consent obtained",
         "dp_kind_fictive": "fictive test data",
+        "dp_kind_self": "own utterances only",
         "dp_change": "Change"
     }
 }
