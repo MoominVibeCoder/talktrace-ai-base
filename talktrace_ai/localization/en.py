@@ -56,6 +56,7 @@ STRINGS = {
     },
     "analysis": {
         "tab_title": "Analysis",
+        "llm_config_title": "LLM configuration",
         "general_info": "General Information",
         "group_id": "Group ID",
         "num_pupils": "Group size",
