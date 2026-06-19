@@ -178,8 +178,10 @@ def register(state):
     async def _generate():
         if feedback_busy.get() or not _has_analysis():
             return
-        # Data-protection gate (Feedback always calls the LLM).
+        # Data-protection gate (Feedback always calls the LLM). Guide the user
+        # to the Start tab where the acknowledgment widget lives.
         if state.data_consent_given.get() is None:
+            ui.update_navset("main_tabs", selected='<div id="loc_title_start" class="shiny-text-output"></div>')
             ui.notification_show(t("start", "dp_status_pending"), type="warning", duration=6)
             return
         provider = config.get_current_api()

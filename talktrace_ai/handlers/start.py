@@ -12,7 +12,7 @@ handlers/sidebar/_session). Tab switches use ``ui.update_navset`` with the
 rendered title markup, matching the convention used across the handlers.
 """
 from ._common import *
-from ..paths import _mark_dataprotection_acknowledged
+from ..paths import _mark_dataprotection_acknowledged, _clear_dataprotection_acknowledged
 
 # A nav_panel's value is the rendered markup of its title element (Shiny
 # derives it when no explicit value= is given). Captured verbatim from the
@@ -196,7 +196,11 @@ def register(state):
         )
 
     # ------------------------------------------------------------------
-    # Tile actions — navigate / reuse existing code paths
+    # Tile actions — navigate / reuse existing code paths.
+    # state.load_demo_session and state.show_history_modal are published by
+    # onboarding.register() / sidebar._session.register(). Shiny completes all
+    # register() calls before any reactive effect fires, so they are always
+    # set by the time a tile is clicked; getattr keeps it defensive regardless.
     # ------------------------------------------------------------------
     @reactive.effect
     @reactive.event(input.start_tile_audio, ignore_init=True)
@@ -241,6 +245,8 @@ def register(state):
     @reactive.effect
     @reactive.event(input.start_dp_change, ignore_init=True)
     def _change_dp():
-        # Re-open the choice for this session. The on-disk flag is left intact;
-        # re-confirming overwrites it. (Until re-confirmed, LLM calls are gated.)
+        # Re-open the choice. Clear the on-disk flag too, so closing the app
+        # after "change" but before re-confirming leaves the gate closed —
+        # otherwise the old choice would be silently restored on next launch.
+        _clear_dataprotection_acknowledged()
         state.data_consent_given.set(None)

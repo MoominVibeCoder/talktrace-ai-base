@@ -46,6 +46,16 @@ def _mark_dataprotection_acknowledged(kind: str = ""):
         pass
 
 
+def _clear_dataprotection_acknowledged():
+    """Remove the flag so the gate stays closed until the user re-confirms.
+    Used by the Start-tab "change" action: closing the app after "change"
+    but before re-confirming must NOT silently restore the old choice."""
+    try:
+        _DATAPROTECTION_FLAG_FILE.unlink(missing_ok=True)
+    except OSError:
+        pass
+
+
 def resource_path(relative_path: str) -> Path:
     if hasattr(sys, '_MEIPASS'):
         return Path(sys._MEIPASS) / relative_path

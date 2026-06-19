@@ -628,6 +628,9 @@ def register(state):
         except Exception:
             llm_on = True
         if llm_on and state.data_consent_given.get() is None:
+            # Send the user to the Start tab where the acknowledgment widget
+            # lives, rather than leaving them with only a toast.
+            ui.update_navset("main_tabs", selected='<div id="loc_title_start" class="shiny-text-output"></div>')
             ui.notification_show(t("start", "dp_status_pending"), type="warning", duration=6)
             return
         # Beim Klick alten Fehlertext / Bar-Reststand verwerfen, Cancel-Token
