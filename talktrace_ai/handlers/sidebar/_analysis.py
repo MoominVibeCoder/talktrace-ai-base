@@ -620,6 +620,19 @@ def register(state):
     @reactive.effect
     @reactive.event(input.button_analysis)
     def _kick_off_analysis():
+        # Data-protection gate: block the LLM call until the user has
+        # acknowledged in the Start tab which kind of data they work with.
+        # Quantitative-only runs (LLM off) transmit nothing, so they pass.
+        try:
+            llm_on = bool(input.llm_switch())
+        except Exception:
+            llm_on = True
+        if llm_on and state.data_consent_given.get() is None:
+            # Send the user to the Start tab where the acknowledgment widget
+            # lives, rather than leaving them with only a toast.
+            ui.update_navset("main_tabs", selected='<div id="loc_title_start" class="shiny-text-output"></div>')
+            ui.notification_show(t("start", "dp_status_pending"), type="warning", duration=6)
+            return
         # Beim Klick alten Fehlertext / Bar-Reststand verwerfen, Cancel-Token
         # für den neuen Lauf scharf machen, Banner-Flag löschen.
         analysis_status_msg.set("")

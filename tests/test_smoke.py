@@ -25,6 +25,7 @@ def test_app_state_has_expected_fields():
         "transcript_data", "codebook_data", "llm_analysis_data",
         "stats", "current_api", "current_lang", "model",
         "report_a_df", "report_b_df", "run_analysis",
+        "data_consent_given",
     }
     missing = expected - fields
     assert not missing, f"AppState missing fields: {missing}"
@@ -87,10 +88,11 @@ def test_llm_analysis_provider_subpackage():
 def test_handler_sections_export_register():
     """Each handler section module exports a callable register."""
     from talktrace_ai.handlers import (
-        onboarding, sidebar, analysis, noscribe, consent, results, options, info,
+        start, onboarding, sidebar, analysis, noscribe, consent,
+        results, feedback, options, info,
     )
-    for mod in (onboarding, sidebar, analysis, noscribe, consent,
-                results, options, info):
+    for mod in (start, onboarding, sidebar, analysis, noscribe, consent,
+                results, feedback, options, info):
         assert callable(getattr(mod, "register", None)), (
             f"{mod.__name__} missing callable register(state)"
         )

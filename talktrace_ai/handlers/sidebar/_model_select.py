@@ -25,6 +25,13 @@ def register(state):
             # "ollama": "Ollama",
         }
 
+    # Card header for the LLM-configuration card in the Analysis tab (the
+    # model picker, switches, cost chip and analyse button now live there
+    # instead of the sidebar).
+    @render.ui
+    def loc_llm_config_title():
+        return ui.span(icon_svg("robot"), " ", t("analysis", "llm_config_title"))
+
     @render.ui
     def loc_dynamic_model_select():
         return ui.div(

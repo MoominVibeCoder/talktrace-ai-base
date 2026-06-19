@@ -23,6 +23,7 @@ from .localization.translation import TRANSLATIONS
 from .paths import _WELCOME_FLAG_FILE, _welcome_shown, _mark_welcome_shown, resource_path
 from .ui.sidebar import build_sidebar
 from .ui.head import head_content
+from .ui.start_tab import build_start_tab
 from .ui.analysis_tab import build_analysis_tab
 from .ui.transcription_tab import build_transcription_tab
 from .ui.consent_tab import build_consent_tab
@@ -69,16 +70,20 @@ url = "http://127.0.0.1:8000"
 app_ui = ui.page_sidebar(
     build_sidebar(),
     head_content(),
-    ui.output_ui("tt_quickstart_panel"),
     ui.output_ui("tt_demo_button_top"),
     ui.navset_tab(
-        build_analysis_tab(),
+        # Order mirrors the workflow: Start → Transcription → Analysis →
+        # Results → Feedback, then Options. Start is first → the default tab
+        # on launch (quick-start checklist + data-protection acknowledgment).
+        build_start_tab(),
         build_transcription_tab(),
+        build_analysis_tab(),
         build_results_tab(),
         build_feedback_tab(),
-        build_consent_tab(),
         build_options_tab(),
+        # Right-aligned group: Consent sits just left of Info / License.
         ui.nav_spacer(),
+        build_consent_tab(),
         build_info_tab(),
         id="main_tabs",
     ),
