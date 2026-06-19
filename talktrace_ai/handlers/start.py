@@ -89,7 +89,7 @@ def register(state):
                 ui.div(ui.tags.strong(t("start", title_key))),
                 ui.div(t("start", body_key), class_="small text-muted"),
             ),
-            class_="btn btn-outline-secondary w-100 h-100 text-start p-3",
+            class_="btn start-tile w-100 h-100 text-start p-3",
         )
 
     def _config_line():
