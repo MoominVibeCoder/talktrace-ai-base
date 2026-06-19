@@ -16,7 +16,7 @@ LLM-assisted analysis of classroom and small-group transcripts. Quantitative met
 
 > **base** is the public, slimmed-down distribution descended from the original [TalkTrace-AI](https://github.com/talktrace-ai/talktrace-ai) by Jami Schorling and Dennis Hauk (Leipzig University). base focuses on the stable, well-tested core; experimental features and the active research roadmap live in a private internal research version.
 
-**Highlights** — Big-Four LLM backends (OpenAI, Anthropic, Mistral, DeepSeek) · Local audio transcription (optional noScribe engine, 100% on-device) · GDPR Art. 13 consent-declaration generator (DOCX/PDF) · Streaming coding view · Human-in-the-loop code editing · Code-transition heatmap and over-time views · Auto-generated methods paragraph + reproducibility fingerprint · DOCX / PDF / XLSX / HTML / CSV exports · Light/Dark themes · EN/DE UI
+**Highlights** — Big-Four LLM backends (OpenAI, Anthropic, Mistral, DeepSeek) · Local audio transcription with in-app waveform trim (optional noScribe engine, 100% on-device) · Research-grounded formative teacher feedback (editable, DOCX/PDF) · GDPR Art. 13 consent-declaration generator (DOCX/PDF) · Streaming coding view · Human-in-the-loop code editing · Code-transition heatmap and over-time views · Auto-generated methods paragraph + reproducibility fingerprint · DOCX / PDF / XLSX / HTML / CSV exports · Light/Dark themes · EN/DE UI
 
 **Full feature list** — [FEATURES.md](FEATURES.md)
 
@@ -106,7 +106,7 @@ For active development, use `dev.bat` (Windows) or `./dev.sh` (Linux/macOS) — 
 
 ## Interface
 
-Five main tabs — **Analysis** · **Transcription** · **Results** · **Consent** · **Options** — plus an Info tab and a sidebar with model picker, session save/restore, dark-mode toggle, EN/DE switch, live cost estimate, and a quickstart checklist.
+Six main tabs — **Analysis** · **Transcription** · **Results** · **Feedback** · **Consent** · **Options** — plus an Info tab and a sidebar with model picker, session save/restore, dark-mode toggle, EN/DE switch, live cost estimate, and a quickstart checklist.
 
 <details>
 <summary><strong>Analysis tab</strong></summary>
@@ -128,9 +128,20 @@ Click *Analyze* in the sidebar; the app switches to Results on completion.
 
 Turn an audio recording into a transcript **entirely on your machine** — the audio never leaves your computer. Powered by the standalone open-source engine [noScribe](https://github.com/kaixxx/noScribe) (Whisper + pyannote), GPL-3.0, invoked only as a separate subprocess and installed on demand (~3 GB, one time, Windows).
 
-Exposes the full set of noScribe options: audio in, output filename, start/stop range, language, **model (fast / precise)**, speaker count (pre-filled from the group size), mark-pause, overlapping speech, disfluencies, timestamps. A live progress display (step, percentage, elapsed time) shows what's happening, and an **editable transcript field** lets you fix speaker labels or spelling before the result is handed straight into the Analysis tab.
+Exposes the full set of noScribe options: audio in, output filename, start/stop range, language, **model (fast / precise)**, speaker count (pre-filled from the group size), mark-pause, overlapping speech, disfluencies, timestamps. An **in-app waveform editor** lets you drag handles for start and end of the segment — no external tool needed. A live progress display (step, percentage, elapsed time) shows what's happening, and an **editable transcript field** lets you fix speaker labels or spelling before the result is handed straight into the Analysis tab or saved as a `.txt` file.
 
 Best suited to **10–15 minute small-group recordings** (CPU transcription ≈ 1.5× realtime with the *fast* model). See the in-app Info / License tab and [NOTICE](NOTICE) for the licensing and privacy details.
+
+</details>
+
+<details>
+<summary><strong>Feedback tab</strong> (optional, LLM)</summary>
+
+Generate **research-grounded, formative feedback for the teacher** after an analysis has run. The Feedback tab takes the coded turns, the codebook definitions, and the quantitative metrics from the same session and produces a structured prose report along three axes — **Stärken** (strengths) · **Entwicklungsfelder** (growth areas) · **Konkrete Umsetzungshinweise** (concrete suggestions) — with a short reference list grounded in dialogic-teaching literature (T-SEDA, IRE/IRF, accountable talk, productive disciplinary engagement).
+
+The generated text is **fully editable** in-place — you can tighten, rephrase, or strip sections before exporting to **Word (.docx)** or **PDF**. A live cost estimate and the cumulative cost tracker (in *Options*) apply here too.
+
+It is an **aid, not a verdict** — clearly framed as formative scaffolding for self-reflection, not summative assessment.
 
 </details>
 

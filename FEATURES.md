@@ -16,12 +16,28 @@
 Own **Transcription** tab — turn an audio recording into a transcript that flows straight into the analysis, **100% on-device** (the audio never leaves the machine). Powered by the standalone open-source engine [noScribe](https://github.com/kaixxx/noScribe) (Whisper + pyannote, GPL-3.0), invoked only as a separate subprocess.
 
 - **On-demand install** — one button downloads an isolated engine (uv-managed Python + torch/pyannote + Whisper model, ~3 GB, one time); never touches the main app environment. Detects an existing desktop noScribe install and uses it instead.
+- **In-app waveform trim** — drag start/end handles directly on the waveform to select the segment to transcribe; the chosen range is written to the noScribe start/stop fields automatically (no external audio editor needed). Pre-cut is performed arm's-length via the engine's own audio stack so the original file is never modified
 - **Full noScribe option parity** — audio in, output filename, start/stop range, language, **model selection (fast / precise)**, speaker count (pre-filled from group size), mark-pause, overlapping speech, disfluencies, timestamps
 - **Whisper model choice** — *fast* (int8, ~0.8 GB) or *precise* (fp16, ~1.6 GB); a not-yet-installed model is downloaded on demand before the run
 - **Live progress** — phase, step (X of N), percentage, and an elapsed-time clock; cancellable (kills the whole process tree)
 - **Editable transcript field** — fix speaker labels or spelling before analysis (human-in-the-loop); changes apply to the shared transcript that feeds the pipeline
+- **Save transcript (.txt)** — download the final transcript as a plain text file, independent of the analysis pipeline
+- **Session-reset aware** — *Sitzung zurücksetzen* clears the audio, the waveform widget, the trim range, and the transcript; re-uploading the same file is always re-cuttable
 - **Automatic handoff** — speaker labels renumbered to the TalkTrace `S01+` convention, metadata header stripped, format validated, loaded into the Analysis tab
 - **Engine management** — version shown, one-click uninstall to reclaim the disk space
+
+## Formative teacher feedback (optional, LLM)
+
+Own **Feedback** tab — generate **research-grounded, formative feedback for the teacher** from the analysis already on screen. Frames the report as scaffolding for self-reflection, not summative assessment.
+
+- **Three structured axes** — *Stärken*, *Entwicklungsfelder*, *Konkrete Umsetzungshinweise*
+- **Grounded in the analysis** — uses the teacher's per-code profile, the codebook definitions, and the quantitative metrics of the current session; no external context required
+- **Short reference list** — anchored in dialogic-teaching literature (T-SEDA, IRE/IRF, accountable talk, productive disciplinary engagement)
+- **Bilingual** — German or English prompt set, follows the active UI language
+- **Editable in place** — refine, tighten, or rephrase before exporting; edits persist across re-renders
+- **Export to Word (.docx) or PDF** — native document; PDF via the installed Word (docx2pdf), unavailable on Linux
+- **Visible disclaimer** — formative aid, not a verdict; not a substitute for collegial or supervisory review
+- **Cost tracked** — counts against the cumulative cost tracker like any other LLM call
 
 ## Consent declaration (optional)
 
@@ -85,7 +101,7 @@ Own **Consent** tab — generate a print-ready **GDPR Art. 13** consent declarat
 - **Onboarding tooltips** — hover help on every key control
 - **Data-protection acknowledgment gate** — first-launch dialog requires active confirmation of where transcript data will be sent before any LLM call goes out
 - **Quickstart checklist** — live ✓/✗ panel showing what's ready
-- **Demo button** — load a sample analysis without API keys
+- **Demo button** — load a sample analysis without API keys (T-SEDA-coded civics lesson on lowering the voting age to 16)
 - **Gold-standard self-test** — one-click *Test the app* runs a known fixture and shows expected vs. actual; trust-builder before users analyse their own data
 - **Tab notification badges** — at-a-glance status of where action is needed
 - **Auto tab-switch** — jumps to Results when analysis completes
