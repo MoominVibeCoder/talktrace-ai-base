@@ -100,6 +100,11 @@ def register(state):
         ui.update_navset("main_tabs", selected='<span class="shiny-html-output" id="loc_title_results"></span>')
         ui.notification_show(t("onboarding", "demo_loaded"), type="message", duration=4)
 
+    # Published for the Start tab's demo tile (same code path as the floating
+    # demo button). Called from a reactive body after all register() calls
+    # complete, so binding order does not matter — see server_body docstring.
+    state.load_demo_session = _load_demo_session
+
     @render.ui
     def tt_quickstart_panel():
         # Aktuell ausgewählten Anbieter berücksichtigen (re-rendert bei Wechsel)

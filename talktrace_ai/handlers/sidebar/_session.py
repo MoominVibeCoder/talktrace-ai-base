@@ -212,6 +212,8 @@ def register(state):
             size="l",
         ))
 
+    # Published for the Start tab's "resume" tile.
+    state.show_history_modal = _show_history_modal
 
     @reactive.effect
     @reactive.event(input.button_history)
