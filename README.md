@@ -14,7 +14,7 @@
 
 LLM-assisted analysis of classroom and small-group transcripts. Quantitative metrics, qualitative coding, structured reports — packaged as a desktop app, AGPL-3.0 licensed.
 
-> **base** is the public, slimmed-down distribution descended from the original [TalkTrace-AI](https://github.com/talktrace-ai/talktrace-ai) by Jami Schorling and Dennis Hauk (Leipzig University). base focuses on the stable, well-tested core; experimental features and the active research roadmap live in a private internal research version.
+> **base** is the public distribution descended from the original [TalkTrace-AI](https://github.com/talktrace-ai/talktrace-ai) by Jami Schorling and Dennis Hauk (Leipzig University). base focuses on the stable, well-tested core; experimental features and the active research roadmap live in a private internal research version.
 
 **Highlights** — Big-Four LLM backends (OpenAI, Anthropic, Mistral, DeepSeek) · Local audio transcription with in-app waveform trim (optional noScribe engine, 100% on-device) · Research-grounded formative teacher feedback (editable, DOCX/PDF) · GDPR Art. 13 consent-declaration generator (DOCX/PDF) · Streaming coding view · Human-in-the-loop code editing · Code-transition heatmap and over-time views · Auto-generated methods paragraph + reproducibility fingerprint · DOCX / PDF / XLSX / HTML / CSV exports · Light/Dark themes · EN/DE UI
 
