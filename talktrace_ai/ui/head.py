@@ -15,4 +15,5 @@ def head_content():
         ui.tags.style(load_theme_css()),
         ui.tags.script(_load_js("theme_sync.js")),
         ui.tags.script(_load_js("tooltip_quickstart.js")),
+        ui.tags.script(_load_js("noscribe_trim.js")),
     )

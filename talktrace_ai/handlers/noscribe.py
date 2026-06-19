@@ -119,6 +119,7 @@ def _map_engine_state(engine_status) -> str:
 
 def register(state):
     input = state.input
+    session = state.session
     t = state.t
     config = state.config
     transcript_data = state.transcript_data
@@ -291,6 +292,8 @@ def register(state):
                 ),
                 col_widths=[6, 6],
             ),
+            # --- waveform / trim (writes into the start/stop fields below) -
+            ui.output_ui("noscribe_waveform"),
             # --- core options --------------------------------------------
             ui.layout_columns(
                 ui.input_select("noscribe_language", t("noscribe", "language_label"),
@@ -642,6 +645,70 @@ def register(state):
         if file:
             stem = os.path.splitext(file[0].get("name", "transcript"))[0]
             ui.update_text("noscribe_output_name", value=stem)
+
+    # --- waveform / trim widget -----------------------------------------
+    # Serve the currently-selected audio file to the local webview so the
+    # in-browser waveform widget can decode it; the widget writes the chosen
+    # keep-range into noscribe_start_time / noscribe_stop_time (HH:MM:SS).
+    # Audio stays on the machine — same arm's-length, local-only stance as the
+    # transcription itself.
+    _audio_ref = {"path": None, "mime": None}
+
+    @reactive.effect
+    @reactive.event(input.noscribe_audio)
+    def _stash_audio_for_waveform():
+        try:
+            file = input.noscribe_audio()
+        except Exception:
+            file = None
+        if file:
+            import mimetypes
+            name = file[0].get("name", "")
+            _audio_ref["path"] = file[0].get("datapath")
+            _audio_ref["mime"] = mimetypes.guess_type(name)[0] or "application/octet-stream"
+        else:
+            _audio_ref["path"] = None
+            _audio_ref["mime"] = None
+
+    def _serve_audio(request):
+        from starlette.responses import FileResponse, Response
+        path = _audio_ref.get("path")
+        if not path or not os.path.exists(path):
+            return Response(status_code=404)
+        return FileResponse(path, media_type=_audio_ref.get("mime") or "application/octet-stream")
+
+    _audio_route = session.dynamic_route("noscribe_audio_file", _serve_audio)
+
+    @render.ui
+    def noscribe_waveform():
+        try:
+            file = input.noscribe_audio()
+        except Exception:
+            file = None
+        if not file:
+            return None
+        # Cache-bust by file name so re-selecting a different file reloads the
+        # waveform (the dynamic-route URL itself is stable per session).
+        import urllib.parse
+        bust = urllib.parse.quote(file[0].get("name", "audio"))
+        url = f"{_audio_route}?v={bust}"
+        return ui.div(
+            ui.tags.label(t("noscribe", "trim_label"), class_="form-label"),
+            ui.tags.div(
+                class_="ttai-trim",
+                data_audio_url=url,
+                data_start_input="noscribe_start_time",
+                data_stop_input="noscribe_stop_time",
+                data_label_play=t("noscribe", "trim_play"),
+                data_label_pause=t("noscribe", "trim_pause"),
+                data_label_reset=t("noscribe", "trim_reset"),
+                data_label_region=t("noscribe", "trim_region"),
+                data_label_decoding=t("noscribe", "trim_decoding"),
+                data_label_failed=t("noscribe", "trim_failed"),
+            ),
+            ui.tags.small(t("noscribe", "trim_hint"), class_="text-muted"),
+            style="margin-bottom:0.9rem;",
+        )
 
     # =====================================================================
     # Progress-state helper (called inside reactive.lock)
