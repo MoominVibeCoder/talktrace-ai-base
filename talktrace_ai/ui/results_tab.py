@@ -6,6 +6,9 @@ def build_results_tab():
     return ui.nav_panel(
         ui.output_ui("loc_title_results", inline=True),
         ui.output_ui("loc_results_cancelled_banner"),
+        # Report download lives here now (was in the sidebar). Same id, same
+        # button_report_open modal — only the mount point moved.
+        ui.div(ui.output_ui("show_report_download_button"), class_="mb-2"),
         ui.accordion(
             ui.accordion_panel(
                 ui.output_ui("loc_quantitative_analysis"),
