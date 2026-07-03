@@ -8,7 +8,7 @@ surface:
 
   * OpenAI    -> Responses API (``client.responses.create`` / ``output_text``)
   * Anthropic -> Messages API (``client.messages.create``, text content blocks)
-  * Mistral / DeepSeek -> OpenAI-compatible ``chat.completions``
+  * Mistral / DeepSeek / LocalMind -> OpenAI-compatible ``chat.completions``
 
 We deliberately do NOT use ``_shared.extract_chat_content`` here: that helper
 returns a JSON ``{"error": ...}`` blob (never ``None``) on empty/refusal/length,
@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from ..llm_clients import (
     get_openai_client, get_anthropic_client,
-    get_mistral_client, get_deepseek_client,
+    get_mistral_client, get_deepseek_client, get_localmind_client,
 )
 from ...config.config_manager import KNOWN_PROVIDERS
 
@@ -30,6 +30,7 @@ from ...config.config_manager import KNOWN_PROVIDERS
 _OPENAI_CHAT_FACTORIES = {
     "mistral": get_mistral_client,
     "deepseek": get_deepseek_client,
+    "localmind": get_localmind_client,
 }
 
 

@@ -3,30 +3,30 @@ import os
 from pathlib import Path
 
 
-# Single source of truth for the provider list. Order matters for the
-# default sort in the model dropdown.
+# Single source of truth for the provider list. Order matters: the first
+# entry is both the default sort in the model dropdown AND the fallback
+# ``get_current_api`` snaps to when a saved config points at a disabled
+# provider.
 #
-# *** BIG-4 demo configuration (May 2026) ***
-# For the morning meeting / professor demo, only the four providers we
-# committed to highlighting are active: OpenAI + Anthropic (closed,
-# US-hosted) plus Mistral (EU-hosted, GDPR-compliant path) and DeepSeek
-# (frontier-class quality at fraction-of-OpenAI cost). Groq, Ollama and
-# OpenRouter are intentionally **commented out** rather than deleted —
-# their provider modules (groq.py, ollama.py, openrouter.py) and SDK
-# clients in llm_clients.py remain in place so they can be re-enabled
-# in a single-line change once the Big-4 demo phase is over.
+# *** LocalMind-first configuration (July 2026) ***
+# LocalMind (api.lminference.eu) is an EU-hosted, OpenAI-compatible inference
+# gateway; because it keeps classroom transcripts inside the EU it is the
+# GDPR-conformant default and leads the list. Alongside it: OpenAI + Anthropic
+# (closed, US-hosted), Mistral (EU-hosted) and DeepSeek (frontier-class quality
+# at a fraction of OpenAI cost). Groq, Ollama and OpenRouter are intentionally
+# **commented out** rather than deleted — their SDK clients in llm_clients.py
+# remain in place so they can be re-enabled in a single-line change.
 #
-# Adding a provider back: uncomment its slug here, restore its label in
-# ``handlers/autopilot._PROVIDER_LABELS`` (which has a drift assertion
-# that will fire on import otherwise), and re-enable the entry in the
-# two ``_provider_choices`` dropdowns (handlers/options.py and
+# Adding a provider back: uncomment its slug here and re-enable the entry in
+# the two ``_provider_choices`` dropdowns (handlers/options.py and
 # handlers/sidebar/_model_select.py).
 KNOWN_PROVIDERS = [
+    'localmind',    # EU-hosted gateway — default provider (GDPR-conformant)
     'openai',
-    # 'groq',       # disabled for Big-4 demo (May 2026)
+    # 'groq',       # disabled (May 2026)
     'anthropic',
-    # 'ollama',     # disabled for Big-4 demo (May 2026); also disables local-only mode
-    # 'openrouter', # disabled for Big-4 demo (May 2026)
+    # 'ollama',     # disabled (May 2026); also disables local-only mode
+    # 'openrouter', # disabled (May 2026)
     'mistral',
     'deepseek',
 ]
@@ -295,13 +295,13 @@ class ConfigManager:
     def get_current_api(self):
         if not self.config.has_section('MODELS'):
             self.config.add_section('MODELS')
-        api = self.config.get('MODELS', 'current_api', fallback="openai")
-        # Big-4 demo migration: a user's saved config may still point at a
-        # provider we have since disabled (e.g. ``openrouter`` from the
-        # OpenRouter test phase). Snap back to the first Big-4 provider
-        # silently — otherwise downstream ``set_current_api`` validation
-        # would refuse to round-trip the value and the UI would land on a
-        # broken default. ``KNOWN_PROVIDERS[0]`` is OpenAI by convention.
+        api = self.config.get('MODELS', 'current_api', fallback="localmind")
+        # Migration guard: a user's saved config may still point at a provider
+        # we have since disabled (e.g. ``openrouter`` from the OpenRouter test
+        # phase). Snap back to the first known provider silently — otherwise
+        # downstream ``set_current_api`` validation would refuse to round-trip
+        # the value and the UI would land on a broken default.
+        # ``KNOWN_PROVIDERS[0]`` is LocalMind (the EU-hosted default).
         if api not in KNOWN_PROVIDERS:
             print(f"[config] current_api={api!r} no longer in KNOWN_PROVIDERS — migrating to {KNOWN_PROVIDERS[0]!r}")
             api = KNOWN_PROVIDERS[0]

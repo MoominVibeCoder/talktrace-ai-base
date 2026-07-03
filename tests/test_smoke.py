@@ -48,14 +48,15 @@ def test_client_factories_build():
     """
     from talktrace_ai.utils.llm_clients import (
         get_openai_client, get_anthropic_client,
-        get_mistral_client, get_deepseek_client,
+        get_mistral_client, get_deepseek_client, get_localmind_client,
     )
 
     assert type(get_openai_client("sk-test")).__name__ == "OpenAI"
     assert type(get_anthropic_client("sk-test")).__name__ == "Anthropic"
-    # Mistral and DeepSeek reuse the OpenAI SDK pointed at their endpoints.
+    # Mistral, DeepSeek and LocalMind reuse the OpenAI SDK pointed at their endpoints.
     assert type(get_mistral_client("sk-test")).__name__ == "OpenAI"
     assert type(get_deepseek_client("sk-test")).__name__ == "OpenAI"
+    assert type(get_localmind_client("sk-test")).__name__ == "OpenAI"
 
 
 def test_cache_key_resolves_format_codebook():
@@ -74,14 +75,14 @@ def test_cache_key_resolves_format_codebook():
 
 
 def test_llm_analysis_provider_subpackage():
-    """All four providers must remain importable from the public path."""
+    """All providers must remain importable from the public path."""
     from talktrace_ai.utils.llm_analysis import (
         llm_analysis_openai, llm_analysis_anthropic,
-        llm_analysis_mistral, llm_analysis_deepseek,
+        llm_analysis_mistral, llm_analysis_deepseek, llm_analysis_localmind,
     )
 
     for fn in (llm_analysis_openai, llm_analysis_anthropic,
-               llm_analysis_mistral, llm_analysis_deepseek):
+               llm_analysis_mistral, llm_analysis_deepseek, llm_analysis_localmind):
         assert callable(fn)
 
 

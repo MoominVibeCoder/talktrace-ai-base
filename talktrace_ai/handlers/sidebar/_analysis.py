@@ -252,6 +252,14 @@ def register(state):
                         (sys_p, usr_p, mdl, transcript, cb, client),
                         {"language": lang},
                     )
+                elif current_api == "localmind":
+                    req(state.api_key_localmind.get() != None)
+                    client = get_localmind_client(state.api_key_localmind.get())
+                    stream_gen_args = (
+                        llm_analysis_localmind_stream,
+                        (sys_p, usr_p, mdl, transcript, cb, client),
+                        {"language": lang},
+                    )
             else:
                 if current_api == "groq":
                     req(api_key_groq.get() != None)
@@ -286,6 +294,11 @@ def register(state):
                     client = get_deepseek_client(state.api_key_deepseek.get())
                     llm_task = asyncio.create_task(asyncio.to_thread(
                         llm_analysis_deepseek, sys_p, usr_p, mdl, transcript, cb, client))
+                elif current_api == "localmind":
+                    req(state.api_key_localmind.get() != None)
+                    client = get_localmind_client(state.api_key_localmind.get())
+                    llm_task = asyncio.create_task(asyncio.to_thread(
+                        llm_analysis_localmind, sys_p, usr_p, mdl, transcript, cb, client))
 
         # Zuerst Statistik einsammeln (läuft parallel zum LLM-Call).
         stats_result = await stats_task

@@ -17,6 +17,7 @@ def register(state):
     api_key_openrouter = state.api_key_openrouter
     api_key_mistral = state.api_key_mistral
     api_key_deepseek = state.api_key_deepseek
+    api_key_localmind = state.api_key_localmind
     ollama_status_refresh = state.ollama_status_refresh
     current_api = state.current_api
     model_deleted = state.model_deleted
@@ -25,6 +26,7 @@ def register(state):
 
     # -- API-key registry: single source of truth for save + delete ------
     _api_key_name = {
+        "localmind": "api_key_localmind",
         "openai": "api_key_openai",
         "groq": "api_key_groq",
         "anthropic": "api_key_anthropic",
@@ -34,6 +36,7 @@ def register(state):
         "deepseek": "api_key_deepseek",
     }
     _api_key_reactive = {
+        "localmind": api_key_localmind,
         "openai": api_key_openai,
         "groq": api_key_groq,
         "anthropic": api_key_anthropic,
@@ -62,13 +65,14 @@ def register(state):
 
 
     def _options_provider_choices():
-        # Big-4 demo (May 2026): only the four providers we want to showcase
-        # appear in the Options API dropdown. Groq / Ollama / OpenRouter are
-        # commented out below and will reappear in one place once
-        # KNOWN_PROVIDERS is restored.
+        # Mirror of the sidebar/_model_select dropdown. LocalMind (EU-hosted)
+        # leads as the GDPR-conformant default. Groq / Ollama / OpenRouter are
+        # commented out below and reappear in one place once KNOWN_PROVIDERS
+        # is restored.
         # if state.local_only.get():
         #     return {"ollama": "Ollama"}
         return {
+            "localmind": "LocalMind",
             "openai": "OpenAI",
             "anthropic": "Anthropic",
             "mistral": "Mistral",
@@ -91,7 +95,10 @@ def register(state):
     @render.text
     def loc_api_key_exists():
         selected = input.api_select()
-        if selected == "openai":
+        if selected == "localmind":
+            a = api_key_localmind.get()
+            return t("options", "api_localmind_found") if api_key_localmind.get() else t("options", "api_localmind_not_found")
+        elif selected == "openai":
             a = api_key_openai.get()
             return t("options", "api_openai_found") if api_key_openai.get() else t("options", "api_openai_not_found")
         elif selected == "groq":
@@ -143,6 +150,7 @@ def register(state):
         req(input.llm_switch(), input.button_analysis(), transcript_data.get() != None, codebook_data.get() != None)
         selected = input.api_select()
         missing_key = (
+            (selected == "localmind" and api_key_localmind.get() == None) or
             (selected == "openai" and api_key_openai.get() == None) or
             (selected == "groq" and api_key_groq.get() == None) or
             (selected == "anthropic" and api_key_anthropic.get() == None) or
@@ -266,6 +274,62 @@ def register(state):
     def models_available():
         deleted_models = model_deleted.get() # for reactivity/invalidation
         return config.get_models(local_only=state.local_only.get())
+
+    # LocalMind: Modell-Katalog live von GET /v1/models laden. Nur sichtbar,
+    # wenn LocalMind der ausgewählte Provider ist — die Slugs des Gateways sind
+    # nicht öffentlich dokumentiert, deshalb holt der Nutzer die verbindliche
+    # Liste vom Endpoint, gegen den er sich authentifiziert.
+    @render.ui
+    def loc_localmind_fetch_models():
+        if input.api_select() != "localmind":
+            return None
+        return ui.div(
+            ui.input_action_button(
+                "button_localmind_fetch_models",
+                t("options", "localmind_fetch_button"),
+                icon=icon_svg("cloud-arrow-down"),
+                class_="btn-primary btn-sm",
+            ),
+            ui.tags.p(t("options", "localmind_fetch_hint"),
+                      class_="text-muted small mt-1 mb-0"),
+            class_="mb-2",
+        )
+
+    @reactive.effect
+    @reactive.event(input.button_localmind_fetch_models)
+    def fetch_localmind_model_list():
+        key = api_key_localmind.get()
+        if not key:
+            ui.notification_show(
+                t("options", "localmind_fetch_no_key"), type="warning", duration=6)
+            return
+        try:
+            models = fetch_localmind_models(key)
+        except Exception as exc:
+            ui.notification_show(
+                t("options", "localmind_fetch_error").format(error=exc),
+                type="error", duration=10)
+            return
+        if not models:
+            ui.notification_show(
+                t("options", "localmind_fetch_empty"), type="warning", duration=6)
+            return
+        # Preise liefert /v1/models nicht — 0.0 als Platzhalter (per "Modell
+        # hinzufügen" nachjustierbar). Bestehende Namen werden ersetzt.
+        entries = [{"name": m, "input": 0.0, "output": 0.0} for m in models]
+        config.set_models("localmind", entries)
+        # Falls das aktuell gewählte Modell (z.B. ein Seed-Slug) nicht mehr in
+        # der echten Liste ist, auf das erste echte Modell umstellen.
+        if config.get_current_api() == "localmind" and config.get_current_model() not in models:
+            config.set_current_model(models[0])
+            state.model.set(models[0])
+        model_deleted.set(model_deleted.get() + 1)  # for reactivity/invalidation
+        ui.update_select("model_list", choices=config.get_models(local_only=state.local_only.get()))
+        ui.update_select("model_select", choices=select_api_choices(),
+                         selected=config.get_current_model())
+        ui.notification_show(
+            t("options", "localmind_fetch_success").format(n=len(models)),
+            type="message", duration=6)
 
     # Button zum Hinzufügen eines Modells
     @render.ui

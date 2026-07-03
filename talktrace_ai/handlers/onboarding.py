@@ -17,6 +17,7 @@ def register(state):
     api_key_openrouter = state.api_key_openrouter
     api_key_mistral = state.api_key_mistral
     api_key_deepseek = state.api_key_deepseek
+    api_key_localmind = state.api_key_localmind
     llm_analysis_data = state.llm_analysis_data
     model = state.model
     analysis_state = state.analysis_state
@@ -121,6 +122,7 @@ def register(state):
             "openrouter": api_key_openrouter.get(),
             "mistral": api_key_mistral.get(),
             "deepseek": api_key_deepseek.get(),
+            "localmind": api_key_localmind.get(),
         }
         has_key_for_provider = bool(api_keys.get(provider))
 
@@ -248,3 +250,4 @@ def register(state):
     api_key_openrouter.set(safe_get_password("talktrace", "api_key_openrouter"))
     api_key_mistral.set(safe_get_password("talktrace", "api_key_mistral"))
     api_key_deepseek.set(safe_get_password("talktrace", "api_key_deepseek"))
+    api_key_localmind.set(safe_get_password("talktrace", "api_key_localmind"))

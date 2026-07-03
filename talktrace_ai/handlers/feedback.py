@@ -61,6 +61,7 @@ def register(state):
             "anthropic": state.api_key_anthropic,
             "mistral": state.api_key_mistral,
             "deepseek": state.api_key_deepseek,
+            "localmind": state.api_key_localmind,
         }.get(provider)
         return rv.get() if rv is not None else None
 

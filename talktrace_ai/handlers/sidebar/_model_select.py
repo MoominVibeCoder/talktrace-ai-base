@@ -10,12 +10,14 @@ def register(state):
     model = state.model
 
     def _provider_choices():
-        # Big-4 demo (May 2026): same restriction as the Options-tab dropdown
-        # in handlers/options.py. Local-only branch is dead because Ollama
-        # is gone from KNOWN_PROVIDERS — restore both paths together.
+        # Same provider set as the Options-tab dropdown in handlers/options.py.
+        # LocalMind (EU-hosted) leads as the GDPR-conformant default. Local-only
+        # branch is dead because Ollama is gone from KNOWN_PROVIDERS — restore
+        # both paths together.
         # if state.local_only.get():
         #     return {"ollama": "Ollama"}
         return {
+            "localmind": "LocalMind",
             "openai": "OpenAI",
             "anthropic": "Anthropic",
             "mistral": "Mistral",
@@ -50,6 +52,7 @@ def register(state):
         # "ollama": ("ollama_cloud_hint_label", "ollama_cloud_hint"),
         # "groq": ("groq_quality_hint_label", "groq_quality_hint"),
         # "openrouter": ("openrouter_hint_label", "openrouter_hint"),
+        "localmind": ("localmind_hint_label", "localmind_hint"),
         "mistral": ("mistral_hint_label", "mistral_hint"),
         "deepseek": ("deepseek_hint_label", "deepseek_hint"),
     }

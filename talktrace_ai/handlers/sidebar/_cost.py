@@ -22,7 +22,7 @@ def register(state):
                     encoding = tiktoken.encoding_for_model(model.get())
                 except:
                     encoding = tiktoken.get_encoding("cl100k_base")
-            else:  # groq, anthropic, ollama, openrouter, mistral, deepseek
+            else:  # localmind, groq, anthropic, ollama, openrouter, mistral, deepseek
                 # cl100k_base is a reasonable cross-provider approximation
                 # for cost-prediction purposes (the displayed value is
                 # always a lower-bound estimate, see live config docs).

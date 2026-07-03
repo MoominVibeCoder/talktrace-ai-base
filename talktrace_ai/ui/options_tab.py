@@ -27,6 +27,9 @@ def build_options_tab():
         # Manage models for LLM selection
         ui.card(
             ui.card_header(ui.output_ui("loc_llm_models")),
+            # Only rendered when LocalMind is the selected provider: pulls the
+            # live model catalogue from GET /v1/models.
+            ui.output_ui("loc_localmind_fetch_models"),
             ui.output_ui("loc_load_models"),
             ui.layout_columns(
                 ui.output_ui("loc_button_add_model"),

@@ -11,12 +11,14 @@ To add a new provider:
     3. Wire it into the ConfigManager + ``handlers/server_body.py`` provider
        routing logic.
 
-base v1: Big-4 providers only (OpenAI, Anthropic, Mistral, DeepSeek).
+base v1: OpenAI, Anthropic, Mistral, DeepSeek + LocalMind (EU-hosted gateway,
+the default provider).
 """
 from .openai import llm_analysis_openai, llm_analysis_openai_stream
 from .anthropic import llm_analysis_anthropic, llm_analysis_anthropic_stream
 from .mistral import llm_analysis_mistral, llm_analysis_mistral_stream
 from .deepseek import llm_analysis_deepseek, llm_analysis_deepseek_stream
+from .localmind import llm_analysis_localmind, llm_analysis_localmind_stream
 from ._stream_bridge import async_stream
 
 __all__ = [
@@ -24,9 +26,11 @@ __all__ = [
     "llm_analysis_anthropic",
     "llm_analysis_mistral",
     "llm_analysis_deepseek",
+    "llm_analysis_localmind",
     "llm_analysis_openai_stream",
     "llm_analysis_anthropic_stream",
     "llm_analysis_mistral_stream",
     "llm_analysis_deepseek_stream",
+    "llm_analysis_localmind_stream",
     "async_stream",
 ]

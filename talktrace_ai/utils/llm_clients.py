@@ -83,3 +83,44 @@ def get_deepseek_client(api_key):
     return _client_cache[key]
 
 
+def get_localmind_client(api_key):
+    """OpenAI SDK pointed at LocalMind's EU-hosted inference gateway.
+
+    LocalMind (https://www.localmind.ai/, Austria) runs a fully
+    OpenAI-compatible gateway at ``https://api.lminference.eu/v1`` that
+    fronts many open and proprietary models (its own ``localmind-*`` models
+    plus Llama / Mistral / Qwen / Gemma / DeepSeek / GPT-OSS, …). Same
+    SDK-reuse rationale as the Mistral / DeepSeek helpers above.
+
+    Why LocalMind matters for TalkTrace: the gateway is hosted **inside the
+    EU**, which makes it the natural GDPR-conformant cloud path for
+    classroom transcripts that must not leave the EU — the reason it is the
+    default provider in ``config_manager.KNOWN_PROVIDERS``.
+    """
+    key = ("localmind", api_key)
+    if key not in _client_cache:
+        _client_cache[key] = OpenAI(
+            api_key=api_key,
+            base_url="https://api.lminference.eu/v1",
+        )
+    return _client_cache[key]
+
+
+def fetch_localmind_models(api_key):
+    """Return the model ids LocalMind exposes via ``GET /v1/models``.
+
+    LocalMind's model line-up is a live gateway catalogue — the exact slugs
+    are not published, so instead of hard-coding a guess we let the user
+    pull the authoritative list from the endpoint they authenticate against.
+    Used by the "load LocalMind models" button in the Options tab.
+
+    Returns a sorted list of model-id strings. Raises the underlying SDK
+    exception (AuthenticationError, APIConnectionError, …) on failure so the
+    caller can surface a specific message.
+    """
+    client = get_localmind_client(api_key)
+    page = client.models.list()
+    ids = [m.id for m in getattr(page, "data", []) if getattr(m, "id", None)]
+    return sorted(set(ids))
+
+

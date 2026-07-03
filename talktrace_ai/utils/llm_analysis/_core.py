@@ -27,6 +27,7 @@ from .anthropic import llm_analysis_anthropic
 from .openai import llm_analysis_openai
 from .mistral import llm_analysis_mistral
 from .deepseek import llm_analysis_deepseek
+from .localmind import llm_analysis_localmind
 
 
 def _sanitize_prompt_for_speakers(text: str, teacher: bool, students: bool) -> str:
@@ -141,6 +142,9 @@ def _build_client(provider: str, *, api_key: Optional[str]):
     if provider == "deepseek":
         from ..llm_clients import get_deepseek_client
         return get_deepseek_client(api_key)
+    if provider == "localmind":
+        from ..llm_clients import get_localmind_client
+        return get_localmind_client(api_key)
     return None
 
 
@@ -176,6 +180,8 @@ def run_llm_coding_once(
             raw = llm_analysis_mistral(system_prompt, user_prompt, model, transcript, codebook, client)
         elif provider == "deepseek":
             raw = llm_analysis_deepseek(system_prompt, user_prompt, model, transcript, codebook, client)
+        elif provider == "localmind":
+            raw = llm_analysis_localmind(system_prompt, user_prompt, model, transcript, codebook, client)
         else:
             return None, None, f"Unsupported provider: {provider}"
     except Exception as exc:

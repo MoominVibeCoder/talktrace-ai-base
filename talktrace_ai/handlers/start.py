@@ -21,6 +21,7 @@ _NAV_TRANSCRIPTION = '<div id="loc_title_transcription" class="shiny-text-output
 _NAV_ANALYSIS = '<div id="loc_title_analysis" class="shiny-text-output"></div>'
 
 _PROVIDER_LABELS = {
+    "localmind": "LocalMind",
     "openai": "OpenAI", "anthropic": "Anthropic",
     "mistral": "Mistral", "deepseek": "DeepSeek",
     "groq": "Groq", "ollama": "Ollama", "openrouter": "OpenRouter",
@@ -37,6 +38,7 @@ def register(state):
     model = state.model
 
     api_keys = {
+        "localmind": state.api_key_localmind,
         "groq": state.api_key_groq,
         "openai": state.api_key_openai,
         "anthropic": state.api_key_anthropic,
