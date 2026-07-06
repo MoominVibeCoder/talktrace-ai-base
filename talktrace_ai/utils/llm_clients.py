@@ -106,12 +106,28 @@ def get_localmind_client(api_key):
     return _client_cache[key]
 
 
+def _is_localmind_chat_model(model_id: str) -> bool:
+    """Filter out non-chat catalogue entries (embeddings, image generation).
+
+    The gateway's /v1/models list mixes chat LLMs with embedding and
+    image models (e.g. ``mistral-embed-eu``, ``localmind-embeddings``,
+    ``qwen-3-embedding-8b-nebius``, ``flux-2-pro-azure``, ``gpt-image-2``).
+    None of those can serve the transcript-coding chat-completion call, so
+    they must not appear in the model picker where a user could pick one and
+    hit an opaque error. Conservative substring heuristic — only tokens that
+    unambiguously mark a non-chat model.
+    """
+    low = (model_id or "").lower()
+    return not any(tok in low for tok in ("embed", "image", "flux"))
+
+
 def fetch_localmind_models(api_key):
-    """Return the model ids LocalMind exposes via ``GET /v1/models``.
+    """Return the chat-capable model ids LocalMind exposes via ``GET /v1/models``.
 
     LocalMind's model line-up is a live gateway catalogue — the exact slugs
     are not published, so instead of hard-coding a guess we let the user
     pull the authoritative list from the endpoint they authenticate against.
+    Embedding and image models are dropped (see ``_is_localmind_chat_model``).
     Used by the "load LocalMind models" button in the Options tab.
 
     Returns a sorted list of model-id strings. Raises the underlying SDK
@@ -121,6 +137,6 @@ def fetch_localmind_models(api_key):
     client = get_localmind_client(api_key)
     page = client.models.list()
     ids = [m.id for m in getattr(page, "data", []) if getattr(m, "id", None)]
-    return sorted(set(ids))
+    return sorted(m for m in set(ids) if _is_localmind_chat_model(m))
 
 

@@ -59,6 +59,20 @@ def test_client_factories_build():
     assert type(get_localmind_client("sk-test")).__name__ == "OpenAI"
 
 
+def test_localmind_model_filter():
+    """The /v1/models catalogue mixes chat, embedding and image models;
+    only chat models may reach the picker."""
+    from talktrace_ai.utils.llm_clients import _is_localmind_chat_model
+
+    assert _is_localmind_chat_model("localmind-pro")
+    assert _is_localmind_chat_model("claude-sonnet-5")
+    assert _is_localmind_chat_model("gpt-5-4-azure-gdpr")
+    for non_chat in ("mistral-embed-eu", "localmind-embeddings",
+                     "qwen-3-embedding-8b-nebius", "gpt-image-2",
+                     "flux-2-pro-azure"):
+        assert not _is_localmind_chat_model(non_chat), non_chat
+
+
 def test_cache_key_resolves_format_codebook():
     """Catches the cross-package NameError for _format_codebook.
 
