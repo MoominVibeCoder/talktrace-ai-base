@@ -10,6 +10,17 @@ html body .bslib-sidebar-layout {
     --bslib-sidebar-main-bg: #f8f8f800 !important;
 }
 
+/* Shiny 1.6.1 busy indicators fade every ``.recalculating`` output's content
+   to opacity 0.3 (after a 1s delay). On a tab switch the large ``start_section``
+   render.ui — and other tabs' outputs — recompute; when that takes long enough,
+   the visible content dims and the tab looks "darkened but still clickable".
+   That reads as a bug for a plain navigation. We keep the (subtle) spinner as
+   loading feedback but disable the content fade, so switching tabs never dims
+   the page. Shiny reads this var as ``var(--shiny-fade-opacity, 0.3)``. */
+:root {
+    --shiny-fade-opacity: 1;
+}
+
 /* Deep Forest — Dark-Mode-Tokens (auf html[data-bs-theme="dark"] scoped,
    überschreiben die Soft-Nordic-Defaults von :root)                      */
 html[data-bs-theme="dark"] {
