@@ -8,11 +8,17 @@ from .._common import *
 
 def register(state):
     input = state.input
+    output = state.output
     t = state.t
     system_prompt = state.system_prompt
     user_prompt = state.user_prompt
 
-    # LLM Analyse
+    # LLM Analyse. suspend_when_hidden=False: this slot MOUNTS llm_switch,
+    # which the quick-start checklist, cost prediction and the demo loader's
+    # update_switch read from any tab — it must exist from session start
+    # (as it did when it lived in the always-visible sidebar), not only
+    # after the Analysis tab was first opened.
+    @output(suspend_when_hidden=False)
     @render.ui
     def loc_llm_switch():
         return ui.div(
@@ -21,7 +27,11 @@ def register(state):
             **{"data-tt-help": t("onboarding", "tooltip_llm_switch")},
         )
 
-    # Sprechakt-Auswahl: nur sichtbar, wenn LLM-Analyse aktiv ist
+    # Sprechakt-Auswahl: nur sichtbar, wenn LLM-Analyse aktiv ist. Same
+    # non-suspend rationale: the speaker/multi-coding switches feed the
+    # effective prompts, which reports and the Options preview read from
+    # any tab.
+    @output(suspend_when_hidden=False)
     @render.ui
     def loc_analyse_speakers_switches():
         if not input.llm_switch():
@@ -71,9 +81,15 @@ def register(state):
     def _speaker_filter_suffix(kind: str = "system"):
         teacher, students = _speaker_flags()
         prefix = "user_prompt_filter" if kind == "user" else "prompt_filter"
-        teacher_name = input.name_teacher() or t("analysis", "name_teacher_var")
         if teacher and students:
             return ""
+        # Read the input only past the early return: in the default case the
+        # suffix must not depend on (and silently fail with) an input that may
+        # not be mounted yet.
+        try:
+            teacher_name = input.name_teacher() or t("analysis", "name_teacher_var")
+        except Exception:
+            teacher_name = t("analysis", "name_teacher_var")
         if teacher and not students:
             return t("sidebar", f"{prefix}_teacher_only").format(teacher_name=teacher_name)
         if students and not teacher:

@@ -30,6 +30,15 @@ def register(state):
     def _tt_wrap(child, key):
         return ui.div(child, **{"data-tt-help": t("onboarding", key)})
 
+    # suspend_when_hidden=False on the three metadata slots: they MOUNT the
+    # name_group / num_pupils / name_teacher inputs, which are read far beyond
+    # this tab (Results value boxes, plots, effective prompts, the demo
+    # loader's update_text calls). Before the Start-tab redesign these lived
+    # in the always-visible sidebar; inside a nav panel Shiny would suspend
+    # them until the tab is first opened, so loading the demo (or a session)
+    # straight from the Start tab left the inputs unmounted and the dependent
+    # outputs silently empty.
+    @output(suspend_when_hidden=False)
     @render.ui
     def loc_group_id():
         return _tt_wrap(
@@ -37,6 +46,7 @@ def register(state):
             "tooltip_group_id",
         )
 
+    @output(suspend_when_hidden=False)
     @render.ui
     def loc_num_pupils():
         return _tt_wrap(
@@ -44,6 +54,7 @@ def register(state):
             "tooltip_num_pupils",
         )
 
+    @output(suspend_when_hidden=False)
     @render.ui
     def loc_name_teacher():
         return _tt_wrap(
