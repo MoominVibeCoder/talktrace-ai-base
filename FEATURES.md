@@ -51,10 +51,11 @@ Own **Consent** tab — generate a print-ready **GDPR Art. 13** consent declarat
 
 ## LLM backends
 
-- **Big-Four providers** — OpenAI, Anthropic, Mistral, DeepSeek
+- **Five providers** — [LocalMind](https://www.localmind.ai/) (EU-hosted gateway, the GDPR-friendly default), OpenAI, Anthropic, Mistral, DeepSeek
+- **Live LocalMind model catalogue** — one button pulls the gateway's current model list (40+ chat models — its own localmind-* models plus Llama, Mistral, Qwen, Gemma, DeepSeek, GPT, Claude and Gemini variants); embedding/image models are filtered out
 - **Editable model registry** — add or remove models, set per-million-token pricing
 - **Custom prompts** — edit system and user prompts, reset to default any time
-- **Structured outputs with codebook enums** — Shortcode + Sprecher are decoder-side constrained to the codebook entries / transcript speakers (OpenAI strict json_schema, Anthropic tool_use input_schema, Mistral / DeepSeek json_schema). Eliminates hallucinated codes; falls back to unconstrained schema if a model rejects the strict variant.
+- **Structured outputs with codebook enums** — Shortcode + Sprecher are decoder-side constrained to the codebook entries / transcript speakers (OpenAI strict json_schema, Anthropic tool_use input_schema, Mistral / DeepSeek / LocalMind json_schema). Eliminates hallucinated codes; falls back to unconstrained schema if a model rejects the strict variant.
 - **Live cost prediction** — lower-bound estimate updates as you type
 - **Cumulative cost tracker** — total spend across all analyses, per provider, persisted between sessions
 - **API keys in the OS keyring** — Keychain, Credential Manager, SecretService
@@ -101,7 +102,7 @@ Own **Consent** tab — generate a print-ready **GDPR Art. 13** consent declarat
 - **Light & dark themes** — Soft Nordic (light) and Deep Forest (dark), toggle in the title bar
 - **Bilingual UI** — English & German, switchable any time
 - **Onboarding tooltips** — hover help on every key control
-- **Data-protection acknowledgment gate** — a Start-tab choice (explicit-consent data vs. fictive test data) that must be confirmed before any LLM call goes out
+- **Data-protection acknowledgment gate** — a Start-tab choice (explicit-consent data · fictive test data · only my own utterances) that must be confirmed before any LLM call goes out
 - **Quickstart checklist** — live ✓/✗ panel (on the Start tab) showing what's ready
 - **Demo button** — load a sample analysis without API keys (T-SEDA-coded civics lesson on lowering the voting age to 16)
 - **Gold-standard self-test** — one-click *Test the app* runs a known fixture and shows expected vs. actual; trust-builder before users analyse their own data

@@ -39,3 +39,5 @@ talktrace_ai/config/cost_log.json
 *.pkl
 talktrace_ai/history/
 talktrace_ai/utils/history/
+
+pypi_dist/

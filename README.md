@@ -7,7 +7,7 @@
 <p align="left">
     <picture>
         <source media="(prefers-color-scheme: light)" srcset="images/light.png">
-        <source media="(prefers-color-scheme: dark)" srcset="images/light.png">
+        <source media="(prefers-color-scheme: dark)" srcset="images/dark.png">
         <img src="images/light.png" alt="TalkTrace AI base" width="1280">
     </picture>
 </p>
@@ -16,7 +16,7 @@ LLM-assisted analysis of classroom and small-group transcripts. Quantitative met
 
 > **base** is the public distribution descended from the original [TalkTrace-AI](https://github.com/talktrace-ai/talktrace-ai) by Jami Schorling and Dennis Hauk (Leipzig University). base focuses on the stable, well-tested core; experimental features and the active research roadmap live in a private internal research version.
 
-**Highlights** — Big-Four LLM backends (OpenAI, Anthropic, Mistral, DeepSeek) · Local audio transcription with in-app waveform trim (optional noScribe engine, 100% on-device) · Research-grounded formative teacher feedback (editable, DOCX/PDF) · GDPR Art. 13 consent-declaration generator (DOCX/PDF) · Streaming coding view · Human-in-the-loop code editing · Code-transition heatmap and over-time views · Auto-generated methods paragraph + reproducibility fingerprint · DOCX / PDF / XLSX / HTML / CSV exports · Light/Dark themes · EN/DE UI
+**Highlights** — Five LLM backends with the EU-hosted [LocalMind](https://www.localmind.ai/) gateway as the GDPR-friendly default (plus OpenAI, Anthropic, Mistral, DeepSeek) · Local audio transcription with in-app waveform trim (optional noScribe engine, 100% on-device) · Research-grounded formative teacher feedback (editable, DOCX/PDF) · GDPR Art. 13 consent-declaration generator (DOCX/PDF) · Streaming coding view · Human-in-the-loop code editing · Code-transition heatmap and over-time views · Auto-generated methods paragraph + reproducibility fingerprint · DOCX / PDF / XLSX / HTML / CSV exports · Light/Dark themes · EN/DE UI
 
 **Full feature list** — [FEATURES.md](FEATURES.md)
 
@@ -26,13 +26,13 @@ LLM-assisted analysis of classroom and small-group transcripts. Quantitative met
 
 A FLOSS, platform-independent web app for analysing verbal interaction in classroom and small-group settings. Built on [Shiny for Python](https://shiny.posit.co/py/), it leverages LLMs to produce both **quantitative** metrics (participation, conversation shares) and **qualitative** coding (speech acts), and exports them as structured reports.
 
-**Backends:** [OpenAI](https://platform.openai.com/) · [Anthropic](https://www.anthropic.com/api) · [Mistral](https://mistral.ai/) · [DeepSeek](https://platform.deepseek.com/)
+**Backends:** [LocalMind](https://www.localmind.ai/) (EU-hosted gateway, default) · [OpenAI](https://platform.openai.com/) · [Anthropic](https://www.anthropic.com/api) · [Mistral](https://mistral.ai/) · [DeepSeek](https://platform.deepseek.com/)
 
 ---
 
 ## Download (Windows, no Python needed)
 
-Grab the latest **TalkTraceAI-base-v1.0.0-win64.zip** from [GitHub Releases](https://github.com/MoominVibeCoder/talktrace-ai-base/releases), unzip, and double-click `TalkTraceAI.exe`. No Python installation required.
+Grab the latest **TalkTraceAI-base-v1.1.0-win64.zip** from [GitHub Releases](https://github.com/MoominVibeCoder/talktrace-ai-base/releases), unzip, and double-click `TalkTraceAI.exe`. No Python installation required.
 
 > For macOS / Linux or if you prefer running from source, see the Quickstart below.
 
@@ -111,7 +111,7 @@ A **Start** tab is the landing page (workflow overview, entry tiles, current-con
 <details>
 <summary><strong>Start tab</strong> (landing page)</summary>
 
-The first screen on launch. A workflow strip (Audio → Transcript → Analysis → Feedback → Export) shows how far you are; entry tiles jump to transcription, analysis, the session history, or a no-key demo. A configuration line reports the active provider/model, and a one-time **data-protection acknowledgment** (pick *consent* or *fictive test data*) gates LLM calls until confirmed.
+The first screen on launch. A workflow strip (Audio → Transcript → Analysis → Feedback → Export) shows how far you are; entry tiles jump to transcription, analysis, the session history, or a no-key demo. A configuration line reports the active provider/model, and a one-time **data-protection acknowledgment** (pick *explicit consent*, *fictive test data*, or *only my own utterances*) gates LLM calls until confirmed.
 
 </details>
 
@@ -177,8 +177,8 @@ Split into quantitative and qualitative sections.
 <details>
 <summary><strong>Options tab</strong></summary>
 
-- **API configuration** — keys for OpenAI, Anthropic, Mistral, DeepSeek. Keys live in the OS keyring (Keychain / Credential Manager / SecretService).
-- **Models for LLM Selection** — edit the registry (add/remove models, set per-million-token prices); changes propagate to the Analysis-tab model picker in real time.
+- **API configuration** — keys for LocalMind, OpenAI, Anthropic, Mistral, DeepSeek. Keys live in the OS keyring (Keychain / Credential Manager / SecretService).
+- **Models for LLM Selection** — edit the registry (add/remove models, set per-million-token prices); changes propagate to the Analysis-tab model picker in real time. For LocalMind, a **Load LocalMind models** button pulls the live catalogue (40+ chat models) straight from the gateway.
 - **Custom Prompts** — modify the system + user prompts used for qualitative coding; defaults restorable any time.
 - **Cost tracker** — cumulative spend across all analyses, per provider.
 - **Test the app** (gold-standard self-test) — runs a known fixture and shows expected vs. actual to build trust before you analyse real data.
@@ -192,7 +192,7 @@ Split into quantitative and qualitative sections.
 
 TalkTrace AI does **not** store transcripts or analysis results on any external server controlled by the maintainers. All data required for an analysis are held in browser/local memory while you interact with the tool.
 
-Because LLM models are not hosted by the app, the backend communicates with external LLM providers during the qualitative coding step. The relevant transcript and codebook excerpts are transmitted via the provider's API — any server-side storage or logging then depends on that provider's policies and your account settings.
+Because LLM models are not hosted by the app, the backend communicates with external LLM providers during the qualitative coding step. The relevant transcript and codebook excerpts are transmitted via the provider's API — any server-side storage or logging then depends on that provider's policies and your account settings. The default provider is the **EU-hosted LocalMind gateway**, which keeps transcripts inside the EU; US- or China-hosted providers remain an explicit choice.
 
 **Audio transcription is fully local.** The optional Transcription tab runs the noScribe engine on your own machine — the audio file is never uploaded to any maintainer-controlled or third-party server. This makes it a privacy-preserving alternative to cloud transcription services. See [NOTICE](NOTICE) for the third-party engine/model details and licensing boundary.
 

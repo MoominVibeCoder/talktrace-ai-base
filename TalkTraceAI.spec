@@ -49,12 +49,16 @@ for pkg in _packages_collect_all:
 # resource_path("static/…") → Path(sys._MEIPASS) / "static/…"
 #   ⇒ bundle talktrace_ai/static → <_MEIPASS>/static
 #
-# Path(__file__).parent / "config" (flag files, .ini)
-#   ⇒ bundle talktrace_ai/config → <_MEIPASS>/talktrace_ai/config
+# Config: bundle ONLY default_config.ini — never the whole config/ directory.
+# The developer's config.ini, cost_log.json and the .welcome_shown /
+# .dataprotection_acknowledged flag files live there too; shipping them would
+# leak local settings and, worse, pre-acknowledge the data-protection gate
+# for every release user. ConfigManager creates a fresh config.ini from the
+# default on first launch.
 
 all_datas += [
     ("talktrace_ai/static",   "static"),
-    ("talktrace_ai/config",   "talktrace_ai/config"),
+    ("talktrace_ai/config/default_config.ini", "talktrace_ai/config"),
 ]
 
 # ---------------------------------------------------------------------------

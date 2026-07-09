@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "talktrace-ai-base"
-version = "1.0.0"
+version = "1.1.0"
 description = "LLM-assisted analysis of classroom and small-group transcripts. Quantitative metrics, qualitative coding, structured reports."
 readme = "README.md"
 requires-python = ">=3.12"
@@ -81,6 +81,9 @@ talktrace_ai = [
     "config/*.ini",
     "examples/**/*",
 ]
+
+[tool.setuptools.exclude-package-data]
+"*" = ["__pycache__", "*.pyc"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
