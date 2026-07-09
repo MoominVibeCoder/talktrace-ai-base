@@ -849,15 +849,30 @@ def register(state):
                 noscribe_progress.set(None)
             await reactive.flush()
 
-    @reactive.effect
-    @reactive.event(input.noscribe_install, input.noscribe_retry)
-    def _kick_off_install():
+    def _begin_install():
         state.noscribe_cancel.reset()
         noscribe_progress.set({"phase_label": t("noscribe", "phase_preflight"),
                                "value": None, "steps": list(_INSTALL_PHASES),
                                "t0": time.monotonic()})
         noscribe_status.set("installing")
         asyncio.create_task(_run_install())
+
+    # Two separate effects rather than one @reactive.event(install, retry):
+    # reactive.event's trigger evaluates *every* input on each fire, and the
+    # retry button only exists in the error view. While it is absent,
+    # input.noscribe_retry() raises SilentException, which aborts the whole
+    # combined effect — so clicking Install/Repair (a different input) would
+    # silently do nothing until the error view had been shown at least once.
+    # Splitting them keeps each trigger independent of the other's presence.
+    @reactive.effect
+    @reactive.event(input.noscribe_install)
+    def _kick_off_install():
+        _begin_install()
+
+    @reactive.effect
+    @reactive.event(input.noscribe_retry)
+    def _kick_off_retry():
+        _begin_install()
 
     # =====================================================================
     # Transcription (+ on-demand model download)
