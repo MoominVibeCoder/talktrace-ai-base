@@ -529,6 +529,9 @@ STRINGS = {
         "feedback_failed": "Feedback-Erzeugung fehlgeschlagen: {error}",
         "no_key": "Für den gewählten Anbieter ist kein API-Schlüssel hinterlegt. Bitte "
                   "im Tab „Optionen“ eintragen.",
+        "llm_hint": "Das Feedback wird mit diesem Modell erzeugt — vorausgewählt ist "
+                    "die Auswahl aus dem Analyse-Tab, hier änderbar (z.B. ein "
+                    "günstigeres Modell als für die Codierung).",
         "doc_title": "Unterrichts-Feedback",
         "cost_estimate": "Geschätzte Kosten: {cost} €",
     },

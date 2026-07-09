@@ -523,6 +523,9 @@ STRINGS = {
                           "different model.",
         "feedback_failed": "Feedback generation failed: {error}",
         "no_key": "No API key set for the selected provider. Add it in the Options tab.",
+        "llm_hint": "The feedback is generated with this model — pre-set to the "
+                    "Analysis-tab choice, changeable here (e.g. a cheaper model "
+                    "than the one used for coding).",
         "doc_title": "Teaching feedback",
         "cost_estimate": "Estimated cost: € {cost}",
     },

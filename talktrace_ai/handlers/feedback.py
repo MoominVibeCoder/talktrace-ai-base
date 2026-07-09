@@ -1,9 +1,11 @@
 """Feedback tab: LLM-generated formative feedback for the teacher.
 
-Button-gated (NOT eager — it makes an LLM call). Reuses the configured Big-Four
-backend + stored key + selected model, reads the analysis data already in
-AppState (T-SEDA teacher-code profile + quantitative metrics), asks the model
-for research-grounded formative feedback, shows it in an EDITABLE field, and
+Button-gated (NOT eager — it makes an LLM call). The provider/model pair is
+picked in a tab-local selector (seeded from the global Analysis-tab choice,
+overridable — feedback may use a cheaper model than the coding run), the key
+comes from the OS keyring. Reads the analysis data already in AppState
+(T-SEDA teacher-code profile + quantitative metrics), asks the model for
+research-grounded formative feedback, shows it in an EDITABLE field, and
 exports the (possibly edited) text as DOCX/PDF.
 
 Pure prompt-assembly + DOCX rendering live in ``utils/feedback_section.py``;
@@ -116,7 +118,8 @@ def register(state):
             style="font-size:0.9rem;",
         )
 
-        parts = [ui.p(t("feedback", "intro_hint")), disclaimer, controls]
+        parts = [ui.p(t("feedback", "intro_hint")), disclaimer,
+                 _llm_selector(), controls]
 
         if busy:
             parts.append(ui.div(
@@ -173,6 +176,70 @@ def register(state):
         return s.replace(".", ",") if current_lang.get() == "de" else s
 
     # ------------------------------------------------------------------
+    # LLM selection (local to this tab)
+    # ------------------------------------------------------------------
+    # The feedback call previously reused the global Analysis-tab choice
+    # silently; now the provider/model pair is visible and overridable here —
+    # feedback with a cheaper (or different) model than the coding run is a
+    # legitimate combination. Starts synced to the global choice; the local
+    # pick lives only in these inputs (per the module-local state convention).
+    def _provider_choices():
+        # Same provider set as sidebar/_model_select and options.
+        return {
+            "localmind": "LocalMind",
+            "openai": "OpenAI",
+            "anthropic": "Anthropic",
+            "mistral": "Mistral",
+            "deepseek": "DeepSeek",
+            "custom": t("options", "provider_custom_label"),
+        }
+
+    def _llm_selector():
+        # Read the current picks under isolate: this section re-renders on
+        # every busy/text change, and a plain read would both add an unwanted
+        # reactive dependency and reset the dropdowns to the global default.
+        with reactive.isolate():
+            try:
+                sel_provider = input.feedback_provider()
+            except Exception:
+                sel_provider = None
+            try:
+                sel_model = input.feedback_model()
+            except Exception:
+                sel_model = None
+        provider = sel_provider or config.get_current_api()
+        models = config.get_models(provider=provider)
+        model = sel_model if sel_model in models else (
+            state.model.get() if state.model.get() in models
+            else (models[0] if models else None))
+        return ui.div(
+            ui.layout_columns(
+                ui.input_select("feedback_provider",
+                                t("sidebar", "provider_select"),
+                                choices=_provider_choices(), selected=provider),
+                ui.input_select("feedback_model",
+                                t("sidebar", "model_select"),
+                                choices=models, selected=model),
+                col_widths=[4, 4],
+            ),
+            ui.tags.p(t("feedback", "llm_hint"),
+                      class_="text-muted small", style="margin-top:-0.5rem;"),
+        )
+
+    @reactive.effect
+    @reactive.event(input.feedback_provider, ignore_init=True)
+    def _sync_feedback_models():
+        # Provider switched — repopulate the model dropdown from the registry.
+        models = config.get_models(provider=input.feedback_provider())
+        with reactive.isolate():
+            try:
+                current = input.feedback_model()
+            except Exception:
+                current = None
+        selected = current if current in models else (models[0] if models else None)
+        ui.update_select("feedback_model", choices=models, selected=selected)
+
+    # ------------------------------------------------------------------
     # Generate (button-gated LLM call)
     # ------------------------------------------------------------------
     @reactive.effect
@@ -186,8 +253,16 @@ def register(state):
             ui.update_navset("main_tabs", selected='<div id="loc_title_start" class="shiny-text-output"></div>')
             ui.notification_show(t("start", "dp_status_pending"), type="warning", duration=6)
             return
-        provider = config.get_current_api()
-        model = state.model.get()
+        # Use the tab-local LLM pick (falls back to the global choice while
+        # the selector has not rendered yet, e.g. programmatic generation).
+        try:
+            provider = input.feedback_provider() or config.get_current_api()
+        except Exception:
+            provider = config.get_current_api()
+        try:
+            model = input.feedback_model() or state.model.get()
+        except Exception:
+            model = state.model.get()
         key = _key_for(provider)
         if not key:
             ui.notification_show(t("feedback", "no_key"), type="warning", duration=6)
