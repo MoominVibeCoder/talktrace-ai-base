@@ -16,7 +16,7 @@ LLM-assisted analysis of classroom and small-group transcripts. Quantitative met
 
 > **base** is the public distribution descended from the original [TalkTrace-AI](https://github.com/talktrace-ai/talktrace-ai) by Jami Schorling and Dennis Hauk (Leipzig University). base focuses on the stable, well-tested core; experimental features and the active research roadmap live in a private internal research version.
 
-**Highlights** — Five LLM backends with the EU-hosted [LocalMind](https://www.localmind.ai/) gateway as the GDPR-friendly default (plus OpenAI, Anthropic, Mistral, DeepSeek) · Local audio transcription with in-app waveform trim (optional noScribe engine, 100% on-device) · Research-grounded formative teacher feedback (editable, DOCX/PDF) · GDPR Art. 13 consent-declaration generator (DOCX/PDF) · Streaming coding view · Human-in-the-loop code editing · Code-transition heatmap and over-time views · Auto-generated methods paragraph + reproducibility fingerprint · DOCX / PDF / XLSX / HTML / CSV exports · Light/Dark themes · EN/DE UI
+**Highlights** — Five LLM backends with the EU-hosted [LocalMind](https://www.localmind.ai/) gateway as the GDPR-friendly default (plus OpenAI, Anthropic, Mistral, DeepSeek) · Custom OpenAI-compatible endpoints (own base URL + key) with one-click model refresh · Local audio transcription with in-app waveform trim (optional noScribe engine, 100% on-device) · Research-grounded formative teacher feedback (editable, DOCX/PDF) · GDPR Art. 13 consent-declaration generator (DOCX/PDF) · Streaming coding view · Human-in-the-loop code editing · Code-transition heatmap and over-time views · Auto-generated methods paragraph + reproducibility fingerprint · DOCX / PDF / XLSX / HTML / CSV exports · Light/Dark themes · EN/DE UI
 
 **Full feature list** — [FEATURES.md](FEATURES.md)
 
@@ -26,7 +26,7 @@ LLM-assisted analysis of classroom and small-group transcripts. Quantitative met
 
 A FLOSS, platform-independent web app for analysing verbal interaction in classroom and small-group settings. Built on [Shiny for Python](https://shiny.posit.co/py/), it leverages LLMs to produce both **quantitative** metrics (participation, conversation shares) and **qualitative** coding (speech acts), and exports them as structured reports.
 
-**Backends:** [LocalMind](https://www.localmind.ai/) (EU-hosted gateway, default) · [OpenAI](https://platform.openai.com/) · [Anthropic](https://www.anthropic.com/api) · [Mistral](https://mistral.ai/) · [DeepSeek](https://platform.deepseek.com/)
+**Backends:** [LocalMind](https://www.localmind.ai/) (EU-hosted gateway, default) · [OpenAI](https://platform.openai.com/) · [Anthropic](https://www.anthropic.com/api) · [Mistral](https://mistral.ai/) · [DeepSeek](https://platform.deepseek.com/) · custom OpenAI-compatible endpoint (own base URL + key)
 
 ---
 
@@ -177,8 +177,8 @@ Split into quantitative and qualitative sections.
 <details>
 <summary><strong>Options tab</strong></summary>
 
-- **API configuration** — keys for LocalMind, OpenAI, Anthropic, Mistral, DeepSeek. Keys live in the OS keyring (Keychain / Credential Manager / SecretService).
-- **Models for LLM Selection** — edit the registry (add/remove models, set per-million-token prices); changes propagate to the Analysis-tab model picker in real time. For LocalMind, a **Load LocalMind models** button pulls the live catalogue (40+ chat models) straight from the gateway.
+- **API configuration** — keys for LocalMind, OpenAI, Anthropic, Mistral, DeepSeek, plus a **custom OpenAI-compatible endpoint** (enter its base URL, e.g. a self-hosted vLLM server or an institutional gateway). Keys live in the OS keyring (Keychain / Credential Manager / SecretService); the base URL persists in your local config.
+- **Models for LLM Selection** — edit the registry (add/remove models, set per-million-token prices); changes propagate to the Analysis-tab model picker in real time. A **Load models from provider** button refreshes the selected provider's list straight from its live catalogue (needs a saved key); embedding/audio/image models are filtered out and prices you already set are kept.
 - **Custom Prompts** — modify the system + user prompts used for qualitative coding; defaults restorable any time.
 - **Cost tracker** — cumulative spend across all analyses, per provider.
 - **Test the app** (gold-standard self-test) — runs a known fixture and shows expected vs. actual to build trust before you analyse real data.

@@ -51,11 +51,11 @@ Own **Consent** tab — generate a print-ready **GDPR Art. 13** consent declarat
 
 ## LLM backends
 
-- **Five providers** — [LocalMind](https://www.localmind.ai/) (EU-hosted gateway, the GDPR-friendly default), OpenAI, Anthropic, Mistral, DeepSeek
-- **Live LocalMind model catalogue** — one button pulls the gateway's current model list (40+ chat models — its own localmind-* models plus Llama, Mistral, Qwen, Gemma, DeepSeek, GPT, Claude and Gemini variants); embedding/image models are filtered out
+- **Five providers + custom endpoint** — [LocalMind](https://www.localmind.ai/) (EU-hosted gateway, the GDPR-friendly default), OpenAI, Anthropic, Mistral, DeepSeek, plus any **OpenAI-compatible endpoint of your own** (base URL in Options, key in the OS keyring — e.g. a self-hosted vLLM/llama.cpp server or an institutional gateway)
+- **Live model refresh** — one click per provider pulls the current model list straight from its catalogue (OpenAI-compatible `/v1/models` or Anthropic's model list; needs a saved key); embedding/audio/image models are filtered out, and prices of models already in the registry survive the refresh
 - **Editable model registry** — add or remove models, set per-million-token pricing
 - **Custom prompts** — edit system and user prompts, reset to default any time
-- **Structured outputs with codebook enums** — Shortcode + Sprecher are decoder-side constrained to the codebook entries / transcript speakers (OpenAI strict json_schema, Anthropic tool_use input_schema, Mistral / DeepSeek / LocalMind json_schema). Eliminates hallucinated codes; falls back to unconstrained schema if a model rejects the strict variant.
+- **Structured outputs with codebook enums** — Shortcode + Sprecher are decoder-side constrained to the codebook entries / transcript speakers (OpenAI strict json_schema, Anthropic tool_use input_schema, Mistral / DeepSeek / LocalMind / custom json_schema). Eliminates hallucinated codes; falls back to unconstrained schema if a model rejects the strict variant.
 - **Live cost prediction** — lower-bound estimate updates as you type
 - **Cumulative cost tracker** — total spend across all analyses, per provider, persisted between sessions
 - **API keys in the OS keyring** — Keychain, Credential Manager, SecretService
