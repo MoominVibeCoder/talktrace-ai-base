@@ -7,7 +7,7 @@
 <p align="left">
     <picture>
         <source media="(prefers-color-scheme: light)" srcset="images/light.png">
-        <source media="(prefers-color-scheme: dark)" srcset="images/dark.png">
+        <source media="(prefers-color-scheme: dark)" srcset="images/light.png">
         <img src="images/light.png" alt="TalkTrace AI base" width="1280">
     </picture>
 </p>
