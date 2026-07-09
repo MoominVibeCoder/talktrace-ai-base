@@ -33,6 +33,7 @@ class AppState:
     api_key_mistral: Any
     api_key_deepseek: Any
     api_key_localmind: Any
+    api_key_custom: Any
     ollama_status_refresh: Any
     current_api: Any
     num_participants: Any
@@ -161,6 +162,7 @@ def build_app_state(input, output, session) -> AppState:
         api_key_mistral=reactive.value(),
         api_key_deepseek=reactive.value(),
         api_key_localmind=reactive.value(),
+        api_key_custom=reactive.value(),
         ollama_status_refresh=reactive.value(0),
         current_api=reactive.value(config.get_current_api()),
         num_participants=reactive.value(None),

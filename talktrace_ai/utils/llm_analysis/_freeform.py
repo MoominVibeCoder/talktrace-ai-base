@@ -8,7 +8,7 @@ surface:
 
   * OpenAI    -> Responses API (``client.responses.create`` / ``output_text``)
   * Anthropic -> Messages API (``client.messages.create``, text content blocks)
-  * Mistral / DeepSeek / LocalMind -> OpenAI-compatible ``chat.completions``
+  * Mistral / DeepSeek / LocalMind / custom -> OpenAI-compatible ``chat.completions``
 
 We deliberately do NOT use ``_shared.extract_chat_content`` here: that helper
 returns a JSON ``{"error": ...}`` blob (never ``None``) on empty/refusal/length,
@@ -21,6 +21,7 @@ from __future__ import annotations
 from ..llm_clients import (
     get_openai_client, get_anthropic_client,
     get_mistral_client, get_deepseek_client, get_localmind_client,
+    get_custom_client,
 )
 from ...config.config_manager import KNOWN_PROVIDERS
 
@@ -35,12 +36,14 @@ _OPENAI_CHAT_FACTORIES = {
 
 
 def chat_completion(provider, model, system_prompt, user_prompt, api_key,
-                    *, max_tokens=4000):
+                    *, max_tokens=4000, base_url=None):
     """Return the model's plain-text answer to (system_prompt, user_prompt).
 
-    Raises ``ValueError`` for an unknown provider, ``RuntimeError('feedback_empty')``
-    when the model returns no text, and ``RuntimeError('feedback_failed: ...')``
-    on any SDK/network error.
+    ``base_url`` is only consumed by the custom provider (the user-supplied
+    OpenAI-compatible endpoint). Raises ``ValueError`` for an unknown
+    provider, ``RuntimeError('feedback_empty')`` when the model returns no
+    text, and ``RuntimeError('feedback_failed: ...')`` on any SDK/network
+    error.
     """
     provider = (provider or "").lower()
     if provider not in KNOWN_PROVIDERS:
@@ -49,6 +52,8 @@ def chat_completion(provider, model, system_prompt, user_prompt, api_key,
         raise RuntimeError("feedback_failed: missing API key")
     if not model:
         raise RuntimeError("feedback_failed: no model selected")
+    if provider == "custom" and not base_url:
+        raise RuntimeError("feedback_failed: custom provider has no base URL configured")
 
     try:
         if provider == "anthropic":
@@ -75,7 +80,10 @@ def chat_completion(provider, model, system_prompt, user_prompt, api_key,
             )
             text = resp.output_text
         else:
-            client = _OPENAI_CHAT_FACTORIES[provider](api_key)
+            if provider == "custom":
+                client = get_custom_client(api_key, base_url)
+            else:
+                client = _OPENAI_CHAT_FACTORIES[provider](api_key)
             resp = client.chat.completions.create(
                 model=model,
                 messages=[

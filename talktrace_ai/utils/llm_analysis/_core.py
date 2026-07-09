@@ -28,6 +28,7 @@ from .openai import llm_analysis_openai
 from .mistral import llm_analysis_mistral
 from .deepseek import llm_analysis_deepseek
 from .localmind import llm_analysis_localmind
+from .custom import llm_analysis_custom
 
 
 def _sanitize_prompt_for_speakers(text: str, teacher: bool, students: bool) -> str:
@@ -128,7 +129,7 @@ def build_effective_prompts(
     return sys_prompt, user_prompt
 
 
-def _build_client(provider: str, *, api_key: Optional[str]):
+def _build_client(provider: str, *, api_key: Optional[str], base_url: Optional[str] = None):
     """Lazy-import provider SDK clients so startup stays fast."""
     if provider == "openai":
         from ..llm_clients import get_openai_client
@@ -145,6 +146,11 @@ def _build_client(provider: str, *, api_key: Optional[str]):
     if provider == "localmind":
         from ..llm_clients import get_localmind_client
         return get_localmind_client(api_key)
+    if provider == "custom":
+        from ..llm_clients import get_custom_client
+        if not base_url:
+            return None
+        return get_custom_client(api_key, base_url)
     return None
 
 
@@ -157,6 +163,7 @@ def run_llm_coding_once(
     system_prompt: str,
     user_prompt: str,
     api_key: Optional[str] = None,
+    base_url: Optional[str] = None,
 ):
     """Run a single non-streaming LLM coding pass and return (df, raw_json, err).
 
@@ -171,7 +178,9 @@ def run_llm_coding_once(
         return None, None, f"No API key configured for provider {provider}"
 
     try:
-        client = _build_client(provider, api_key=api_key)
+        client = _build_client(provider, api_key=api_key, base_url=base_url)
+        if client is None:
+            return None, None, f"No client for provider {provider} (missing base URL?)"
         if provider == "openai":
             raw = llm_analysis_openai(system_prompt, user_prompt, model, transcript, codebook, client)
         elif provider == "anthropic":
@@ -182,6 +191,8 @@ def run_llm_coding_once(
             raw = llm_analysis_deepseek(system_prompt, user_prompt, model, transcript, codebook, client)
         elif provider == "localmind":
             raw = llm_analysis_localmind(system_prompt, user_prompt, model, transcript, codebook, client)
+        elif provider == "custom":
+            raw = llm_analysis_custom(system_prompt, user_prompt, model, transcript, codebook, client)
         else:
             return None, None, f"Unsupported provider: {provider}"
     except Exception as exc:

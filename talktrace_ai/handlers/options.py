@@ -18,6 +18,7 @@ def register(state):
     api_key_mistral = state.api_key_mistral
     api_key_deepseek = state.api_key_deepseek
     api_key_localmind = state.api_key_localmind
+    api_key_custom = state.api_key_custom
     ollama_status_refresh = state.ollama_status_refresh
     current_api = state.current_api
     model_deleted = state.model_deleted
@@ -34,6 +35,7 @@ def register(state):
         "openrouter": "api_key_openrouter",
         "mistral": "api_key_mistral",
         "deepseek": "api_key_deepseek",
+        "custom": "api_key_custom",
     }
     _api_key_reactive = {
         "localmind": api_key_localmind,
@@ -44,6 +46,7 @@ def register(state):
         "openrouter": api_key_openrouter,
         "mistral": api_key_mistral,
         "deepseek": api_key_deepseek,
+        "custom": api_key_custom,
     }
 
     ### Optionen --------------------------------------------------------
@@ -77,6 +80,7 @@ def register(state):
             "anthropic": "Anthropic",
             "mistral": "Mistral",
             "deepseek": "DeepSeek",
+            "custom": t("options", "provider_custom_label"),
             # "groq": "Groq",
             # "openrouter": "OpenRouter",
             # "ollama": "Ollama",
@@ -98,6 +102,9 @@ def register(state):
         if selected == "localmind":
             a = api_key_localmind.get()
             return t("options", "api_localmind_found") if api_key_localmind.get() else t("options", "api_localmind_not_found")
+        elif selected == "custom":
+            a = api_key_custom.get()
+            return t("options", "api_custom_found") if api_key_custom.get() else t("options", "api_custom_not_found")
         elif selected == "openai":
             a = api_key_openai.get()
             return t("options", "api_openai_found") if api_key_openai.get() else t("options", "api_openai_not_found")
@@ -156,7 +163,9 @@ def register(state):
             (selected == "anthropic" and api_key_anthropic.get() == None) or
             (selected == "openrouter" and api_key_openrouter.get() == None) or
             (selected == "mistral" and api_key_mistral.get() == None) or
-            (selected == "deepseek" and api_key_deepseek.get() == None)
+            (selected == "deepseek" and api_key_deepseek.get() == None) or
+            (selected == "custom" and (api_key_custom.get() == None
+                                       or not config.get_custom_base_url()))
         )
         if missing_key:
             m = ui.modal(
@@ -275,52 +284,101 @@ def register(state):
         deleted_models = model_deleted.get() # for reactivity/invalidation
         return config.get_models(local_only=state.local_only.get())
 
-    # LocalMind: Modell-Katalog live von GET /v1/models laden. Nur sichtbar,
-    # wenn LocalMind der ausgewählte Provider ist — die Slugs des Gateways sind
-    # nicht öffentlich dokumentiert, deshalb holt der Nutzer die verbindliche
-    # Liste vom Endpoint, gegen den er sich authentifiziert.
+    # Custom-Provider: Base-URL des OpenAI-kompatiblen Endpoints. Nur sichtbar,
+    # wenn "custom" der ausgewählte Provider ist; persistiert in der Config
+    # (der Key liegt wie bei allen Providern im OS-Keyring).
     @render.ui
-    def loc_localmind_fetch_models():
-        if input.api_select() != "localmind":
+    def loc_custom_base_url():
+        if input.api_select() != "custom":
             return None
         return ui.div(
-            ui.input_action_button(
-                "button_localmind_fetch_models",
-                t("options", "localmind_fetch_button"),
-                icon=icon_svg("cloud-arrow-down"),
-                class_="btn-primary btn-sm",
+            ui.input_text(
+                "custom_base_url",
+                t("options", "custom_base_url_label"),
+                value=config.get_custom_base_url(),
+                placeholder="https://host.example/v1",
+                width="100%",
             ),
-            ui.tags.p(t("options", "localmind_fetch_hint"),
-                      class_="text-muted small mt-1 mb-0"),
+            ui.tags.p(t("options", "custom_base_url_hint"),
+                      class_="text-muted small mt-0 mb-0"),
+        )
+
+    @reactive.effect
+    @reactive.event(input.custom_base_url)
+    def _persist_custom_base_url():
+        config.set_custom_base_url(input.custom_base_url())
+
+    # Modell-Katalog live vom Anbieter laden (GET /v1/models bzw. Anthropics
+    # models.list). Modell-Listen sind lebende Kataloge — der Button holt die
+    # verbindliche Liste vom Endpoint, gegen den sich der Nutzer
+    # authentifiziert, statt Release-Notes hinterherzupflegen. Embedding-/
+    # Audio-/Bild-Modelle werden gefiltert; Preise bereits registrierter
+    # Modelle bleiben erhalten, neue starten mit 0.
+    @render.ui
+    def loc_fetch_models():
+        provider = input.api_select()
+        rv = _api_key_reactive.get(provider)
+        has_key = bool(rv.get()) if rv is not None else False
+        if provider == "ollama":
+            return None  # local server, model list managed by Ollama itself
+        return ui.div(
+            ui.input_action_button(
+                "button_fetch_models",
+                t("options", "fetch_models_button"),
+                icon=icon_svg("arrows-rotate"),
+                class_="btn-primary btn-sm",
+                disabled=not has_key,
+            ),
+            ui.tags.p(
+                t("options", "fetch_models_hint") if has_key
+                else t("options", "fetch_models_no_key"),
+                class_="text-muted small mt-1 mb-0",
+            ),
             class_="mb-2",
         )
 
     @reactive.effect
-    @reactive.event(input.button_localmind_fetch_models)
-    def fetch_localmind_model_list():
-        key = api_key_localmind.get()
+    @reactive.event(input.button_fetch_models)
+    def fetch_model_list():
+        provider = input.api_select()
+        rv = _api_key_reactive.get(provider)
+        key = rv.get() if rv is not None else None
         if not key:
             ui.notification_show(
-                t("options", "localmind_fetch_no_key"), type="warning", duration=6)
+                t("options", "fetch_models_no_key"), type="warning", duration=6)
+            return
+        base_url = config.get_custom_base_url() if provider == "custom" else None
+        if provider == "custom" and not base_url:
+            ui.notification_show(
+                t("options", "custom_base_url_missing"), type="warning", duration=6)
             return
         try:
-            models = fetch_localmind_models(key)
+            models = fetch_provider_models(provider, key, base_url=base_url)
         except Exception as exc:
             ui.notification_show(
-                t("options", "localmind_fetch_error").format(error=exc),
+                t("options", "fetch_models_error").format(error=exc),
                 type="error", duration=10)
             return
         if not models:
             ui.notification_show(
-                t("options", "localmind_fetch_empty"), type="warning", duration=6)
+                t("options", "fetch_models_empty"), type="warning", duration=6)
             return
-        # Preise liefert /v1/models nicht — 0.0 als Platzhalter (per "Modell
-        # hinzufügen" nachjustierbar). Bestehende Namen werden ersetzt.
-        entries = [{"name": m, "input": 0.0, "output": 0.0} for m in models]
-        config.set_models("localmind", entries)
-        # Falls das aktuell gewählte Modell (z.B. ein Seed-Slug) nicht mehr in
-        # der echten Liste ist, auf das erste echte Modell umstellen.
-        if config.get_current_api() == "localmind" and config.get_current_model() not in models:
+        # Preise liefern die Endpoints nicht — vorhandene Registry-Einträge
+        # behalten ihre gepflegten Preise, neue Modelle starten mit 0.0
+        # (per "Modell hinzufügen" nachjustierbar).
+        try:
+            current = {m["name"]: m for m in eval(config.config.get(
+                "MODELS", f"{provider}_models", fallback="[]"))}
+        except Exception:
+            current = {}
+        entries = [
+            current.get(m, {"name": m, "input": 0.0, "output": 0.0})
+            for m in models
+        ]
+        config.set_models(provider, entries)
+        # Falls das aktuell gewählte Modell nicht mehr in der frischen Liste
+        # ist, auf das erste verfügbare umstellen.
+        if config.get_current_api() == provider and config.get_current_model() not in models:
             config.set_current_model(models[0])
             state.model.set(models[0])
         model_deleted.set(model_deleted.get() + 1)  # for reactivity/invalidation
@@ -328,7 +386,7 @@ def register(state):
         ui.update_select("model_select", choices=select_api_choices(),
                          selected=config.get_current_model())
         ui.notification_show(
-            t("options", "localmind_fetch_success").format(n=len(models)),
+            t("options", "fetch_models_success").format(n=len(models)),
             type="message", duration=6)
 
     # Button zum Hinzufügen eines Modells

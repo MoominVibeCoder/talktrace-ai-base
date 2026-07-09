@@ -49,28 +49,36 @@ def test_client_factories_build():
     from talktrace_ai.utils.llm_clients import (
         get_openai_client, get_anthropic_client,
         get_mistral_client, get_deepseek_client, get_localmind_client,
+        get_custom_client,
     )
 
     assert type(get_openai_client("sk-test")).__name__ == "OpenAI"
     assert type(get_anthropic_client("sk-test")).__name__ == "Anthropic"
-    # Mistral, DeepSeek and LocalMind reuse the OpenAI SDK pointed at their endpoints.
+    # Mistral, DeepSeek, LocalMind and custom reuse the OpenAI SDK pointed
+    # at their endpoints.
     assert type(get_mistral_client("sk-test")).__name__ == "OpenAI"
     assert type(get_deepseek_client("sk-test")).__name__ == "OpenAI"
     assert type(get_localmind_client("sk-test")).__name__ == "OpenAI"
+    custom = get_custom_client("sk-test", "https://example.test/v1")
+    assert type(custom).__name__ == "OpenAI"
+    assert "example.test" in str(custom.base_url)
 
 
-def test_localmind_model_filter():
-    """The /v1/models catalogue mixes chat, embedding and image models;
+def test_provider_model_filter():
+    """Provider model catalogues mix chat, embedding, audio and image models;
     only chat models may reach the picker."""
-    from talktrace_ai.utils.llm_clients import _is_localmind_chat_model
+    from talktrace_ai.utils.llm_clients import _is_chat_model
 
-    assert _is_localmind_chat_model("localmind-pro")
-    assert _is_localmind_chat_model("claude-sonnet-5")
-    assert _is_localmind_chat_model("gpt-5-4-azure-gdpr")
+    assert _is_chat_model("localmind-pro")
+    assert _is_chat_model("claude-sonnet-5")
+    assert _is_chat_model("gpt-5-4-azure-gdpr")
+    assert _is_chat_model("deepseek-chat")
     for non_chat in ("mistral-embed-eu", "localmind-embeddings",
                      "qwen-3-embedding-8b-nebius", "gpt-image-2",
-                     "flux-2-pro-azure"):
-        assert not _is_localmind_chat_model(non_chat), non_chat
+                     "flux-2-pro-azure", "whisper-1", "tts-1-hd",
+                     "dall-e-3", "omni-moderation-latest",
+                     "gpt-4o-realtime-preview", "voxtral-small-latest"):
+        assert not _is_chat_model(non_chat), non_chat
 
 
 def test_cache_key_resolves_format_codebook():
@@ -93,10 +101,12 @@ def test_llm_analysis_provider_subpackage():
     from talktrace_ai.utils.llm_analysis import (
         llm_analysis_openai, llm_analysis_anthropic,
         llm_analysis_mistral, llm_analysis_deepseek, llm_analysis_localmind,
+        llm_analysis_custom,
     )
 
     for fn in (llm_analysis_openai, llm_analysis_anthropic,
-               llm_analysis_mistral, llm_analysis_deepseek, llm_analysis_localmind):
+               llm_analysis_mistral, llm_analysis_deepseek, llm_analysis_localmind,
+               llm_analysis_custom):
         assert callable(fn)
 
 

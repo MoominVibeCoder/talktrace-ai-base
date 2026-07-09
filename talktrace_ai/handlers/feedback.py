@@ -62,6 +62,7 @@ def register(state):
             "mistral": state.api_key_mistral,
             "deepseek": state.api_key_deepseek,
             "localmind": state.api_key_localmind,
+            "custom": state.api_key_custom,
         }.get(provider)
         return rv.get() if rv is not None else None
 
@@ -213,7 +214,11 @@ def register(state):
         feedback_busy.set(True)
         try:
             result = await asyncio.to_thread(
-                chat_completion, provider, model, sys_p, usr_p, key,
+                lambda: chat_completion(
+                    provider, model, sys_p, usr_p, key,
+                    base_url=(config.get_custom_base_url()
+                              if provider == "custom" else None),
+                ),
             )
             result = fb.clean_markdown(result)  # plain text — no md in the field
             feedback_text.set(result)

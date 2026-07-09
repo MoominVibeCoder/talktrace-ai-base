@@ -22,6 +22,7 @@ def register(state):
             "anthropic": "Anthropic",
             "mistral": "Mistral",
             "deepseek": "DeepSeek",
+            "custom": t("options", "provider_custom_label"),
             # "groq": "Groq",
             # "openrouter": "OpenRouter",
             # "ollama": "Ollama",
@@ -55,6 +56,7 @@ def register(state):
         "localmind": ("localmind_hint_label", "localmind_hint"),
         "mistral": ("mistral_hint_label", "mistral_hint"),
         "deepseek": ("deepseek_hint_label", "deepseek_hint"),
+        "custom": ("custom_hint_label", "custom_hint"),
     }
 
     @render.ui

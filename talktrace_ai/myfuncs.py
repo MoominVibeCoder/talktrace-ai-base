@@ -11,7 +11,8 @@ from .utils.llm_cache import _cache_key, _cache_get, _cache_put
 from .utils.llm_clients import (
     get_openai_client, get_anthropic_client,
     get_mistral_client, get_deepseek_client, get_localmind_client,
-    fetch_localmind_models,
+    get_custom_client,
+    fetch_provider_models,
 )
 from .utils.file_io import (
     docx_to_json, read_txt, import_file, write_txt, write_docx_from_text,
@@ -37,11 +38,11 @@ from .utils.llm_analysis import (
     llm_analysis_openai,
     llm_analysis_anthropic,
     llm_analysis_mistral, llm_analysis_deepseek,
-    llm_analysis_localmind,
+    llm_analysis_localmind, llm_analysis_custom,
     llm_analysis_openai_stream,
     llm_analysis_anthropic_stream,
     llm_analysis_mistral_stream, llm_analysis_deepseek_stream,
-    llm_analysis_localmind_stream,
+    llm_analysis_localmind_stream, llm_analysis_custom_stream,
     async_stream,
 )
 from .utils.reports import (

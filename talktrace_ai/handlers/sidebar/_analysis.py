@@ -260,6 +260,16 @@ def register(state):
                         (sys_p, usr_p, mdl, transcript, cb, client),
                         {"language": lang},
                     )
+                elif current_api == "custom":
+                    req(state.api_key_custom.get() != None)
+                    req(bool(config.get_custom_base_url()))
+                    client = get_custom_client(state.api_key_custom.get(),
+                                               config.get_custom_base_url())
+                    stream_gen_args = (
+                        llm_analysis_custom_stream,
+                        (sys_p, usr_p, mdl, transcript, cb, client),
+                        {"language": lang},
+                    )
             else:
                 if current_api == "groq":
                     req(api_key_groq.get() != None)
@@ -299,6 +309,13 @@ def register(state):
                     client = get_localmind_client(state.api_key_localmind.get())
                     llm_task = asyncio.create_task(asyncio.to_thread(
                         llm_analysis_localmind, sys_p, usr_p, mdl, transcript, cb, client))
+                elif current_api == "custom":
+                    req(state.api_key_custom.get() != None)
+                    req(bool(config.get_custom_base_url()))
+                    client = get_custom_client(state.api_key_custom.get(),
+                                               config.get_custom_base_url())
+                    llm_task = asyncio.create_task(asyncio.to_thread(
+                        llm_analysis_custom, sys_p, usr_p, mdl, transcript, cb, client))
 
         # Zuerst Statistik einsammeln (läuft parallel zum LLM-Call).
         stats_result = await stats_task

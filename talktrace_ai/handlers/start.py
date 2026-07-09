@@ -24,6 +24,7 @@ _PROVIDER_LABELS = {
     "localmind": "LocalMind",
     "openai": "OpenAI", "anthropic": "Anthropic",
     "mistral": "Mistral", "deepseek": "DeepSeek",
+    "custom": "Custom",
     "groq": "Groq", "ollama": "Ollama", "openrouter": "OpenRouter",
 }
 
@@ -39,6 +40,7 @@ def register(state):
 
     api_keys = {
         "localmind": state.api_key_localmind,
+        "custom": state.api_key_custom,
         "groq": state.api_key_groq,
         "openai": state.api_key_openai,
         "anthropic": state.api_key_anthropic,

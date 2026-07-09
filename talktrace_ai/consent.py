@@ -23,6 +23,9 @@ import html
 # pre-fill the recipient field. Cloud providers outside the EU make the
 # transcript a third-country transfer — the consent text must say so.
 PROVIDER_LOCATIONS = {
+    # Custom endpoint: recipient/location unknown to the app — leave the
+    # field empty so the mandatory-field guard flags it for manual entry.
+    "custom": "",
     "localmind": "LocalMind, Österreich (EU)",
     "openai": "OpenAI, USA",
     "anthropic": "Anthropic, USA",

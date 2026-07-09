@@ -29,6 +29,7 @@ KNOWN_PROVIDERS = [
     # 'openrouter', # disabled (May 2026)
     'mistral',
     'deepseek',
+    'custom',       # user-supplied OpenAI-compatible endpoint (base URL + key)
 ]
 
 
@@ -320,6 +321,19 @@ class ConfigManager:
         self.config.set('MODELS', 'current_api', provider)
         self.save_config()
         
+    ### Custom-Provider Endpoint ###
+    def get_custom_base_url(self):
+        """Base URL of the user-supplied OpenAI-compatible endpoint, '' if unset."""
+        if not self.config.has_section('CUSTOM'):
+            self.config.add_section('CUSTOM')
+        return self.config.get('CUSTOM', 'base_url', fallback='').strip()
+
+    def set_custom_base_url(self, url):
+        if not self.config.has_section('CUSTOM'):
+            self.config.add_section('CUSTOM')
+        self.config.set('CUSTOM', 'base_url', (url or '').strip().rstrip('/'))
+        self.save_config()
+
     ### Parameter Management Methods ###
     def get_parameters(self):
         if not self.config.has_section('PARAMETERS'):

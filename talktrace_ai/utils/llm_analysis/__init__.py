@@ -19,6 +19,7 @@ from .anthropic import llm_analysis_anthropic, llm_analysis_anthropic_stream
 from .mistral import llm_analysis_mistral, llm_analysis_mistral_stream
 from .deepseek import llm_analysis_deepseek, llm_analysis_deepseek_stream
 from .localmind import llm_analysis_localmind, llm_analysis_localmind_stream
+from .custom import llm_analysis_custom, llm_analysis_custom_stream
 from ._stream_bridge import async_stream
 
 __all__ = [
@@ -27,10 +28,12 @@ __all__ = [
     "llm_analysis_mistral",
     "llm_analysis_deepseek",
     "llm_analysis_localmind",
+    "llm_analysis_custom",
     "llm_analysis_openai_stream",
     "llm_analysis_anthropic_stream",
     "llm_analysis_mistral_stream",
     "llm_analysis_deepseek_stream",
     "llm_analysis_localmind_stream",
+    "llm_analysis_custom_stream",
     "async_stream",
 ]

@@ -117,11 +117,6 @@ every key added to one must be added to the other. Look strings up via
   subprocess (never import/bundle/link it). Consent wording derives from a CC0
   source. Don't introduce code that would entangle these licenses — see
   [NOTICE](NOTICE) before touching either module.
-- **Commit trailer** (model-neutral):
-
-  ```
-  Co-Authored-By: Claude <noreply@anthropic.com>
-  ```
 
 - Don't add new logic to `myfuncs.py`; put it in the relevant `utils/` or
   top-level module and re-export only if an existing import path needs it.
