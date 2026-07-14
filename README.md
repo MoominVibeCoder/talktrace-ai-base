@@ -16,7 +16,7 @@ LLM-assisted analysis of classroom and small-group transcripts. Quantitative met
 
 > **base** is the public distribution descended from the original [TalkTrace-AI](https://github.com/talktrace-ai/talktrace-ai) by Jami Schorling and Dennis Hauk (Leipzig University). base focuses on the stable, well-tested core; experimental features and the active research roadmap live in a private internal research version.
 
-**Highlights** — Five LLM backends with the EU-hosted [LocalMind](https://www.localmind.ai/) gateway as the GDPR-friendly default (plus OpenAI, Anthropic, Mistral, DeepSeek) · Custom OpenAI-compatible endpoints (own base URL + key) with one-click model refresh · Local audio transcription with in-app waveform trim (optional noScribe engine, 100% on-device) · Research-grounded formative teacher feedback (editable, DOCX/PDF) · GDPR Art. 13 consent-declaration generator (DOCX/PDF) · Streaming coding view · Human-in-the-loop code editing · Code-transition heatmap and over-time views · Auto-generated methods paragraph + reproducibility fingerprint · DOCX / PDF / XLSX / HTML / CSV exports · Light/Dark themes · EN/DE UI
+**Highlights** — Built-in **T-SEDA codebook template** (one click: codebook loaded, teacher-focused multi-coding with per-code confidence — just upload a transcript) · Five LLM backends with the EU-hosted [LocalMind](https://www.localmind.ai/) gateway as the GDPR-friendly default (plus OpenAI, Anthropic, Mistral, DeepSeek) · Custom OpenAI-compatible endpoints (own base URL + key) with one-click model refresh · Local audio transcription with in-app waveform trim (optional noScribe engine, 100% on-device) · Research-grounded formative teacher feedback (editable, DOCX/PDF) · GDPR Art. 13 consent-declaration generator (DOCX/PDF) · Streaming coding view · Human-in-the-loop code editing · Code-transition heatmap and over-time views · Auto-generated methods paragraph + reproducibility fingerprint · DOCX / PDF / XLSX / HTML / CSV exports · Light/Dark themes · EN/DE UI
 
 **Full feature list** — [FEATURES.md](FEATURES.md)
 
@@ -111,7 +111,7 @@ A **Start** tab is the landing page (workflow overview, entry tiles, current-con
 <details>
 <summary><strong>Start tab</strong> (landing page)</summary>
 
-The first screen on launch. A workflow strip (Audio → Transcript → Analysis → Feedback → Export) shows how far you are; entry tiles jump to transcription, analysis, the session history, or a no-key demo. A configuration line reports the active provider/model, and a one-time **data-protection acknowledgment** (pick *explicit consent*, *fictive test data*, or *only my own utterances*) gates LLM calls until confirmed.
+The first screen on launch. A workflow strip (Audio → Transcript → Analysis → Feedback → Export) shows how far you are; entry tiles jump to a **T-SEDA analysis** (loads the built-in codebook with its presets — just add a transcript), transcription, analysis, the session history, or a no-key demo. A configuration line reports the active provider/model, and a one-time **data-protection acknowledgment** (pick *explicit consent*, *fictive test data*, or *only my own utterances*) gates LLM calls until confirmed.
 
 </details>
 
@@ -120,7 +120,7 @@ The first screen on launch. A workflow strip (Audio → Transcript → Analysis 
 
 Document Input panel:
 - **Transcript** *(required)* — must follow the [noScribe](https://github.com/kaixxx/noScribe) format. The interactive multi-stage converter handles transcripts from other tools (e.g. [aTrain](https://github.com/JuergenFleiss/aTrain)) — speaker-label detection, timestamp stripping, bracket-annotation review, per-speaker mapping, side-by-side preview.
-- **Codebook** *(required for qualitative analysis)* — see the [example codebook](images/Example%20Codebook.docx). Codes apply to **all speakers** (teacher and students).
+- **Codebook** *(required for qualitative analysis)* — see the [example codebook](images/Example%20Codebook.docx). Codes apply to **all speakers** (teacher and students). Alternatively, load the built-in **T-SEDA template** with one click (official [T-SEDA](https://camtree.learnworlds.com/t-seda) codes for dialogic classroom talk, DE/EN; T-SEDA Collective 2023, University of Cambridge, CC BY) — it also presets teacher-only coding and multi-coding with confidence.
 - **Teacher name** *(optional)* — if present in the transcript, enables teacher-specific metrics.
 - **Group identifier and metadata** — used for report labelling.
 
@@ -170,7 +170,7 @@ Split into quantitative and qualitative sections.
 
 **Quantitative** (deterministic): participation metrics, conversation shares (absolute + relative), per-speaker turn stats (count / mean / median), three-segment over-time view.
 
-**Qualitative** (LLM-coded): per-speaker coding (every turn carries a `Sprecher` label), code distribution plot, coded-impulse table, over-time code distribution, **Markov-style code-transition heatmap**, and an **auto-generated methods paragraph** for paper manuscripts (copy-to-clipboard, EN/DE).
+**Qualitative** (LLM-coded): per-speaker coding (every turn carries a `Sprecher` label), code distribution plot, coded-impulse table, over-time code distribution, **Markov-style code-transition heatmap**, and an **auto-generated methods paragraph** for paper manuscripts (copy-to-clipboard, EN/DE). With **multi-coding** enabled, each turn shows its **top 3 codes with the model's confidence** (e.g. `EN (92 %); L (61 %)`) — only codes the model rates above 50 % appear, and every cell stays hand-editable.
 
 </details>
 

@@ -8,6 +8,7 @@
 
 - **Transcript upload** — `.txt`, `.docx`, `.pdf`
 - **Codebook upload** — `.txt`, `.docx`, `.pdf`, with live preview
+- **Built-in T-SEDA codebook template** — one click (Start tile or next to the codebook upload) loads the official [T-SEDA](https://camtree.learnworlds.com/t-seda) scheme for dialogic classroom talk (T-SEDA Collective 2023, University of Cambridge, CC BY; German pack abbreviations in the DE UI, English originals in the EN UI) and presets the pipeline: LLM coding on, **teacher-only**, **multi-coding with confidence**. Just upload a transcript.
 - **Multi-stage format converter** — speaker mapping, bracket/timestamp stripping, side-by-side preview before download
 - **Group metadata** — class ID, class size, teacher name (all optional)
 
@@ -70,10 +71,10 @@ Own **Consent** tab — generate a print-ready **GDPR Art. 13** consent declarat
 ## Qualitative results
 
 - **Per-speaker coding** — every coded turn carries a speaker label
-- **Multi-coding** — multiple codes per utterance, opt-in toggle
+- **Multi-coding with confidence** — opt-in toggle; the model assigns up to **3 codes per utterance, each with a 0–100 confidence**. The table shows only codes rated **above 50 %**, ranked by confidence (e.g. `EN (92 %); L (61 %)`); a post-processing safety net enforces the cutoff and cap even if the model over-delivers. Plots, transition matrix and summaries aggregate per code (confidence stripped).
 - **Codebook priority hierarchy** — priority line, explicit column, or codebook order
 - **Code distribution plot** — frequency of each code across the conversation
-- **Coded-impulse table** — speaker, turn index, code(s), utterance text; **editable** — double-click any Shortcode cell to correct the LLM assignment (validated against the codebook, changes propagate to all plots and reports instantly)
+- **Coded-impulse table** — speaker, turn index, code(s), utterance text; **editable** — double-click any Shortcode cell to correct the LLM assignment (validated against the codebook, changes propagate to all plots and reports instantly; multi-coded cells accept semicolon-separated code lists, a manual edit deliberately overrides the model's confidence)
 - **Over-time code distribution** — which codes emerge when in the lesson
 - **Code-transition heatmap** — Markov-style matrix of which code follows which (uncoded turns skipped, multi-coding takes priority-resolved code). Surfaces dialogue dynamics like IRE patterns that frequency plots hide. Optional report section in DOCX/HTML/XLSX/CSV.
 - **Most-frequent-code summary** + teacher talking rate with per-student breakdown
@@ -97,7 +98,7 @@ Own **Consent** tab — generate a print-ready **GDPR Art. 13** consent declarat
 
 ## Interface
 
-- **Start tab (landing page)** — workflow status strip, entry tiles, current-configuration line, "what's new", and the data-protection acknowledgment; the default tab on launch
+- **Start tab (landing page)** — workflow status strip, five entry tiles (T-SEDA analysis · audio · transcript · resume · demo), current-configuration line, "what's new", and the data-protection acknowledgment; the default tab on launch
 - **Workflow-ordered tabs** — Start → Transcription → Analysis → Results → Feedback, with Options alongside and Consent + Info on the right; LLM configuration lives in the Analysis tab, the sidebar is organisation only (language, session save/restore/reset)
 - **Light & dark themes** — Soft Nordic (light) and Deep Forest (dark), toggle in the title bar
 - **Bilingual UI** — English & German, switchable any time
