@@ -92,8 +92,13 @@ def register(state):
 
     @reactive.effect
     def update_api_selection():
-        config.set_current_api(input.api_select())
-        current_api.set(input.api_select())
+        # Gleicher Guard wie in sidebar/_model_select.py: ein re-renderndes
+        # Select sendet transient null — nie in configparser durchreichen.
+        selected = input.api_select()
+        if not selected:
+            return
+        config.set_current_api(selected)
+        current_api.set(selected)
 
     # Anzeige, ob ein API-Key vorhanden ist
     @render.text

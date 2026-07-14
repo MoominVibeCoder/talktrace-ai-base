@@ -99,5 +99,14 @@ def register(state):
 
     @reactive.effect()
     def update_current_model():
-        model.set(input.model_select())
-        config.set_current_model(input.model_select())
+        # Beim (Re-)Mounten des Selects — z. B. Wechsel in den Analyse-Tab
+        # über eine Start-Kachel — sendet der Browser transient null, ebenso
+        # wenn das persistierte Modell nicht in den Choices steht. None darf
+        # weder ins reactive model noch in configparser (TypeError: option
+        # values must be strings) durchschlagen; der letzte gültige Wert
+        # bleibt stehen.
+        selected_model = input.model_select()
+        if not selected_model:
+            return
+        model.set(selected_model)
+        config.set_current_model(selected_model)
