@@ -103,10 +103,12 @@ def _extract_items_by_schema(text):
         r'"Impuls"\s*:\s*"',
         re.DOTALL,
     )
-    # Terminator: a quote followed by optional whitespace + closing brace,
-    # followed by comma, closing bracket, or end-of-string. This is the only
-    # reliable way to find the real end of Impuls when it may contain ".
-    term_re = re.compile(r'"\s*\}\s*(?=,|\]|$)')
+    # Terminator: a quote, optionally followed by a trailing "Konfidenz" field
+    # (multi-coding with confidence — always emitted LAST per the prompt
+    # contract), then whitespace + closing brace, followed by comma, closing
+    # bracket, or end-of-string. This is the only reliable way to find the
+    # real end of Impuls when it may contain ".
+    term_re = re.compile(r'"\s*(?:,\s*"Konfidenz"\s*:\s*(\d+|null)\s*)?\}\s*(?=,|\]|$)')
 
     pos = 0
     while pos < len(text):
@@ -115,26 +117,32 @@ def _extract_items_by_schema(text):
             break
         num_str, sprecher, shortcode = m.group(1), m.group(2), m.group(3)
         impuls_start = m.end()
+        konf_str = None
         t = term_re.search(text, impuls_start)
         if not t:
             # last item without trailing comma — try relaxed terminator.
-            t2 = re.search(r'"\s*\}\s*$', text[impuls_start:])
+            t2 = re.search(r'"\s*(?:,\s*"Konfidenz"\s*:\s*(\d+|null)\s*)?\}\s*$', text[impuls_start:])
             if t2:
                 impuls_end = impuls_start + t2.start()
                 next_pos = len(text)
+                konf_str = t2.group(1)
             else:
                 break
         else:
             impuls_end = t.start()
             next_pos = t.end()
+            konf_str = t.group(1)
         impuls = text[impuls_start:impuls_end]
         try:
-            items.append({
+            item = {
                 "#": int(num_str),
                 "Sprecher": sprecher,
                 "Shortcode": shortcode,
                 "Impuls": impuls,
-            })
+            }
+            if konf_str and konf_str != "null":
+                item["Konfidenz"] = int(konf_str)
+            items.append(item)
         except ValueError:
             pass
         pos = next_pos

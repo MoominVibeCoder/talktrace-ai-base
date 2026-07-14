@@ -36,6 +36,7 @@ from ..myfuncs import (
     llm_analysis_anthropic_stream,
     llm_analysis_mistral_stream, llm_analysis_deepseek_stream,
     llm_analysis_localmind_stream, llm_analysis_custom_stream,
+    analysis_items_to_df,
     async_stream,
     get_openai_client, get_anthropic_client,
     get_mistral_client, get_deepseek_client, get_localmind_client,
@@ -64,6 +65,7 @@ from ..examples.demo import (
     DEMO_TRANSCRIPT, DEMO_TEACHER_NAME, DEMO_GROUP_ID, DEMO_NUM_PUPILS,
     DEMO_CODE_LEGEND, DEMO_CODEBOOK, build_demo_llm_analysis_df,
 )
+from ..examples.tseda import TSEDA_CODEBOOK, TSEDA_PRESETS, TSEDA_ATTRIBUTION
 from ..config.config_manager import ConfigManager, KNOWN_PROVIDERS
 from ..localization.translation import TRANSLATIONS
 from ..paths import (
@@ -244,6 +246,7 @@ __all__ = [
     "llm_analysis_anthropic_stream",
     "llm_analysis_mistral_stream", "llm_analysis_deepseek_stream",
     "llm_analysis_localmind_stream", "llm_analysis_custom_stream",
+    "analysis_items_to_df",
     "async_stream",
     "get_openai_client", "get_anthropic_client",
     "get_mistral_client", "get_deepseek_client", "get_localmind_client",
@@ -267,6 +270,7 @@ __all__ = [
     "convert_with_options", "ConversionOptions",
     "DEMO_TRANSCRIPT", "DEMO_TEACHER_NAME", "DEMO_GROUP_ID",
     "DEMO_NUM_PUPILS", "DEMO_CODE_LEGEND", "DEMO_CODEBOOK", "build_demo_llm_analysis_df",
+    "TSEDA_CODEBOOK", "TSEDA_PRESETS", "TSEDA_ATTRIBUTION",
     "ConfigManager", "KNOWN_PROVIDERS", "TRANSLATIONS",
     "_WELCOME_FLAG_FILE", "_welcome_shown", "_mark_welcome_shown",
     "_DATAPROTECTION_FLAG_FILE", "_dataprotection_acknowledged",

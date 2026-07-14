@@ -27,6 +27,17 @@ def register(state):
             **{"data-tt-help": t("onboarding", "tooltip_llm_switch")},
         )
 
+    # Seed-Werte für die Sprechakt-Switches. Der render.ui-Slot unten wird
+    # bei jedem llm_switch-Toggle neu gerendert und setzt die Switches auf
+    # diese Startwerte zurück. Vorlagen-Loader (z. B. T-SEDA) schreiben ihre
+    # Pre-Sets HIER hinein und rufen zusätzlich update_switch: sind die
+    # Switches gerade gemountet, greift das Update sofort; sind sie es nicht
+    # (llm_switch war aus), rendert der Slot beim Einschalten mit den
+    # Seed-Werten. Bewusst ein plain dict — kein reactive.value, sonst würde
+    # jede Seed-Änderung ein Re-Render (und damit einen Werte-Reset) auslösen.
+    _switch_seed = {"teacher": True, "students": True, "multi": False}
+    state.speaker_switch_seed = _switch_seed
+
     # Sprechakt-Auswahl: nur sichtbar, wenn LLM-Analyse aktiv ist. Same
     # non-suspend rationale: the speaker/multi-coding switches feed the
     # effective prompts, which reports and the Options preview read from
@@ -37,9 +48,9 @@ def register(state):
         if not input.llm_switch():
             return None
         return ui.div(
-            ui.input_switch("analyse_teacher_switch", t("sidebar", "analyse_teacher_switch"), True),
-            ui.input_switch("analyse_students_switch", t("sidebar", "analyse_students_switch"), True),
-            ui.input_switch("multi_coding_switch", t("sidebar", "multi_coding_switch"), False),
+            ui.input_switch("analyse_teacher_switch", t("sidebar", "analyse_teacher_switch"), _switch_seed["teacher"]),
+            ui.input_switch("analyse_students_switch", t("sidebar", "analyse_students_switch"), _switch_seed["students"]),
+            ui.input_switch("multi_coding_switch", t("sidebar", "multi_coding_switch"), _switch_seed["multi"]),
             class_="ttai-switch-compact",
         )
 

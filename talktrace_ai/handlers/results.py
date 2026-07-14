@@ -2,6 +2,11 @@
 from ._common import *
 
 from ..utils.codebook_hierarchy import build_priority_lookup, priority_for
+from ..utils.qualitative import (
+    CONFIDENCE_CUTOFF,
+    aggregate_multicoded,
+    strip_confidence,
+)
 from ..utils.plot_style import (
     apply_axes_style,
     primary_color,
@@ -430,7 +435,12 @@ def register(state):
                 return t("system_prompts", "no_code")
             # Exclude uncoded turns (empty Shortcode from the LEFT JOIN in
             # make_qualitative_stats_df) — otherwise "" usually wins the mode().
+            # Multi-codierte Zellen ("EN (85 %); L (62 %)") werden gesplittet
+            # und die Konfidenz-Suffixe gestrippt, damit der Modus über
+            # einzelne Codes läuft — konsistent zum Häufigkeits-Plot.
             codes = df[t("report", "shortcode")].astype(str).str.strip()
+            codes = codes.str.split(r"\s*;\s*", regex=True).explode()
+            codes = codes.astype(str).apply(strip_confidence).str.strip()
             codes = codes[codes != ""]
             if codes.empty:
                 return t("system_prompts", "no_code")
@@ -550,7 +560,9 @@ def register(state):
         # a single-element list, so explode is a no-op.
         plot_df[shortcode_col] = plot_df[shortcode_col].str.split(r"\s*;\s*", regex=True)
         plot_df = plot_df.explode(shortcode_col)
-        plot_df[shortcode_col] = plot_df[shortcode_col].astype(str).str.strip()
+        # Konfidenz-Suffixe ("EN (85 %)") strippen, damit pro Code gezählt
+        # wird und nicht pro Code+Konfidenz-Kombination.
+        plot_df[shortcode_col] = plot_df[shortcode_col].astype(str).apply(strip_confidence).str.strip()
         plot_df = plot_df[plot_df[shortcode_col] != ""]
         if plot_df.empty:
             _, ax = _no_data_fig(t("results", "no_data"), mode)
@@ -601,6 +613,15 @@ def register(state):
         if latest_df is None or latest_df.empty:
             _, ax = _no_data_fig(t("results", "no_data"), mode)
             return ax
+        # Konsistenz mit der Tabelle: im Multi-Coding-Modus zählen nur Codes
+        # über dem Konfidenz-Cutoff in die Verteilung (Zeilen ohne Konfidenz
+        # bleiben — Altbestand/ältere Sessions).
+        if "Konfidenz" in latest_df.columns and _is_multi_coding_on(input):
+            _conf = pd.to_numeric(latest_df["Konfidenz"], errors="coerce")
+            latest_df = latest_df[(_conf > CONFIDENCE_CUTOFF) | _conf.isna()]
+            if latest_df.empty:
+                _, ax = _no_data_fig(t("results", "no_data"), mode)
+                return ax
         transcript = transcript_data.get()
         teacher = input.name_teacher() or t("analysis", "name_teacher_var")
         n_segments = 3
@@ -693,7 +714,10 @@ def register(state):
                 t_ = re.sub(r"\s+", " ", str(s)).strip()
                 return re.sub(r"^[\s\"'„“”»«()\[\]\.…!?,:;-]+|[\s\"'„“”»«()\[\]\.…!?,:;-]+$", "", t_).lower()
             all_turns_df["__key__"] = all_turns_df["Sprecher"] + " :: " + all_turns_df["Impuls"].apply(_norm_impuls)
-            coded = analysis_df[["Sprecher", "Impuls", "Shortcode"]].copy()
+            coded_cols = ["Sprecher", "Impuls", "Shortcode"]
+            if "Konfidenz" in analysis_df.columns:
+                coded_cols.append("Konfidenz")
+            coded = analysis_df[coded_cols].copy()
             # Normalize teacher speaker name: LLMs sometimes return "Lehrperson" or
             # "Lehrer" even when the transcript uses the configured teacher_name (e.g.
             # "LEHRER"). Map any case-insensitive match to the canonical name so the
@@ -712,14 +736,10 @@ def register(state):
             # Stabiler Sort: nach Priorität (aufsteigend = höhere Priorität zuerst).
             coded = coded.sort_values("__priority__", kind="mergesort")
             if _is_multi_coding_on(input):
-                # Mehrfach-Codierung: Codes pro Turn in Priorität-Reihenfolge
-                # mit "; " verbinden. Doppelte Codes pro Turn werden dedupliziert
-                # (dict.fromkeys behält Reihenfolge).
-                coded = (
-                    coded.groupby("__key__", sort=False)
-                         .agg({"Shortcode": lambda s: "; ".join(dict.fromkeys(str(c).strip() for c in s if str(c).strip()))})
-                         .reset_index()
-                )
+                # Mehrfach-Codierung: Konfidenz-Filter (> 50 %) + Top-3 pro
+                # Turn + "CODE (NN %)"-Anzeige; ohne Konfidenz-Spalte der
+                # klassische Join in Priorität-Reihenfolge (dedupliziert).
+                coded = aggregate_multicoded(coded)
             else:
                 # Single-Coding: höchstpriore Code überlebt pro Turn.
                 coded = coded.drop_duplicates(subset=["__key__"], keep="first")
@@ -802,12 +822,18 @@ def register(state):
             code_edits.set(edits)
             return ""
 
-        # Validate against codebook
+        # Validate against codebook. Multi-Coding-Zellen ("EN (85 %); L") sind
+        # als Semikolon-Liste editierbar; Konfidenz-Suffixe werden beim
+        # Validieren und Speichern gestrippt (eine manuelle Korrektur
+        # überschreibt die Modell-Konfidenz bewusst).
+        parts = [strip_confidence(p).strip() for p in new_code.split(";")]
+        parts = list(dict.fromkeys(p for p in parts if p))
         valid_codes = set(build_priority_lookup(codebook_data.get()).keys())
-        if new_code not in valid_codes:
+        invalid = [p for p in parts if p not in valid_codes]
+        if invalid:
             ui.notification_show(
                 t("results", "edit_code_invalid").format(
-                    code=new_code,
+                    code=", ".join(invalid),
                     valid=", ".join(sorted(valid_codes)),
                 ),
                 type="warning",
@@ -816,11 +842,12 @@ def register(state):
             return df.iloc[patch["row_index"], sc_col_idx]
 
         # Store the edit
+        normalized = "; ".join(parts)
         turn_num = int(df.iloc[patch["row_index"], 0])
         edits = dict(code_edits.get())
-        edits[turn_num] = new_code
+        edits[turn_num] = normalized
         code_edits.set(edits)
-        return new_code
+        return normalized
 
 
     # DataFrame für qualitative Statistik
@@ -892,6 +919,10 @@ def register(state):
         if df is None or df.empty:
             return [], pd.DataFrame(), 0
         shortcode_col = t("report", "shortcode")
+        # Konfidenz-Suffixe strippen, damit die Übergangsmatrix über reine
+        # Codes läuft ("EN (85 %)" und "EN (70 %)" sind derselbe Zustand).
+        df = df.copy()
+        df[shortcode_col] = df[shortcode_col].astype(str).apply(strip_confidence)
         return build_transition_matrix(df, shortcode_col, normalize=True)
 
 

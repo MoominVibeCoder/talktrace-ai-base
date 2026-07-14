@@ -34,9 +34,12 @@ _OPENAI_SCHEMA_NO_ENUM = {
                     "#": {"type": "integer", "description": "Nummerierung"},
                     "Sprecher": {"type": "string", "description": "Sprecher-Kennung (z.B. 'Lehrperson', 'LEHRER', 'S01', ...)"},
                     "Shortcode": {"type": "string", "description": "Der Shortcode"},
-                    "Impuls": {"type": "string", "description": "Die Äußerung"}
+                    "Impuls": {"type": "string", "description": "Die Äußerung"},
+                    # Nullable + required — siehe build_analysis_schema: strict
+                    # verlangt alle properties in required; optional = null-Union.
+                    "Konfidenz": {"type": ["integer", "null"], "description": "Konfidenz in Prozent (0-100); null, wenn keine Konfidenz verlangt ist."}
                 },
-                "required": ["#", "Sprecher", "Shortcode", "Impuls"],
+                "required": ["#", "Sprecher", "Shortcode", "Impuls", "Konfidenz"],
                 "additionalProperties": False
             },
             "description": "Liste von Analyseobjekten"

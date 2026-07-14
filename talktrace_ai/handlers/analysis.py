@@ -518,7 +518,8 @@ def register(state):
             ui.modal_show(m)
 
 
-    # Codebuch Upload
+    # Codebuch Upload — plus integrierte Vorlage (T-SEDA) als Alternative
+    # zum eigenen Upload.
     @render.ui
     def loc_upload_codebook():
         return ui.div(
@@ -530,6 +531,17 @@ def register(state):
                 button_label=t("analysis", "browse"),
                 placeholder=t("analysis", "placeholder"),
             ),
+            ui.div(
+                ui.span(t("analysis", "template_label"), class_="text-muted small me-2"),
+                ui.input_action_button(
+                    "tseda_template_btn",
+                    t("analysis", "template_tseda_button"),
+                    icon=icon_svg("wand-magic-sparkles"),
+                    class_="btn-outline-secondary btn-sm",
+                ),
+                class_="d-flex align-items-center flex-wrap gap-1",
+            ),
+            ui.p(t("analysis", "template_tseda_hint"), class_="text-muted small mt-1 mb-0"),
             **{"data-tt-help": t("onboarding", "tooltip_upload_codebook")},
         )
 
@@ -541,6 +553,42 @@ def register(state):
         file = input.codebook()
         if file is not None:
             codebook_data.set(import_file(file[0]))
+
+
+    # T-SEDA-Vorlage laden: integriertes Codebuch + Pre-Sets. Die Seed-Werte
+    # (state.speaker_switch_seed, gesetzt in sidebar/_prompts.py) sorgen
+    # dafür, dass die Pre-Sets auch dann greifen, wenn die Switches gerade
+    # nicht gemountet sind (llm_switch war aus) — der Slot rendert beim
+    # Einschalten mit den Seed-Werten; update_switch deckt den gemounteten
+    # Fall ab.
+    def _load_tseda_template():
+        with reactive.isolate():
+            lang = state.current_lang.get()
+        lang = lang if lang in ("de", "en") else "de"
+        # Kopie pro Eintrag, damit spätere Mutationen (z. B. durch Handler)
+        # nie das Modul-Original verändern.
+        codebook_data.set([dict(entry) for entry in TSEDA_CODEBOOK[lang]])
+        seed = getattr(state, "speaker_switch_seed", None)
+        if seed is not None:
+            seed.update({
+                "teacher": TSEDA_PRESETS["analyse_teacher_switch"],
+                "students": TSEDA_PRESETS["analyse_students_switch"],
+                "multi": TSEDA_PRESETS["multi_coding_switch"],
+            })
+        ui.update_switch("llm_switch", value=TSEDA_PRESETS["llm_switch"])
+        ui.update_switch("analyse_teacher_switch", value=TSEDA_PRESETS["analyse_teacher_switch"])
+        ui.update_switch("analyse_students_switch", value=TSEDA_PRESETS["analyse_students_switch"])
+        ui.update_switch("multi_coding_switch", value=TSEDA_PRESETS["multi_coding_switch"])
+        ui.notification_show(t("analysis", "template_tseda_loaded"), type="message", duration=6)
+
+    # Published für die Start-Kachel (handlers/start.py) — gleicher Code-Pfad
+    # wie der Button hier im Analyse-Tab.
+    state.load_tseda_template = _load_tseda_template
+
+    @reactive.effect
+    @reactive.event(input.tseda_template_btn, ignore_init=True)
+    def _load_tseda_from_button():
+        _load_tseda_template()
 
 
     # Warnung bei fehlendem Codebuch

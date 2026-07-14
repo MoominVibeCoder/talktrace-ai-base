@@ -43,6 +43,7 @@ from .utils.llm_analysis import (
     llm_analysis_anthropic_stream,
     llm_analysis_mistral_stream, llm_analysis_deepseek_stream,
     llm_analysis_localmind_stream, llm_analysis_custom_stream,
+    analysis_items_to_df,
     async_stream,
 )
 from .utils.reports import (

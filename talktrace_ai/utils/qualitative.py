@@ -22,6 +22,65 @@ from .plot_style import (
 from .stats import _parse_turns
 
 
+# --- Multi-Coding mit Konfidenz -------------------------------------------
+# Anzeige-Format einer multi-codierten Zelle: "EN (85 %); L (62 %)".
+# Der Cutoff und das Top-N-Cap sind das Post-Processing-Sicherheitsnetz zur
+# gleichlautenden Prompt-Instruktion (localization: *_multi_coding_on) —
+# auch wenn das Modell zu viele oder zu unsichere Codes emittiert, zeigt
+# die Tabelle höchstens MAX_CODES_PER_TURN Codes mit Konfidenz > Cutoff.
+CONFIDENCE_CUTOFF = 50
+MAX_CODES_PER_TURN = 3
+
+_CONF_SUFFIX_RE = re.compile(r"\s*\(\d+\s*%\)")
+
+
+def strip_confidence(text) -> str:
+    """Entfernt " (NN %)"-Konfidenz-Suffixe aus einer Shortcode-Zelle."""
+    return _CONF_SUFFIX_RE.sub("", str(text))
+
+
+def aggregate_multicoded(coded):
+    """Codes pro Turn (``__key__``) zu einer Anzeige-Zelle verbinden.
+
+    Erwartet einen DataFrame mit ``__key__``, ``Shortcode`` und optional
+    ``Konfidenz``, bereits stabil nach ``__priority__`` sortiert. Ohne
+    Konfidenz-Spalte bleibt das klassische Verhalten (Join in
+    Prioritäts-Reihenfolge, dedupliziert). Mit Konfidenz: Cutoff-Filter
+    (> CONFIDENCE_CUTOFF; Zeilen ohne Wert bleiben aus Rückwärts-
+    kompatibilität erhalten), Sortierung nach Konfidenz absteigend
+    (Codebuch-Priorität als Tiebreaker), höchstens MAX_CODES_PER_TURN
+    Codes, Anzeige als "CODE (NN %)". Gibt einen DataFrame mit
+    ``__key__`` + ``Shortcode`` zurück.
+    """
+    coded = coded.copy()
+    if "Konfidenz" in coded.columns:
+        coded["__conf__"] = pd.to_numeric(coded["Konfidenz"], errors="coerce")
+        coded = coded[(coded["__conf__"] > CONFIDENCE_CUTOFF) | coded["__conf__"].isna()]
+        # Stabiler Sort auf bereits prioritäts-sortierten Zeilen: Konfidenz
+        # wird Primärkriterium, die Codebuch-Priorität bleibt Tiebreaker.
+        coded = coded.sort_values(
+            "__conf__", ascending=False, kind="mergesort", na_position="last"
+        )
+        coded["__code__"] = coded["Shortcode"].astype(str).str.strip()
+        # Emittiert das Modell denselben Code mehrfach für einen Turn,
+        # gewinnt die höchste Konfidenz.
+        coded = coded.drop_duplicates(subset=["__key__", "__code__"], keep="first")
+        coded = coded.groupby("__key__", sort=False).head(MAX_CODES_PER_TURN)
+        coded["Shortcode"] = [
+            f"{c} ({int(v)} %)" if pd.notna(v) else c
+            for c, v in zip(coded["__code__"], coded["__conf__"])
+        ]
+    return (
+        coded.groupby("__key__", sort=False)
+        .agg({
+            "Shortcode": lambda s: "; ".join(
+                dict.fromkeys(str(c).strip() for c in s if str(c).strip())
+            )
+        })
+        .reset_index()
+    )
+
+
 def build_qual_stats_df(
     analysis_df,
     transcript_text,
@@ -79,7 +138,10 @@ def build_qual_stats_df(
     all_turns_df["__key__"] = (
         all_turns_df["Sprecher"] + " :: " + all_turns_df["Impuls"].apply(_norm_impuls)
     )
-    coded = analysis_df[["Sprecher", "Impuls", "Shortcode"]].copy()
+    coded_cols = ["Sprecher", "Impuls", "Shortcode"]
+    if "Konfidenz" in analysis_df.columns:
+        coded_cols.append("Konfidenz")
+    coded = analysis_df[coded_cols].copy()
     _teacher_aliases = {"lehrperson", "lehrer", "lehrkraft", "teacher",
                         teacher_name.lower()}
     coded["Sprecher"] = coded["Sprecher"].apply(
@@ -94,15 +156,9 @@ def build_qual_stats_df(
     )
     coded = coded.sort_values("__priority__", kind="mergesort")
     if multi_coding:
-        coded = (
-            coded.groupby("__key__", sort=False)
-            .agg({
-                "Shortcode": lambda s: "; ".join(
-                    dict.fromkeys(str(c).strip() for c in s if str(c).strip())
-                )
-            })
-            .reset_index()
-        )
+        # Konfidenz-Filter + Top-N + "CODE (NN %)"-Anzeige (bzw. klassischer
+        # Prioritäts-Join, wenn keine Konfidenz-Spalte vorliegt).
+        coded = aggregate_multicoded(coded)
     else:
         coded = coded.drop_duplicates(subset=["__key__"], keep="first")
         coded = coded.drop(columns=["__priority__"])
@@ -133,7 +189,11 @@ def build_qual_plot(merged_df, t, mode="light"):
     plot_df[shortcode_col] = plot_df[shortcode_col].astype(str).str.strip()
     plot_df[shortcode_col] = plot_df[shortcode_col].str.split(r"\s*;\s*", regex=True)
     plot_df = plot_df.explode(shortcode_col)
-    plot_df[shortcode_col] = plot_df[shortcode_col].astype(str).str.strip()
+    # Konfidenz-Suffixe ("EN (85 %)") strippen, damit die Häufigkeiten pro
+    # Code aggregieren und nicht pro Code+Konfidenz-Kombination.
+    plot_df[shortcode_col] = (
+        plot_df[shortcode_col].astype(str).apply(strip_confidence).str.strip()
+    )
     plot_df = plot_df[plot_df[shortcode_col] != ""]
     if plot_df.empty:
         fig, ax = plt.subplots()

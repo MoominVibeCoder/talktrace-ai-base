@@ -174,7 +174,12 @@ def register(state):
                 _workflow_strip(),
             ),
             ui.h5(t("start", "tiles_title"), class_="mt-3"),
+            # T-SEDA zuerst: die Vorlage ist der erwartbar häufigste Einstieg
+            # (Codebuch + Pre-Sets integriert, nur noch Transkript hochladen).
+            # 5 Kacheln → lg:4 ergibt 3+2 statt 4+1.
             ui.layout_columns(
+                _tile("start_tile_tseda", icon_svg("comments"),
+                      "tile_tseda_title", "tile_tseda_body"),
                 _tile("start_tile_audio", icon_svg("microphone"),
                       "tile_audio_title", "tile_audio_body"),
                 _tile("start_tile_transcript", icon_svg("file-arrow-up"),
@@ -183,7 +188,7 @@ def register(state):
                       "tile_resume_title", "tile_resume_body"),
                 _tile("start_tile_demo", icon_svg("vial"),
                       "tile_demo_title", "tile_demo_body"),
-                col_widths={"sm": 6, "lg": 3},
+                col_widths={"sm": 6, "lg": 4},
             ),
             ui.div(_config_line(), class_="mt-3"),
             # Quick-start checklist (moved out of the floating pill).
@@ -216,6 +221,16 @@ def register(state):
     @reactive.effect
     @reactive.event(input.start_tile_transcript, ignore_init=True)
     def _go_analysis():
+        ui.update_navset("main_tabs", selected=_NAV_ANALYSIS)
+
+    @reactive.effect
+    @reactive.event(input.start_tile_tseda, ignore_init=True)
+    def _load_tseda_and_go():
+        # Vorlage + Pre-Sets laden (published von handlers/analysis.py),
+        # dann direkt zum Analyse-Tab — dort fehlt nur noch das Transkript.
+        fn = getattr(state, "load_tseda_template", None)
+        if fn is not None:
+            fn()
         ui.update_navset("main_tabs", selected=_NAV_ANALYSIS)
 
     @reactive.effect

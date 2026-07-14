@@ -119,8 +119,17 @@ def build_analysis_schema(
                         "Sprecher": sprecher_field,
                         "Shortcode": shortcode_field,
                         "Impuls": {"type": "string", "description": "Wörtliche Äußerung."},
+                        # Nullable + required: OpenAI-strict verlangt, dass jede
+                        # property in required steht — optionale Felder werden
+                        # über einen null-Union-Typ modelliert. Der Wert wird
+                        # nur im Multi-Coding-Modus per Prompt angefordert;
+                        # sonst emittiert das Modell null.
+                        "Konfidenz": {
+                            "type": ["integer", "null"],
+                            "description": "Konfidenz der Code-Zuordnung in Prozent (0-100); null, wenn keine Konfidenz verlangt ist.",
+                        },
                     },
-                    "required": ["#", "Sprecher", "Shortcode", "Impuls"],
+                    "required": ["#", "Sprecher", "Shortcode", "Impuls", "Konfidenz"],
                     "additionalProperties": False,
                 },
             },

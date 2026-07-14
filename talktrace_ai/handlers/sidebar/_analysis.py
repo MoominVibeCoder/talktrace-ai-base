@@ -390,7 +390,9 @@ def register(state):
             for item in analysis_items:
                 if isinstance(item, dict) and "Sprecher" not in item:
                     item["Sprecher"] = ""
-            new_data_df = pd.DataFrame(analysis_items, columns=['#', "Sprecher", "Shortcode", "Impuls"])
+            # analysis_items_to_df hängt die optionale Konfidenz-Spalte an,
+            # wenn das Modell Konfidenzen geliefert hat (Multi-Coding).
+            new_data_df = analysis_items_to_df(analysis_items)
 
             async with reactive.lock():
                 existing_data = llm_analysis_data.get()
@@ -410,7 +412,7 @@ def register(state):
 
             async with reactive.lock():
                 existing_data = llm_analysis_data.get()
-                empty_df = pd.DataFrame(columns=['#', "Sprecher", "Shortcode", "Impuls"])
+                empty_df = analysis_items_to_df([])
                 existing_data.append(empty_df)
                 llm_analysis_data.set(list(existing_data))
                 analysis_llm_state.set(True)
@@ -444,7 +446,7 @@ def register(state):
                     now = time.monotonic()
                     if pending >= BATCH or (now - last_update) >= THROTTLE_S:
                         async with reactive.lock():
-                            df = pd.DataFrame(working_items, columns=['#', "Sprecher", "Shortcode", "Impuls"])
+                            df = analysis_items_to_df(working_items)
                             existing_data[-1] = df
                             llm_analysis_data.set(list(existing_data))
                             # Während Streaming current bei total-1 cappen, damit
@@ -472,7 +474,7 @@ def register(state):
 
             # Final flush of any remaining items.
             async with reactive.lock():
-                df = pd.DataFrame(working_items, columns=['#', "Sprecher", "Shortcode", "Impuls"])
+                df = analysis_items_to_df(working_items)
                 existing_data[-1] = df
                 llm_analysis_data.set(list(existing_data))
                 await reactive.flush()

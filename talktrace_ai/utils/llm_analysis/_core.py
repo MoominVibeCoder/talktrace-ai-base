@@ -23,6 +23,7 @@ from typing import Any, Optional
 import pandas as pd
 
 from ...config.config_manager import KNOWN_PROVIDERS
+from ._shared import analysis_items_to_df
 from .anthropic import llm_analysis_anthropic
 from .openai import llm_analysis_openai
 from .mistral import llm_analysis_mistral
@@ -224,5 +225,7 @@ def run_llm_coding_once(
         if isinstance(item, dict) and "Sprecher" not in item:
             item["Sprecher"] = ""
 
-    df = pd.DataFrame(analysis_items, columns=["#", "Sprecher", "Shortcode", "Impuls"])
+    # Hängt die optionale Konfidenz-Spalte an, wenn das Modell Konfidenzen
+    # geliefert hat (Multi-Coding mit Konfidenz).
+    df = analysis_items_to_df(analysis_items)
     return df, raw, None

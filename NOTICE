@@ -72,6 +72,28 @@ All transcription runs entirely on the user's machine; audio data is not
 transmitted to any maintainer-controlled or third-party server.
 
 
+Built-in T-SEDA codebook template
+----------------------------------
+
+TalkTrace AI base ships an optional built-in codebook template for the
+analysis of dialogic classroom talk, based on:
+
+  T-SEDA Collective (2023). Toolkit for Systematic Educational Dialogue
+  Analysis (T-SEDA): A resource for inquiry into practice. v.9.
+  University of Cambridge. https://camtree.learnworlds.com/t-seda
+  Released under a Creative Commons Attribution licence (CC BY).
+  German code abbreviations follow the official German edition of the
+  toolkit ("Toolkit für die systematische Analyse dialogischer
+  Unterrichtsgespräche", translation supervised by E. Calcagni).
+
+T-SEDA explicitly invites local adaptation. The template in
+talktrace_ai/examples/tseda.py keeps the official code logic and labels,
+condenses the definitions for LLM-prompt use, and replaces the original
+examples with subject-neutral classroom anchors. It is an adaptation, not
+a verbatim reproduction; any coding errors introduced by the adaptation
+are the responsibility of this project, not of the T-SEDA Collective.
+
+
 Consent-declaration generator
 ------------------------------
 

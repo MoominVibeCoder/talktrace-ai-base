@@ -15,6 +15,8 @@ JSONL_OVERRIDE_DE = (
     "Keine Wrapper, keine umschließenden Arrays oder Objekte, keine Markdown-Fences, "
     "kein zusätzlicher Text. Eine Zeile = ein Objekt mit genau diesen Feldern:\n"
     '{"#": <int>, "Sprecher": "<...>", "Shortcode": "<...>", "Impuls": "<wörtlich>"}\n'
+    "Nur wenn die Aufgabenstellung eine Konfidenz pro Code verlangt, ergänze "
+    '"Konfidenz": <int 0-100> als LETZTES Feld des Objekts; sonst lass das Feld weg.\n'
     "Codiere ALLE Sprecher:innen (Lehrperson UND Schüler:innen). Numeriere "
     "fortlaufend ab 1. Zitiere Impulse wörtlich, fasse nicht zusammen. "
     "Ein leeres Ergebnis ist fast immer falsch."
@@ -26,6 +28,8 @@ JSONL_OVERRIDE_EN = (
     "arrays or objects, no markdown fences, no extra text. One line = one object "
     "with exactly these fields:\n"
     '{"#": <int>, "Sprecher": "<...>", "Shortcode": "<...>", "Impuls": "<verbatim>"}\n'
+    "Only if the task instructions request a confidence per code, add "
+    '"Konfidenz": <int 0-100> as the LAST field of the object; otherwise omit it.\n'
     "Code ALL speakers (teacher AND students). Number sequentially starting at 1. "
     "Quote utterances verbatim, do not summarize. An empty result is almost always wrong."
 )

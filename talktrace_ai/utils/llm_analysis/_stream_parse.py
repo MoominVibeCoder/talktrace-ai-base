@@ -103,7 +103,9 @@ def normalize_item(obj):
 
     Returns a dict with all four required fields (back-filling Sprecher to
     "" if missing, mirroring the classic path) or None if the object is
-    not usable (missing Shortcode/Impuls).
+    not usable (missing Shortcode/Impuls). The optional "Konfidenz" field
+    (multi-coding with confidence) passes through clamped to 0-100; absent
+    or null confidence stays absent so legacy output keeps its shape.
     """
     if not isinstance(obj, dict):
         return None
@@ -122,6 +124,12 @@ def normalize_item(obj):
         out["#"] = int(out["#"])
     except (TypeError, ValueError):
         pass
+    konf = obj.get("Konfidenz")
+    if konf is not None:
+        try:
+            out["Konfidenz"] = max(0, min(100, int(round(float(konf)))))
+        except (TypeError, ValueError):
+            pass
     return out
 
 

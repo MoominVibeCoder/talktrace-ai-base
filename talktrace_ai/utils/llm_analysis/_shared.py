@@ -7,7 +7,28 @@ needed (log messages only).
 """
 import json
 
+import pandas as pd
+
 from ._stream_parse import normalize_item
+
+
+# Kernspalten des Analyse-DataFrames — die internen (deutschen) Schlüssel,
+# die die gesamte Pipeline durchziehen (siehe examples/demo.py Docstring).
+ANALYSIS_COLUMNS = ["#", "Sprecher", "Shortcode", "Impuls"]
+
+
+def analysis_items_to_df(items):
+    """Build the analysis DataFrame from parsed LLM items.
+
+    Always carries the four core columns; the optional "Konfidenz" column
+    (multi-coding with confidence) is only added when at least one item has
+    a confidence value — legacy output and single-coding keep the classic
+    4-column shape, so older sessions and downstream consumers see no change.
+    """
+    cols = list(ANALYSIS_COLUMNS)
+    if any(isinstance(it, dict) and it.get("Konfidenz") is not None for it in (items or [])):
+        cols.append("Konfidenz")
+    return pd.DataFrame(items, columns=cols)
 
 
 def replay_cached(cached_json):

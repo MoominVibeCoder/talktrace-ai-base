@@ -21,8 +21,10 @@ from .deepseek import llm_analysis_deepseek, llm_analysis_deepseek_stream
 from .localmind import llm_analysis_localmind, llm_analysis_localmind_stream
 from .custom import llm_analysis_custom, llm_analysis_custom_stream
 from ._stream_bridge import async_stream
+from ._shared import analysis_items_to_df
 
 __all__ = [
+    "analysis_items_to_df",
     "llm_analysis_openai",
     "llm_analysis_anthropic",
     "llm_analysis_mistral",
