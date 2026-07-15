@@ -139,7 +139,9 @@ TSEDA_CODEBOOK = {
              "Beispiel — L: „Konzentrieren wir uns zuerst auf das stärkste "
              "Argument.“ "
              "Abgrenzung: strukturiert/steuert, ohne selbst Inhalt beizutragen "
-             "oder zu begründen."
+             "oder zu begründen. Das bloße Drannehmen einer Person — der Turn "
+             "besteht nur aus einem Namen oder Sprecherlabel (z. B. „S2“, "
+             "„Lena?“) — ist KEIN Code; solche Turns bleiben uncodiert."
          )},
         {"Code": "ÄN", "Bezeichnung": "Äußerungen und Nachfragen",
          "Beschreibung": (
@@ -151,7 +153,9 @@ TSEDA_CODEBOOK = {
              "offene Eröffnungsfragen. "
              "Beispiel — L: „Was fällt euch zu diesem Begriff spontan ein?“ "
              "Abgrenzung: nur vergeben, wenn EI, EN, I, N, ZK oder V nicht "
-             "zutreffen."
+             "zutreffen. Auch als Auffang-Kategorie NICHT für das bloße "
+             "Drannehmen (Turn besteht nur aus Name/Sprecherlabel, z. B. „S2“) "
+             "— das bleibt uncodiert."
          )},
     ],
     "en": [
@@ -249,7 +253,9 @@ TSEDA_CODEBOOK = {
              "pairs', offering thinking time. "
              "Example — T: 'Let's concentrate on the strongest argument first.' "
              "Distinction: structures/steers without contributing or "
-             "justifying content itself."
+             "justifying content itself. Merely nominating a person — the turn "
+             "consists only of a name or speaker label (e.g. 'S2', 'Lena?') — "
+             "is NOT a code; such turns stay uncoded."
          )},
         {"Code": "E", "Label": "Express or invite ideas",
          "Description": (
@@ -260,7 +266,9 @@ TSEDA_CODEBOOK = {
              "open opening questions. "
              "Example — T: 'What comes to mind spontaneously for this concept?' "
              "Distinction: only assigned when IB, IR, B, R, CA or C do not "
-             "apply."
+             "apply. Even as the catch-all, NOT for merely nominating someone "
+             "(the turn consists only of a name/speaker label, e.g. 'S2') — "
+             "that stays uncoded."
          )},
     ],
 }
