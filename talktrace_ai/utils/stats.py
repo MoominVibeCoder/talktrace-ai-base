@@ -7,9 +7,12 @@ from ._config import translate
 
 def count_pupils(transcript):
     teacher = translate("analysis", "name_teacher_var")
-    sprecher_pattern = r'\b(' + re.escape(teacher) + r'|S\d{2})\b(?=:)'
+    # S\d{1,3}: akzeptiert neben der noScribe-Konvention (S01, S02, …) auch
+    # einstellige Labels (S1, S2, …), wie sie in Fremd-Transkripten üblich
+    # sind — sonst fehlen deren Turns in Stats, Tabelle und Report komplett.
+    sprecher_pattern = r'\b(' + re.escape(teacher) + r'|S\d{1,3})\b(?=:)'
     sprecher_liste = re.findall(sprecher_pattern, transcript)
-    # Every distinct S\d{2} speaker counts as a student, regardless of whether
+    # Every distinct S-label speaker counts as a student, regardless of whether
     # a teacher label is present. This supports pure student-dialog transcripts.
     sprecher_ohne_lehrer = {s for s in set(sprecher_liste) if s != teacher}
     return len(sprecher_ohne_lehrer)
@@ -23,7 +26,9 @@ def dialog_stats_per_speaker(transcript, lehrperson):
     Gesamt_Woerter, Durchschnitt_Woerter, Median_Woerter.
     """
     text_split = re.sub(r"//(.*?)//", r"\n\1\n", transcript, flags=re.DOTALL)
-    beitrag_pattern = re.compile(rf"\b({lehrperson}|S\d{{2}})\b:\s*(.*)", re.IGNORECASE)
+    # S\d{1,3}: auch einstellige Sprecherlabels (S1, S2, …) akzeptieren —
+    # siehe count_pupils.
+    beitrag_pattern = re.compile(rf"\b({lehrperson}|S\d{{1,3}})\b:\s*(.*)", re.IGNORECASE)
     beitraege = beitrag_pattern.findall(text_split)
     df = pd.DataFrame(beitraege, columns=["Sprecher", "Beitrag"])
     # Normalize teacher label to canonical case so downstream "==" comparisons work.
@@ -44,7 +49,9 @@ def dialog_stats(transcript, lehrperson):
     # 1. Einschübe aufsplitten
     text_split = re.sub(r"//(.*?)//", r"\n\1\n", transcript, flags=re.DOTALL)
     # 2. Regex für Beiträge
-    beitrag_pattern = re.compile(rf"\b({lehrperson}|S\d{{2}})\b:\s*(.*)", re.IGNORECASE)
+    # S\d{1,3}: auch einstellige Sprecherlabels (S1, S2, …) akzeptieren —
+    # siehe count_pupils.
+    beitrag_pattern = re.compile(rf"\b({lehrperson}|S\d{{1,3}})\b:\s*(.*)", re.IGNORECASE)
     beitraege = beitrag_pattern.findall(text_split)
 
     df = pd.DataFrame(beitraege, columns=["Sprecher", "Beitrag"])
@@ -84,7 +91,9 @@ def _parse_turns(transcript, lehrperson):
     Teacher label is normalized to the canonical `lehrperson` casing so callers
     can rely on `spk == lehrperson` comparisons."""
     text_split = re.sub(r"//(.*?)//", r"\n\1\n", transcript, flags=re.DOTALL)
-    beitrag_pattern = re.compile(rf"\b({lehrperson}|S\d{{2}})\b:\s*(.*)", re.IGNORECASE)
+    # S\d{1,3}: auch einstellige Sprecherlabels (S1, S2, …) akzeptieren —
+    # siehe count_pupils.
+    beitrag_pattern = re.compile(rf"\b({lehrperson}|S\d{{1,3}})\b:\s*(.*)", re.IGNORECASE)
     matches = beitrag_pattern.findall(text_split)
     teacher_lower = lehrperson.lower()
     return [

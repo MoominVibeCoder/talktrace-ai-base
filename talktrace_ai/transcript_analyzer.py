@@ -25,8 +25,9 @@ _INLINE_SPEAKER_RE = re.compile(
     r'^\s*"?\s*([A-Za-zÄÖÜäöüß][\wÄÖÜäöüß.\- ]{0,29}?)\s*:\s+(.*)$'
 )
 
-# Bereits-valides Format `S0X:` (genutzt für Vorschau-Vergleich)
-_VALID_LINE_RE = re.compile(r'^\s*"?\s*S\d{2}\s*:')
+# Bereits-valides Format `S0X:` (genutzt für Vorschau-Vergleich).
+# S\d{1,3}: auch einstellige Labels (S1, S2, …) — konsistent zu utils/stats.py.
+_VALID_LINE_RE = re.compile(r'^\s*"?\s*S\d{1,3}\s*:')
 
 # Zeitmarken (immer entfernen). Liberalere Erkennung als zuvor:
 # - Sub-Segmente mit `:` ODER `.` als Separator

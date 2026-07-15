@@ -25,7 +25,9 @@ from ..localization.translation import TRANSLATIONS
 from ..config.config_manager import ConfigManager
 
 _SPEAKER_HEADER_RE = re.compile(r'^\s*"?\s*SPEAKER[_\s-]*(\d+)\s*:?\s*"?\s*$', re.IGNORECASE)
-_VALID_LINE_RE = re.compile(r'^\s*"?\s*S\d{2}\s*:')
+# S\d{1,3}: auch einstellige Sprecherlabels (S1, S2, …) gelten als valide —
+# konsistent zu den Parsern in utils/stats.py.
+_VALID_LINE_RE = re.compile(r'^\s*"?\s*S\d{1,3}\s*:')
 
 
 def is_valid_transcript_format(text, teacher=None):

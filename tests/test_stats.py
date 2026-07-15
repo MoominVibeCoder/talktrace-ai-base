@@ -45,6 +45,24 @@ def test_parse_turns_normalizes_teacher_case():
     assert turns[0][0] == "Lehrkraft"  # canonical casing applied
 
 
+def test_parse_turns_accepts_single_digit_speaker_labels():
+    # Fremd-Transkripte nutzen oft S1..S9 statt der noScribe-Konvention S01+.
+    # Regression: S\d{2} verlangte exakt zwei Ziffern — S1–S9-Turns fehlten
+    # dann komplett in Tabelle und Report (nur Lehrkraft + S10+ übrig).
+    transcript = (
+        "Lehrkraft: Wer möchte?\n"
+        "S2: Ich!\n"
+        "S10: Ich auch.\n"
+        "S345: Und ich.\n"
+    )
+    turns = _parse_turns(transcript, TEACHER)
+    assert [spk for spk, _ in turns] == ["Lehrkraft", "S2", "S10", "S345"]
+
+
+def test_count_pupils_single_digit_labels():
+    assert count_pupils("Lehrkraft: los.\nS1: hi.\nS2: hallo.\nS10: hey.") == 3
+
+
 def test_count_transcript_turns():
     assert count_transcript_turns(TRANSCRIPT, TEACHER) == 5
 
