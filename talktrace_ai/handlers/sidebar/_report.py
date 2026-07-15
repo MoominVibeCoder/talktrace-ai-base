@@ -1,7 +1,7 @@
 """Report download: button, format/sections modal, download handler."""
 from .._common import *
 
-from ...utils.qualitative import primary_code_series
+from ...utils.qualitative import primary_code_over_time, primary_code_series
 
 
 def register(state):
@@ -186,13 +186,13 @@ def register(state):
         if sections.get("over_time_quali") and has_llm and transcript_data.get() is not None:
             try:
                 plot_ot_quali = state.make_qualitative_stats_over_time_plot()
-                latest_df = llm_analysis_data.get()[-1] if llm_analysis_data.get() else None
-                if latest_df is not None:
-                    teacher_name = input.name_teacher() or t("analysis", "name_teacher_var")
-                    mapped = map_impulses_to_turn_index(latest_df, transcript_data.get(), teacher_name)
-                    total_turns = count_transcript_turns(transcript_data.get(), teacher_name)
-                    df_ot_quali = code_distribution_over_time(
-                        mapped, total_turns, n_segments=3, segment_labels=state.segment_labels_for(3),
+                # Aus derselben zusammengeführten All-Turns-Tabelle wie der Plot,
+                # nur Primärcode (Shortcode 1) je Turn — konsistent zu App-Plot,
+                # Balken und Übergangsmatrix.
+                if impulse_table is not None and not impulse_table.empty:
+                    df_ot_quali = primary_code_over_time(
+                        impulse_table, t, n_segments=3,
+                        segment_labels=state.segment_labels_for(3),
                     )
             except Exception as e:
                 print(f"[REPORT] over-time quali plot failed: {e}")

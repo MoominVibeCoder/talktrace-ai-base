@@ -19,7 +19,7 @@ from .plot_style import (
     round_bar_corners,
     style_no_data_axes,
 )
-from .stats import _parse_turns
+from .stats import _parse_turns, code_distribution_over_time
 
 
 # --- Multi-Coding mit Konfidenz -------------------------------------------
@@ -126,6 +126,33 @@ def primary_code_series(df, t):
         s = df[sc]
     s = s.astype(str).apply(strip_confidence).str.strip()
     return s.str.split(r"\s*;\s*", regex=True).str[0].fillna("")
+
+
+def primary_code_over_time(merged_df, t, n_segments=3, segment_labels=None):
+    """Zeitverlaufs-Verteilung der PRIMÄRcodes (Shortcode 1) je Abschnitt.
+
+    Erwartet die zusammengeführte All-Turns-Tabelle (eine Zeile pro Turn in
+    Transkript-Reihenfolge, uncodierte Turns mit leerem Code). Zählt je Turn
+    nur den primären Code — gleiche Regel wie Balken, "Häufigster Code"-Chip
+    und Übergangsmatrix; die Nebenkandidaten aus Spalte 2 verzerren den
+    Verlauf nicht mehr. Der Turn-Index ist die Zeilenposition (= reale
+    Transkript-Reihenfolge, uncodierte Turns eingeschlossen), sodass die
+    Abschnittsgrenzen sitzen. Gibt denselben DataFrame wie
+    code_distribution_over_time zurück (Abschnitt/Shortcode/Anteil/Anzahl).
+    """
+    if merged_df is None or merged_df.empty:
+        return code_distribution_over_time(
+            None, 0, n_segments=n_segments, segment_labels=segment_labels
+        )
+    total_turns = len(merged_df)
+    mapped = pd.DataFrame({
+        "turn_index": range(total_turns),
+        "Shortcode": primary_code_series(merged_df, t).to_numpy(),
+    })
+    return code_distribution_over_time(
+        mapped, total_turns,
+        n_segments=n_segments, segment_labels=segment_labels,
+    )
 
 
 def norm_impuls(s):

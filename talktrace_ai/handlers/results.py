@@ -5,6 +5,7 @@ from ..utils.codebook_hierarchy import build_priority_lookup, priority_for
 from ..utils.qualitative import (
     aggregate_multicoded,
     code_column_names,
+    primary_code_over_time,
     primary_code_series,
     strip_confidence,
 )
@@ -607,18 +608,17 @@ def register(state):
         req(llm_analysis_data.get())
         req(transcript_data.get() is not None)
         mode = resolve_mode(input)
-        latest_df = llm_analysis_data.get()[-1]
-        if latest_df is None or latest_df.empty:
+        # Wie Balken/Chip/Übergangsmatrix aus der zusammengeführten All-Turns-
+        # Tabelle ableiten und nur den PRIMÄRcode (Shortcode 1) je Turn zählen —
+        # so verzerren die Nebenkandidaten aus Spalte 2 den Verlauf nicht.
+        merged_df = make_qualitative_stats_df()
+        if merged_df is None or merged_df.empty:
             _, ax = _no_data_fig(t("results", "no_data"), mode)
             return ax
-        transcript = transcript_data.get()
-        teacher = input.name_teacher() or t("analysis", "name_teacher_var")
         n_segments = 3
         labels = _segment_labels_for(n_segments)
-        mapped = map_impulses_to_turn_index(latest_df, transcript, teacher)
-        total_turns = count_transcript_turns(transcript, teacher)
-        dist = code_distribution_over_time(
-            mapped, total_turns,
+        dist = primary_code_over_time(
+            merged_df, t,
             n_segments=n_segments,
             segment_labels=labels,
         )

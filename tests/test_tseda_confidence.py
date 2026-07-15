@@ -30,6 +30,7 @@ from talktrace_ai.utils.qualitative import (
     build_qual_stats_df,
     code_column_names,
     collect_codes,
+    primary_code_over_time,
     primary_code_series,
     strip_confidence,
     uncoded_turns,
@@ -278,6 +279,39 @@ def test_qual_plot_counts_primary_code_only():
     ax = build_qual_plot(df, _t)
     labels = sorted(tick.get_text() for tick in ax.get_xticklabels())
     assert labels == ["EN", "H"]  # L (Zweitcode) taucht nicht auf
+
+
+def test_primary_code_over_time_counts_primary_only():
+    # Der Zeitverlauf zählt je Turn nur Shortcode 1 — wie Balken/Chip/
+    # Übergangsmatrix. Der Sekundärcode (Spalte 2) darf nirgends auftauchen.
+    c1, c2 = code_column_names(_t)
+    spk = _t("report", "speaker")
+    utt = _t("report", "teacher_statement")
+    merged = pd.DataFrame({
+        "#": range(1, 7),
+        spk: ["LEHRER"] * 6,
+        utt: [f"u{i}" for i in range(6)],
+        # 3 Abschnitte à 2 Turns (bucket_size = 6 // 3 = 2).
+        c1: ["EN (90 %)", "EN (80 %)", "H (70 %)", "", "EN (60 %)", "H (55 %)"],
+        c2: ["L (50 %)", "", "", "", "", ""],
+    })
+    dist = primary_code_over_time(merged, _t, n_segments=3)
+    # Sekundärcode L taucht nirgends im Verlauf auf.
+    assert "L" not in dist["Shortcode"].tolist()
+    # Abschnitt 1: nur EN (2×), Anteil 1.0.
+    seg1 = dist[dist["Abschnitt"] == "1"]
+    assert seg1["Shortcode"].tolist() == ["EN"]
+    assert seg1["Anteil"].tolist() == [1.0]
+    # Abschnitt 2: nur H (der zweite Turn ist uncodiert und zählt nicht).
+    seg2 = dist[dist["Abschnitt"] == "2"].set_index("Shortcode")["Anzahl"].to_dict()
+    assert seg2 == {"H": 1}
+    # Abschnitt 3: EN und H je einmal.
+    seg3 = dist[dist["Abschnitt"] == "3"].set_index("Shortcode")["Anzahl"].to_dict()
+    assert seg3 == {"EN": 1, "H": 1}
+
+
+def test_primary_code_over_time_empty():
+    assert primary_code_over_time(pd.DataFrame(), _t).empty
 
 
 # ---------------------------------------------------------------------------
