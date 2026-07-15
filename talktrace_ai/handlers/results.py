@@ -5,7 +5,6 @@ from ..utils.codebook_hierarchy import build_priority_lookup, priority_for
 from ..utils.qualitative import (
     aggregate_multicoded,
     code_column_names,
-    collect_codes,
     primary_code_series,
     strip_confidence,
 )
@@ -436,10 +435,11 @@ def register(state):
             df = qual_stats_df.get()
             if df is None or df.empty:
                 return t("system_prompts", "no_code")
-            # Exclude uncoded turns — collect_codes liefert einzelne reine
-            # Codes aus beiden Tabellen-Formen (Konfidenz-Suffixe gestrippt),
-            # damit der Modus konsistent zum Häufigkeits-Plot läuft.
-            codes = collect_codes(df, t)
+            # Gleiche Basis wie das Häufigkeits-Diagramm: nur der primäre
+            # Code (Shortcode 1) pro Turn zählt — sonst widersprechen sich
+            # höchster Balken und dieser Chip.
+            codes = primary_code_series(df, t)
+            codes = codes[codes != ""]
             if codes.empty:
                 return t("system_prompts", "no_code")
             most_used_codes = codes.mode().to_list()
@@ -552,10 +552,12 @@ def register(state):
             qual_plot.set(ax)
             return ax
         shortcode_col = t("report", "shortcode")
-        # collect_codes versteht beide Tabellen-Formen (Code-1..3-Spalten und
-        # klassische Einzel-Spalte, ggf. "; "-gejoint) und strippt die
-        # Konfidenz-Suffixe, damit pro Code gezählt wird.
-        codes = collect_codes(merged_df, t)
+        # Nur der PRIMÄRE Code (Shortcode 1) zählt in die Häufigkeiten —
+        # die Nebenkandidaten aus Spalte 2 würden die Verteilung verzerren.
+        # primary_code_series versteht beide Tabellen-Formen und strippt
+        # die Konfidenz-Suffixe.
+        codes = primary_code_series(merged_df, t)
+        codes = codes[codes != ""]
         if codes.empty:
             _, ax = _no_data_fig(t("results", "no_data"), mode)
             qual_plot.set(ax)

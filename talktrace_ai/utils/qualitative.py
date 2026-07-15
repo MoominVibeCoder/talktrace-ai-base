@@ -91,12 +91,14 @@ def aggregate_multicoded(coded):
 
 
 def collect_codes(df, t):
-    """Serie einzelner reiner Codes aus einer Ergebnis-Tabelle.
+    """Serie einzelner reiner Codes aus einer Ergebnis-Tabelle — ALLE
+    Kandidaten, inklusive Nebencodes.
 
-    Versteht beide Formen: die Multi-Coding-Spalten ("Code 1".."Code 3")
+    Versteht beide Formen: die Multi-Coding-Spalten ("Code 1", "Code 2")
     und die klassische Einzel-Spalte (ggf. mit "; "-gejointen Altwerten).
-    Konfidenz-Suffixe werden gestrippt, Leerwerte entfernt — geeignet für
-    Häufigkeits-Plot, Modus und Zählungen.
+    Konfidenz-Suffixe werden gestrippt, Leerwerte entfernt. Hinweis: die
+    Häufigkeits-Auswertungen (Plot, Modus) zählen bewusst nur den primären
+    Code — siehe primary_code_series.
     """
     wide = [c for c in code_column_names(t) if c in df.columns]
     if wide:
@@ -302,10 +304,11 @@ def build_qual_plot(merged_df, t, mode="light"):
         style_no_data_axes(ax, mode)
         return ax
     shortcode_col = t("report", "shortcode")
-    # collect_codes versteht beide Tabellen-Formen (Code-1..3-Spalten und
-    # klassische Einzel-Spalte) und strippt Konfidenz-Suffixe, damit die
-    # Häufigkeiten pro Code aggregieren.
-    codes = collect_codes(merged_df, t)
+    # Nur der PRIMÄRE Code (Shortcode 1) zählt in die Häufigkeiten —
+    # gleiche Regel wie der Plot im Results-Handler. primary_code_series
+    # versteht beide Tabellen-Formen und strippt Konfidenz-Suffixe.
+    codes = primary_code_series(merged_df, t)
+    codes = codes[codes != ""]
     if codes.empty:
         fig, ax = plt.subplots()
         ax.text(0.5, 0.5, t("results", "no_data"),

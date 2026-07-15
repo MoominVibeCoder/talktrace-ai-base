@@ -26,6 +26,7 @@ from talktrace_ai.utils.llm_analysis._stream_parse import (
 from talktrace_ai.utils.qualitative import (
     MAX_CODES_PER_TURN,
     aggregate_multicoded,
+    build_qual_plot,
     build_qual_stats_df,
     code_column_names,
     collect_codes,
@@ -261,6 +262,22 @@ def test_collect_and_primary_from_legacy_table():
     df = pd.DataFrame({"#": [1, 2], sc: ["EN (92 %); L (40 %)", ""]})
     assert sorted(collect_codes(df, _t).tolist()) == ["EN", "L"]
     assert primary_code_series(df, _t).tolist() == ["EN", ""]
+
+
+def test_qual_plot_counts_primary_code_only():
+    # Das Häufigkeits-Diagramm zählt nur Shortcode 1 — Nebenkandidaten
+    # (Spalte 2) verzerren die Verteilung nicht.
+    cols = code_column_names(_t)
+    df = pd.DataFrame({
+        "#": [1, 2],
+        _t("report", "speaker"): ["LEHRER", "LEHRER"],
+        _t("report", "teacher_statement"): ["a", "b"],
+        cols[0]: ["EN (92 %)", "H (80 %)"],
+        cols[1]: ["L (61 %)", ""],
+    })
+    ax = build_qual_plot(df, _t)
+    labels = sorted(tick.get_text() for tick in ax.get_xticklabels())
+    assert labels == ["EN", "H"]  # L (Zweitcode) taucht nicht auf
 
 
 # ---------------------------------------------------------------------------
