@@ -9,6 +9,9 @@ import time
 
 from .._common import *
 
+from ...utils.llm_analysis._core import run_llm_coding_once
+from ...utils.qualitative import norm_impuls, uncoded_turns
+
 
 def _streaming_progress(current_items: int, total_turns: int) -> tuple[int, int]:
     """Progress-Tupel für laufende Streaming-Updates.
@@ -170,6 +173,9 @@ def register(state):
         # Provider-SDK-Call den Shiny-Event-Loop blockiert.
         llm_task = None
         stream_gen_args = None  # populated in streaming mode (see below)
+        # Final geparste Items des ersten Durchgangs (Classic ODER Streaming)
+        # — Grundlage der zweiten Prüfrunde für uncodierte Turns.
+        coded_items = None
         streaming_enabled = config.get_advanced().get("streaming", False)
         if input.llm_switch():
             # Codebuch über den geteilten State prüfen, nicht über den Datei-
@@ -401,6 +407,7 @@ def register(state):
                 analysis_llm_state.set(True)
                 await reactive.flush()
             did_llm_analysis = True
+            coded_items = analysis_items
         elif stream_gen_args is not None:
             # Streaming-Pfad: progressive UI-Updates via async-Generator.
             # Throttling vermeidet Reactivity-Thrash bei vielen Items.
@@ -536,6 +543,7 @@ def register(state):
 
             print(f"[LLM ANALYSIS streaming] provider={config.get_current_api()} model={model.get()} returned {len(working_items)} coded items")
             did_llm_analysis = True
+            coded_items = working_items
         # Mark Analysis as Completed
         async with reactive.lock():
             analysis_state.set(True)
@@ -545,6 +553,97 @@ def register(state):
                 current_tab = None
             mark_tab_unread(state.tab_badge_results, current_tab, "loc_title_results")
             await reactive.flush()
+
+        # --- Zweite Prüfrunde --------------------------------------------
+        # Uncodierte, aber codierbare Turns (Speaker-Filter!) werden dem LLM
+        # als Mini-Transkript mit einer Sorgfalts-Instruktion erneut
+        # vorgelegt. LLMs lassen im ersten Durchgang gelegentlich echte
+        # Treffer aus; die Rückfrage holt sie nach, ohne den Grundsatz zu
+        # kippen, dass Turns legitim uncodiert bleiben dürfen. Läuft VOR
+        # Cost-Tracking und Auto-Save, damit die gespeicherte Session die
+        # Nachcodierungen enthält. Fehler brechen die Analyse nie ab —
+        # der erste Durchgang steht bereits im UI.
+        if did_llm_analysis and coded_items is not None:
+            try:
+                pending = uncoded_turns(
+                    transcript, teacher_name, coded_items,
+                    teacher_on=teacher_on, students_on=students_on,
+                )
+            except Exception as exc:
+                print(f"[SECOND PASS] turn selection failed: {exc}")
+                pending = []
+            if pending:
+                async with reactive.lock():
+                    ui.notification_show(
+                        t("sidebar", "second_pass_running").format(n=len(pending)),
+                        type="message", duration=6,
+                    )
+                    await reactive.flush()
+                new_items = []
+                try:
+                    mini_transcript = "\n".join(f"{spk}: {utt}" for spk, utt in pending)
+                    provider = config.get_current_api()
+                    _key_rv = {
+                        "openai": api_key_openai,
+                        "anthropic": api_key_anthropic,
+                        "mistral": state.api_key_mistral,
+                        "deepseek": state.api_key_deepseek,
+                        "localmind": state.api_key_localmind,
+                        "custom": state.api_key_custom,
+                    }.get(provider)
+                    second_suffix = t("sidebar", "second_pass_prompt")
+                    df2, _raw2, err2 = await asyncio.to_thread(
+                        run_llm_coding_once,
+                        provider=provider,
+                        model=mdl,
+                        transcript=mini_transcript,
+                        codebook=cb,
+                        system_prompt=sys_p + second_suffix,
+                        user_prompt=usr_p + second_suffix,
+                        api_key=_key_rv.get() if _key_rv is not None else None,
+                        base_url=config.get_custom_base_url() if provider == "custom" else None,
+                    )
+                    if df2 is not None and not df2.empty:
+                        # Sicherheitsnetz: nur Items akzeptieren, die einem der
+                        # vorgelegten Turns entsprechen (Matching wie der
+                        # Ergebnis-Merge) — keine Doppel-Codierung bereits
+                        # codierter Turns.
+                        _aliases = {"lehrperson", "lehrer", "lehrkraft", "teacher",
+                                    str(teacher_name).lower()}
+                        allowed = {f"{spk} :: {norm_impuls(utt)}" for spk, utt in pending}
+                        for it in df2.to_dict("records"):
+                            spk = str(it.get("Sprecher", ""))
+                            spk_c = teacher_name if spk.lower() in _aliases else spk
+                            if f"{spk_c} :: {norm_impuls(it.get('Impuls', ''))}" not in allowed:
+                                continue
+                            # NaN-Konfidenz (Spalte existiert, Wert fehlt)
+                            # nicht als Wert verschleppen.
+                            konf = it.get("Konfidenz")
+                            if konf is None or (isinstance(konf, float) and pd.isna(konf)):
+                                it.pop("Konfidenz", None)
+                            new_items.append(it)
+                    elif err2 and "0 coded items" not in str(err2):
+                        # "0 coded items" ist hier ein VALIDES Ergebnis (alles
+                        # geprüft, nichts nachcodiert) — nur echte Fehler loggen.
+                        print(f"[SECOND PASS] provider error: {err2}")
+                except Exception as exc:
+                    print(f"[SECOND PASS] failed: {exc}")
+                print(f"[SECOND PASS] checked={len(pending)} new_codings={len(new_items)}")
+                if new_items:
+                    async with reactive.lock():
+                        existing = llm_analysis_data.get()
+                        base_items = existing[-1].to_dict("records")
+                        existing[-1] = analysis_items_to_df(base_items + new_items)
+                        llm_analysis_data.set(list(existing))
+                        await reactive.flush()
+                async with reactive.lock():
+                    ui.notification_show(
+                        t("sidebar", "second_pass_done").format(
+                            n_new=len(new_items), n_checked=len(pending),
+                        ),
+                        type="message", duration=8,
+                    )
+                    await reactive.flush()
 
         # Track cumulative spend after a successful LLM analysis. The
         # per-run estimate already lives in state.estimated_cost; recording it

@@ -71,10 +71,11 @@ Own **Consent** tab — generate a print-ready **GDPR Art. 13** consent declarat
 ## Qualitative results
 
 - **Per-speaker coding** — every coded turn carries a speaker label
-- **Multi-coding with confidence** — opt-in toggle; the model assigns up to **3 codes per utterance, each with a 0–100 confidence**. The table shows only codes rated **above 50 %**, ranked by confidence (e.g. `EN (92 %); L (61 %)`); a post-processing safety net enforces the cutoff and cap even if the model over-delivers. Plots, transition matrix and summaries aggregate per code (confidence stripped).
+- **Multi-coding with confidence** — opt-in toggle; the model assigns up to **3 candidate codes per utterance, each with a 0–100 confidence**, shown in **dedicated columns** (`Code 1` … `Code 3`, e.g. `EN (92 %)`), ranked by confidence. Uncertain candidates stay visible — the confidence value makes the uncertainty transparent, the human decides. A post-processing safety net enforces the top-3 cap even if the model over-delivers; plots, transition matrix and summaries aggregate per code (confidence stripped).
+- **Second review pass** — after every analysis, turns that stayed uncoded (within the selected speaker group) are automatically re-submitted to the LLM with an explicit care instruction: assign a code only if clearly supported, staying uncoded is legitimate. New codings merge into the table; a notification reports how many turns were re-checked and how many codes were added.
 - **Codebook priority hierarchy** — priority line, explicit column, or codebook order
 - **Code distribution plot** — frequency of each code across the conversation
-- **Coded-impulse table** — speaker, turn index, code(s), utterance text; **editable** — double-click any Shortcode cell to correct the LLM assignment (validated against the codebook, changes propagate to all plots and reports instantly; multi-coded cells accept semicolon-separated code lists, a manual edit deliberately overrides the model's confidence)
+- **Coded-impulse table** — every turn of the conversation (coded or not) with speaker, turn index, code column(s) and utterance text; **editable** — double-click any code cell to correct the LLM assignment (validated against the codebook, changes propagate to all plots and reports instantly; a manual edit deliberately overrides the model's confidence)
 - **Over-time code distribution** — which codes emerge when in the lesson
 - **Code-transition heatmap** — Markov-style matrix of which code follows which (uncoded turns skipped, multi-coding takes priority-resolved code). Surfaces dialogue dynamics like IRE patterns that frequency plots hide. Optional report section in DOCX/HTML/XLSX/CSV.
 - **Most-frequent-code summary** + teacher talking rate with per-student breakdown

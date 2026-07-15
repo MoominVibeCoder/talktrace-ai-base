@@ -350,32 +350,46 @@ def _docx_quali_section(doc, num_impulses, plot_impulse_coding, impulse_table):
 
     speaker_col = translate("report", "speaker")
     statement_col = translate("report", "teacher_statement")
-    code_col = translate("report", "shortcode")
     has_speaker = speaker_col in impulse_table.columns
 
-    ncols = 4 if has_speaker else 3
+    # Code-Spalten dynamisch: Multi-Coding liefert "Code 1".."Code 3",
+    # Single-Coding die klassische eine Spalte. Sprachrobust erkannt als
+    # "alles, was nicht #/Sprecher/Äußerung ist".
+    code_cols = [c for c in impulse_table.columns
+                 if c not in ("#", speaker_col, statement_col)]
+    if not code_cols:
+        code_cols = [translate("report", "shortcode")]
+    code_headers = [translate("report", "code")] if len(code_cols) == 1 else [str(c) for c in code_cols]
+
+    ncols = (2 if has_speaker else 1) + 1 + len(code_cols)
     t = doc.add_table(rows=1, cols=ncols)
     t.style = 'Table Grid'
     hdr = t.rows[0].cells
-    hdr[0].text = "#"
+    col = 0
+    hdr[col].text = "#"
+    col += 1
     if has_speaker:
-        hdr[1].text = speaker_col
-        hdr[2].text = statement_col
-        hdr[3].text = translate("report", "code")
-    else:
-        hdr[1].text = statement_col
-        hdr[2].text = translate("report", "code")
+        hdr[col].text = speaker_col
+        col += 1
+    hdr[col].text = statement_col
+    col += 1
+    for h in code_headers:
+        hdr[col].text = h
+        col += 1
 
     for i, row in impulse_table.iterrows():
         row_cells = t.add_row().cells
-        row_cells[0].text = str(i + 1)
+        col = 0
+        row_cells[col].text = str(i + 1)
+        col += 1
         if has_speaker:
-            row_cells[1].text = str(row[speaker_col])
-            row_cells[2].text = str(row[statement_col])
-            row_cells[3].text = str(row[code_col])
-        else:
-            row_cells[1].text = str(row[statement_col])
-            row_cells[2].text = str(row[code_col])
+            row_cells[col].text = str(row[speaker_col])
+            col += 1
+        row_cells[col].text = str(row[statement_col])
+        col += 1
+        for c in code_cols:
+            row_cells[col].text = str(row[c]) if c in row.index else ""
+            col += 1
 
     for cell in hdr:
         cell.paragraphs[0].runs[0].bold = True
@@ -384,16 +398,22 @@ def _docx_quali_section(doc, num_impulses, plot_impulse_coding, impulse_table):
         for cell in row.cells:
             cell.paragraphs[0].runs[0].font.size = Pt(8)
 
+    # Breiten: schmale #-/Code-Spalten, der Rest geht in die Äußerung.
+    # Mit Konfidenz-Suffix ("EN (92 %)") brauchen Code-Spalten etwas Platz.
+    code_width = Inches(0.9 if len(code_cols) > 1 else 0.5)
+    statement_width = Inches(max(2.5, 7.3 - 0.3 - (0.8 if has_speaker else 0) - 0.9 * len(code_cols)))
     for row in t.rows:
+        col = 0
+        row.cells[col].width = Inches(0.3)
+        col += 1
         if has_speaker:
-            row.cells[0].width = Inches(0.3)
-            row.cells[1].width = Inches(0.8)
-            row.cells[2].width = Inches(6.0)
-            row.cells[3].width = Inches(0.5)
-        else:
-            row.cells[0].width = Inches(0.3)
-            row.cells[1].width = Inches(6.8)
-            row.cells[2].width = Inches(0.5)
+            row.cells[col].width = Inches(0.8)
+            col += 1
+        row.cells[col].width = statement_width
+        col += 1
+        for _ in code_cols:
+            row.cells[col].width = code_width
+            col += 1
 
 
 def _save_as_pdf(docx_path, pdf_path):
@@ -623,17 +643,30 @@ def _save_as_html(output_path, group_name, num_pupils, num_participants, partici
 
         speaker_col = translate("report", "speaker")
         statement_col = translate("report", "teacher_statement")
-        code_col = translate("report", "shortcode")
         has_speaker = speaker_col in impulse_table.columns
+        # Code-Spalten dynamisch (Multi-Coding: "Code 1".."Code 3";
+        # Single-Coding: eine Spalte) — gleiches Erkennungsmuster wie im
+        # DOCX-Builder.
+        code_cols = [c for c in impulse_table.columns
+                     if c not in ("#", speaker_col, statement_col)]
+        if not code_cols:
+            code_cols = [translate("report", "shortcode")]
+        code_headers = [translate("report", "code")] if len(code_cols) == 1 else [str(c) for c in code_cols]
         parts.append("<table><thead><tr><th>#</th>")
         if has_speaker:
             parts.append(f"<th>{e(speaker_col)}</th>")
-        parts.append(f"<th>{e(statement_col)}</th><th>{e(translate('report', 'code'))}</th></tr></thead><tbody>")
+        parts.append(f"<th>{e(statement_col)}</th>")
+        for h in code_headers:
+            parts.append(f"<th>{e(h)}</th>")
+        parts.append("</tr></thead><tbody>")
         for i, row in impulse_table.iterrows():
             parts.append(f"<tr><td>{i + 1}</td>")
             if has_speaker:
                 parts.append(f"<td>{e(row[speaker_col])}</td>")
-            parts.append(f"<td>{e(row[statement_col])}</td><td>{e(row[code_col])}</td></tr>")
+            parts.append(f"<td>{e(row[statement_col])}</td>")
+            for c in code_cols:
+                parts.append(f"<td>{e(row[c]) if c in row.index else ''}</td>")
+            parts.append("</tr>")
         parts.append("</tbody></table>")
 
     if sections.get("over_time_quali") and plot_coding_over_time is not None:

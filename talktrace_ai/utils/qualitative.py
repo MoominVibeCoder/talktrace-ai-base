@@ -23,12 +23,12 @@ from .stats import _parse_turns
 
 
 # --- Multi-Coding mit Konfidenz -------------------------------------------
-# Anzeige-Format einer multi-codierten Zelle: "EN (85 %); L (62 %)".
-# Der Cutoff und das Top-N-Cap sind das Post-Processing-Sicherheitsnetz zur
-# gleichlautenden Prompt-Instruktion (localization: *_multi_coding_on) —
-# auch wenn das Modell zu viele oder zu unsichere Codes emittiert, zeigt
-# die Tabelle höchstens MAX_CODES_PER_TURN Codes mit Konfidenz > Cutoff.
-CONFIDENCE_CUTOFF = 50
+# Multi-Coding zeigt pro Turn bis zu MAX_CODES_PER_TURN Kandidaten-Codes in
+# EIGENEN Spalten ("Code 1".."Code 3"), jeweils als "EN (92 %)". Bewusst OHNE
+# Konfidenz-Schwelle: auch unsichere Kandidaten erscheinen — die Konfidenz
+# steht dabei, die Bewertung liegt beim Menschen. Das Top-N-Cap bleibt als
+# Post-Processing-Sicherheitsnetz zur gleichlautenden Prompt-Instruktion
+# (localization: *_multi_coding_on).
 MAX_CODES_PER_TURN = 3
 
 _CONF_SUFFIX_RE = re.compile(r"\s*\(\d+\s*%\)")
@@ -39,46 +39,144 @@ def strip_confidence(text) -> str:
     return _CONF_SUFFIX_RE.sub("", str(text))
 
 
+def code_column_names(t) -> list:
+    """Lokalisierte Spaltennamen der Multi-Coding-Anzeige ("Code 1".."Code 3")."""
+    base = t("report", "shortcode")
+    return [f"{base} {i}" for i in range(1, MAX_CODES_PER_TURN + 1)]
+
+
+_WIDE_KEY_COLUMNS = [f"__code{i}__" for i in range(1, MAX_CODES_PER_TURN + 1)]
+
+
 def aggregate_multicoded(coded):
-    """Codes pro Turn (``__key__``) zu einer Anzeige-Zelle verbinden.
+    """Codes pro Turn (``__key__``) auf Anzeige-Spalten verteilen.
 
     Erwartet einen DataFrame mit ``__key__``, ``Shortcode`` und optional
-    ``Konfidenz``, bereits stabil nach ``__priority__`` sortiert. Ohne
-    Konfidenz-Spalte bleibt das klassische Verhalten (Join in
-    Prioritäts-Reihenfolge, dedupliziert). Mit Konfidenz: Cutoff-Filter
-    (> CONFIDENCE_CUTOFF; Zeilen ohne Wert bleiben aus Rückwärts-
-    kompatibilität erhalten), Sortierung nach Konfidenz absteigend
-    (Codebuch-Priorität als Tiebreaker), höchstens MAX_CODES_PER_TURN
-    Codes, Anzeige als "CODE (NN %)". Gibt einen DataFrame mit
-    ``__key__`` + ``Shortcode`` zurück.
+    ``Konfidenz``, bereits stabil nach ``__priority__`` sortiert. Mit
+    Konfidenz: Sortierung nach Konfidenz absteigend (Codebuch-Priorität als
+    Tiebreaker), Anzeige "CODE (NN %)"; ohne Konfidenz-Spalte bleibt die
+    Prioritäts-Reihenfolge (reine Codes). Duplikate desselben Codes pro Turn
+    werden dedupliziert (höchste Konfidenz gewinnt), höchstens
+    MAX_CODES_PER_TURN Codes pro Turn. Gibt einen DataFrame mit ``__key__``
+    + ``__code1__``..``__code3__`` zurück (fehlende Plätze = "").
     """
     coded = coded.copy()
+    coded["__code__"] = coded["Shortcode"].astype(str).str.strip()
+    coded = coded[coded["__code__"] != ""]
     if "Konfidenz" in coded.columns:
         coded["__conf__"] = pd.to_numeric(coded["Konfidenz"], errors="coerce")
-        coded = coded[(coded["__conf__"] > CONFIDENCE_CUTOFF) | coded["__conf__"].isna()]
         # Stabiler Sort auf bereits prioritäts-sortierten Zeilen: Konfidenz
         # wird Primärkriterium, die Codebuch-Priorität bleibt Tiebreaker.
         coded = coded.sort_values(
             "__conf__", ascending=False, kind="mergesort", na_position="last"
         )
-        coded["__code__"] = coded["Shortcode"].astype(str).str.strip()
         # Emittiert das Modell denselben Code mehrfach für einen Turn,
         # gewinnt die höchste Konfidenz.
         coded = coded.drop_duplicates(subset=["__key__", "__code__"], keep="first")
-        coded = coded.groupby("__key__", sort=False).head(MAX_CODES_PER_TURN)
-        coded["Shortcode"] = [
+        coded["__display__"] = [
             f"{c} ({int(v)} %)" if pd.notna(v) else c
             for c, v in zip(coded["__code__"], coded["__conf__"])
         ]
-    return (
-        coded.groupby("__key__", sort=False)
-        .agg({
-            "Shortcode": lambda s: "; ".join(
-                dict.fromkeys(str(c).strip() for c in s if str(c).strip())
-            )
-        })
-        .reset_index()
-    )
+    else:
+        coded = coded.drop_duplicates(subset=["__key__", "__code__"], keep="first")
+        coded["__display__"] = coded["__code__"]
+    coded = coded.groupby("__key__", sort=False).head(MAX_CODES_PER_TURN)
+    grouped = coded.groupby("__key__", sort=False)["__display__"].agg(list)
+    out = pd.DataFrame({"__key__": grouped.index})
+    lists = grouped.tolist()
+    for i, col in enumerate(_WIDE_KEY_COLUMNS):
+        out[col] = [lst[i] if i < len(lst) else "" for lst in lists]
+    return out
+
+
+def collect_codes(df, t):
+    """Serie einzelner reiner Codes aus einer Ergebnis-Tabelle.
+
+    Versteht beide Formen: die Multi-Coding-Spalten ("Code 1".."Code 3")
+    und die klassische Einzel-Spalte (ggf. mit "; "-gejointen Altwerten).
+    Konfidenz-Suffixe werden gestrippt, Leerwerte entfernt — geeignet für
+    Häufigkeits-Plot, Modus und Zählungen.
+    """
+    wide = [c for c in code_column_names(t) if c in df.columns]
+    if wide:
+        s = pd.concat([df[c] for c in wide], ignore_index=True)
+    else:
+        sc = t("report", "shortcode")
+        if sc not in df.columns:
+            return pd.Series(dtype=str)
+        s = df[sc].astype(str).str.strip().str.split(r"\s*;\s*", regex=True).explode()
+    s = s.astype(str).apply(strip_confidence).str.strip()
+    return s[s != ""]
+
+
+def primary_code_series(df, t):
+    """Erster (bester) Code pro Turn als reine Code-Serie — für die
+    Übergangsmatrix und Zählungen "codiert ja/nein". Versteht beide
+    Tabellen-Formen (siehe collect_codes); uncodierte Turns → ""."""
+    first_wide = code_column_names(t)[0]
+    if first_wide in df.columns:
+        s = df[first_wide]
+    else:
+        sc = t("report", "shortcode")
+        if sc not in df.columns:
+            return pd.Series(dtype=str)
+        s = df[sc]
+    s = s.astype(str).apply(strip_confidence).str.strip()
+    return s.str.split(r"\s*;\s*", regex=True).str[0].fillna("")
+
+
+def norm_impuls(s):
+    """Toleranter Merge-Schlüssel für Impuls-Texte: lowercase, Rand-
+    Interpunktion gestrippt, Whitespace kollabiert. LLMs geben Impulse
+    häufig mit Mini-Abweichungen zurück (Punkt am Ende, normalisierte
+    Anführungszeichen) — Exakt-Match ließe die Zuordnung leerlaufen."""
+    t_ = re.sub(r"\s+", " ", str(s)).strip()
+    return re.sub(
+        r"^[\s\"'„“”»«()\[\]\.…!?,:;-]+|[\s\"'„“”»«()\[\]\.…!?,:;-]+$",
+        "",
+        t_,
+    ).lower()
+
+
+# Sprecher-Aliasse: LLMs benennen die Lehrkraft gern generisch, auch wenn
+# das Transkript ein konfiguriertes Label nutzt.
+_TEACHER_ALIAS_BASE = {"lehrperson", "lehrer", "lehrkraft", "teacher"}
+
+
+def uncoded_turns(transcript_text, teacher_name, analysis_items,
+                  *, teacher_on=True, students_on=True):
+    """Turns der gewählten Sprechergruppe, die (noch) keine Codierung tragen.
+
+    Grundlage der zweiten Prüfrunde: nur Turns, die überhaupt codierbar
+    gewesen wären (Speaker-Filter!), werden dem LLM erneut vorgelegt —
+    bei „nur Lehrkraft" also keine Schülerturns. Matching wie der
+    Ergebnis-Merge (norm_impuls + Lehrkraft-Aliasse). Gibt eine Liste
+    von (Sprecher, Äußerung) in Transkript-Reihenfolge zurück.
+    """
+    if not transcript_text:
+        return []
+    teacher_name = str(teacher_name or "")
+    aliases = _TEACHER_ALIAS_BASE | {teacher_name.lower()}
+    coded_keys = set()
+    for it in analysis_items or []:
+        if not isinstance(it, dict):
+            continue
+        spk = str(it.get("Sprecher", ""))
+        spk = teacher_name if spk.lower() in aliases else spk
+        coded_keys.add(f"{spk} :: {norm_impuls(it.get('Impuls', ''))}")
+    out = []
+    for spk, utt in _parse_turns(transcript_text, teacher_name):
+        is_teacher = str(spk).lower() == teacher_name.lower()
+        if is_teacher and not teacher_on:
+            continue
+        if not is_teacher and not students_on:
+            continue
+        if not str(utt).strip():
+            continue
+        if f"{spk} :: {norm_impuls(utt)}" in coded_keys:
+            continue
+        out.append((spk, utt))
+    return out
 
 
 def build_qual_stats_df(
@@ -96,12 +194,22 @@ def build_qual_stats_df(
     inputs as plain values so callers don't need to be inside a reactive
     context. Returns the merged DataFrame with the localized column names.
     """
-    cols = [
-        "#",
-        t("report", "speaker"),
-        t("report", "teacher_statement"),
-        t("report", "shortcode"),
-    ]
+    # Multi-Coding: pro Turn bis zu drei Code-Spalten ("Code 1".."Code 3");
+    # Single-Coding: die klassische Einzel-Spalte.
+    if multi_coding:
+        cols = [
+            "#",
+            t("report", "speaker"),
+            t("report", "teacher_statement"),
+            *code_column_names(t),
+        ]
+    else:
+        cols = [
+            "#",
+            t("report", "speaker"),
+            t("report", "teacher_statement"),
+            t("report", "shortcode"),
+        ]
     if analysis_df is None:
         return pd.DataFrame(columns=cols)
     analysis_df = analysis_df.copy()
@@ -115,9 +223,16 @@ def build_qual_stats_df(
             transcript_text = converted_transcript.get("text")
 
     if not transcript_text:
+        # Fallback ohne Transkript: rohe codierte Items (eine Zeile pro Code)
+        # in der klassischen 4-Spalten-Form — unabhängig vom Multi-Schalter.
         analysis_df["#"] = analysis_df.reset_index().index + 1
         analysis_df = analysis_df[["#", "Sprecher", "Impuls", "Shortcode"]]
-        analysis_df.columns = cols
+        analysis_df.columns = [
+            "#",
+            t("report", "speaker"),
+            t("report", "teacher_statement"),
+            t("report", "shortcode"),
+        ]
         return analysis_df
 
     turns = _parse_turns(transcript_text, teacher_name)
@@ -127,13 +242,8 @@ def build_qual_stats_df(
     )
     all_turns_df["#"] = range(1, len(all_turns_df) + 1)
 
-    def _norm_impuls(s):
-        t_ = re.sub(r"\s+", " ", str(s)).strip()
-        return re.sub(
-            r"^[\s\"'„“”»«()\[\]\.…!?,:;-]+|[\s\"'„“”»«()\[\]\.…!?,:;-]+$",
-            "",
-            t_,
-        ).lower()
+    # Modul-Funktion norm_impuls — gleiche Normalisierung wie uncoded_turns.
+    _norm_impuls = norm_impuls
 
     all_turns_df["__key__"] = (
         all_turns_df["Sprecher"] + " :: " + all_turns_df["Impuls"].apply(_norm_impuls)
@@ -156,12 +266,18 @@ def build_qual_stats_df(
     )
     coded = coded.sort_values("__priority__", kind="mergesort")
     if multi_coding:
-        # Konfidenz-Filter + Top-N + "CODE (NN %)"-Anzeige (bzw. klassischer
-        # Prioritäts-Join, wenn keine Konfidenz-Spalte vorliegt).
+        # Top-3 pro Turn auf eigene Spalten verteilt (Konfidenz absteigend,
+        # "CODE (NN %)"-Anzeige) — ohne Konfidenz-Schwelle.
         coded = aggregate_multicoded(coded)
-    else:
-        coded = coded.drop_duplicates(subset=["__key__"], keep="first")
-        coded = coded.drop(columns=["__priority__"])
+        merged = pd.merge(all_turns_df, coded, on="__key__", how="left")
+        merged = merged.drop(columns=["__key__"])
+        merged = merged[["#", "Sprecher", "Impuls", *_WIDE_KEY_COLUMNS]].copy()
+        for c in _WIDE_KEY_COLUMNS:
+            merged[c] = merged[c].fillna("").astype(str)
+        merged.columns = cols
+        return merged
+    coded = coded.drop_duplicates(subset=["__key__"], keep="first")
+    coded = coded.drop(columns=["__priority__"])
     merged = pd.merge(
         all_turns_df,
         coded[["__key__", "Shortcode"]],
@@ -185,17 +301,11 @@ def build_qual_plot(merged_df, t, mode="light"):
         style_no_data_axes(ax, mode)
         return ax
     shortcode_col = t("report", "shortcode")
-    plot_df = merged_df.copy()
-    plot_df[shortcode_col] = plot_df[shortcode_col].astype(str).str.strip()
-    plot_df[shortcode_col] = plot_df[shortcode_col].str.split(r"\s*;\s*", regex=True)
-    plot_df = plot_df.explode(shortcode_col)
-    # Konfidenz-Suffixe ("EN (85 %)") strippen, damit die Häufigkeiten pro
-    # Code aggregieren und nicht pro Code+Konfidenz-Kombination.
-    plot_df[shortcode_col] = (
-        plot_df[shortcode_col].astype(str).apply(strip_confidence).str.strip()
-    )
-    plot_df = plot_df[plot_df[shortcode_col] != ""]
-    if plot_df.empty:
+    # collect_codes versteht beide Tabellen-Formen (Code-1..3-Spalten und
+    # klassische Einzel-Spalte) und strippt Konfidenz-Suffixe, damit die
+    # Häufigkeiten pro Code aggregieren.
+    codes = collect_codes(merged_df, t)
+    if codes.empty:
         fig, ax = plt.subplots()
         ax.text(0.5, 0.5, t("results", "no_data"),
                 ha="center", va="center", fontsize=12)
@@ -203,9 +313,10 @@ def build_qual_plot(merged_df, t, mode="light"):
         style_no_data_axes(ax, mode)
         return ax
     analysis_plot = (
-        plot_df.groupby(shortcode_col)
-        .agg(Anzahl=(shortcode_col, "count"))
-        .reset_index()
+        codes.value_counts()
+        .sort_index()
+        .rename_axis(shortcode_col)
+        .reset_index(name="Anzahl")
         .plot(
             kind="bar",
             x=shortcode_col,

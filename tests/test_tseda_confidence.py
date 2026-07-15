@@ -24,11 +24,14 @@ from talktrace_ai.utils.llm_analysis._stream_parse import (
     parse_jsonl_line,
 )
 from talktrace_ai.utils.qualitative import (
-    CONFIDENCE_CUTOFF,
     MAX_CODES_PER_TURN,
     aggregate_multicoded,
     build_qual_stats_df,
+    code_column_names,
+    collect_codes,
+    primary_code_series,
     strip_confidence,
+    uncoded_turns,
 )
 
 
@@ -156,7 +159,7 @@ def test_items_to_df_empty():
 
 
 # ---------------------------------------------------------------------------
-# Postprocessing: Cutoff, Top-3, Anzeige-Format
+# Postprocessing: Top-3-Spalten, Konfidenz-Sortierung, Anzeige-Format
 # ---------------------------------------------------------------------------
 
 def _coded(rows):
@@ -167,16 +170,22 @@ def _coded(rows):
     ).sort_values("__priority__", kind="mergesort")
 
 
-def test_aggregate_filters_cutoff_and_caps_top3():
+def _wide(out):
+    return out[["__code1__", "__code2__", "__code3__"]].values.tolist()
+
+
+def test_aggregate_caps_top3_no_cutoff():
+    # Kein Konfidenz-Filter mehr: auch unsichere Kandidaten erscheinen —
+    # aber höchstens drei, nach Konfidenz absteigend.
     coded = _coded([
         ("t1", "EN", 4, 95),
-        ("t1", "L", 9, 70),
+        ("t1", "H", 3, 40),     # unter 50 — bleibt trotzdem sichtbar
         ("t1", "EI", 1, 60),
-        ("t1", "ÄN", 10, 55),   # Platz 4 — fällt dem Top-3-Cap zum Opfer
-        ("t1", "H", 3, 40),     # unter Cutoff — gefiltert
+        ("t1", "ÄN", 10, 25),   # Platz 4 — fällt dem Top-3-Cap zum Opfer
     ])
     out = aggregate_multicoded(coded)
-    assert out["Shortcode"].tolist() == ["EN (95 %); L (70 %); EI (60 %)"]
+    assert _wide(out) == [["EN (95 %)", "EI (60 %)", "H (40 %)"]]
+    assert MAX_CODES_PER_TURN == 3
 
 
 def test_aggregate_orders_by_confidence_not_priority():
@@ -185,7 +194,7 @@ def test_aggregate_orders_by_confidence_not_priority():
         ("t1", "L", 9, 90),
     ])
     out = aggregate_multicoded(coded)
-    assert out["Shortcode"].tolist() == ["L (90 %); EI (60 %)"]
+    assert _wide(out) == [["L (90 %)", "EI (60 %)", ""]]
 
 
 def test_aggregate_dedupes_same_code_keeps_highest_confidence():
@@ -194,42 +203,97 @@ def test_aggregate_dedupes_same_code_keeps_highest_confidence():
         ("t1", "EN", 4, 88),
     ])
     out = aggregate_multicoded(coded)
-    assert out["Shortcode"].tolist() == ["EN (88 %)"]
+    assert _wide(out) == [["EN (88 %)", "", ""]]
 
 
-def test_aggregate_boundary_exactly_50_is_dropped():
-    # Yutas Vorgabe: "über 50 %" — 50 selbst fällt raus.
-    coded = _coded([("t1", "EN", 4, 50), ("t1", "L", 9, 51)])
-    out = aggregate_multicoded(coded)
-    assert out["Shortcode"].tolist() == ["L (51 %)"]
-    assert CONFIDENCE_CUTOFF == 50
-    assert MAX_CODES_PER_TURN == 3
-
-
-def test_aggregate_without_confidence_column_is_legacy_join():
+def test_aggregate_without_confidence_column_is_priority_order():
     coded = pd.DataFrame([
         {"__key__": "t1", "Shortcode": "L", "__priority__": 9},
         {"__key__": "t1", "Shortcode": "EI", "__priority__": 1},
     ]).sort_values("__priority__", kind="mergesort")
     out = aggregate_multicoded(coded)
     # Ohne Konfidenz: Prioritäts-Reihenfolge, kein Suffix.
-    assert out["Shortcode"].tolist() == ["EI; L"]
+    assert _wide(out) == [["EI", "L", ""]]
 
 
-def test_aggregate_rows_without_confidence_survive_filter():
+def test_aggregate_rows_without_confidence_sort_last():
     # Altbestand (NaN-Konfidenz) bleibt erhalten, sortiert ans Ende.
     coded = _coded([
         ("t1", "EN", 4, 80),
         ("t1", "V", 7, None),
     ])
     out = aggregate_multicoded(coded)
-    assert out["Shortcode"].tolist() == ["EN (80 %); V"]
+    assert _wide(out) == [["EN (80 %)", "V", ""]]
 
 
 def test_strip_confidence():
     assert strip_confidence("EN (85 %)") == "EN"
     assert strip_confidence("EN (85 %); L (62 %)") == "EN; L"
     assert strip_confidence("EN") == "EN"
+
+
+def test_collect_and_primary_from_wide_table():
+    cols = code_column_names(_t)
+    df = pd.DataFrame({
+        "#": [1, 2],
+        cols[0]: ["EN (92 %)", ""],
+        cols[1]: ["L (40 %)", ""],
+        cols[2]: ["", ""],
+    })
+    assert sorted(collect_codes(df, _t).tolist()) == ["EN", "L"]
+    assert primary_code_series(df, _t).tolist() == ["EN", ""]
+
+
+def test_collect_and_primary_from_legacy_table():
+    sc = _t("report", "shortcode")
+    df = pd.DataFrame({"#": [1, 2], sc: ["EN (92 %); L (40 %)", ""]})
+    assert sorted(collect_codes(df, _t).tolist()) == ["EN", "L"]
+    assert primary_code_series(df, _t).tolist() == ["EN", ""]
+
+
+# ---------------------------------------------------------------------------
+# Zweite Prüfrunde: Auswahl der uncodierten, codierbaren Turns
+# ---------------------------------------------------------------------------
+
+_TRANSCRIPT_2P = (
+    "LEHRER: Warum sollte das so sein?\n"
+    "S1: Weil alle betroffen sind.\n"
+    "LEHRER: S2\n"
+    "S2: Ich stimme zu.\n"
+    "LEHRER: Fassen wir zusammen.\n"
+)
+
+
+def test_uncoded_turns_teacher_only():
+    items = [{"Sprecher": "LEHRER", "Shortcode": "EN",
+              "Impuls": "Warum sollte das so sein?"}]
+    pending = uncoded_turns(_TRANSCRIPT_2P, "LEHRER", items,
+                            teacher_on=True, students_on=False)
+    # Nur die uncodierten LEHRER-Turns — keine Schülerturns, der codierte
+    # Turn fehlt ebenfalls.
+    assert pending == [("LEHRER", "S2"), ("LEHRER", "Fassen wir zusammen.")]
+
+
+def test_uncoded_turns_matches_tolerantly_and_via_alias():
+    # LLM-Item mit generischem Sprecher-Label + Mini-Textabweichung
+    # (fehlendes Satzzeichen) muss dem Transkript-Turn zugeordnet werden.
+    items = [{"Sprecher": "Lehrperson", "Shortcode": "ZK",
+              "Impuls": "Fassen wir zusammen"}]
+    pending = uncoded_turns(_TRANSCRIPT_2P, "LEHRER", items,
+                            teacher_on=True, students_on=False)
+    assert ("LEHRER", "Fassen wir zusammen.") not in pending
+    assert ("LEHRER", "Warum sollte das so sein?") in pending
+
+
+def test_uncoded_turns_students_included_when_enabled():
+    pending = uncoded_turns(_TRANSCRIPT_2P, "LEHRER", [],
+                            teacher_on=True, students_on=True)
+    assert ("S1", "Weil alle betroffen sind.") in pending
+    assert ("S2", "Ich stimme zu.") in pending
+
+
+def test_uncoded_turns_empty_transcript():
+    assert uncoded_turns("", "LEHRER", []) == []
 
 
 # ---------------------------------------------------------------------------
@@ -241,8 +305,10 @@ def _t(section, key):
     return TRANSLATIONS["de"][section][key]
 
 
-def test_build_qual_stats_df_multicoding_with_confidence():
-    transcript = "LEHRER: Warum sollte das so sein?\nS01: Weil alle betroffen sind."
+def test_build_qual_stats_df_multicoding_wide_columns():
+    # Einstelliges Schülerlabel (S1) mit Absicht: der Parser-Fix (S\d{1,3})
+    # muss den Turn in die Tabelle bringen.
+    transcript = "LEHRER: Warum sollte das so sein?\nS1: Weil alle betroffen sind."
     analysis_df = analysis_items_to_df([
         {"#": 1, "Sprecher": "LEHRER", "Shortcode": "EN",
          "Impuls": "Warum sollte das so sein?", "Konfidenz": 92},
@@ -255,10 +321,13 @@ def test_build_qual_stats_df_multicoding_with_confidence():
         analysis_df, transcript, "LEHRER", TSEDA_CODEBOOK["de"],
         multi_coding=True, t=_t,
     )
-    sc_col = _t("report", "shortcode")
-    assert merged[sc_col].tolist()[0] == "EN (92 %); L (61 %)"
-    # Uncodierter Schüler-Turn bleibt leer.
-    assert merged[sc_col].tolist()[1] == ""
+    c1, c2, c3 = code_column_names(_t)
+    # Alle Turns des Gesprächs erscheinen — auch der (uncodierte) S1-Turn.
+    assert len(merged) == 2
+    # Alle Top-3-Kandidaten sichtbar, auch der unter 50 %.
+    assert merged[c1].tolist() == ["EN (92 %)", ""]
+    assert merged[c2].tolist() == ["L (61 %)", ""]
+    assert merged[c3].tolist() == ["ÄN (30 %)", ""]
 
 
 def test_build_qual_stats_df_single_coding_ignores_confidence():
@@ -275,5 +344,7 @@ def test_build_qual_stats_df_single_coding_ignores_confidence():
     )
     sc_col = _t("report", "shortcode")
     # Single-Coding bleibt beim Hierarchie-Kontrakt: EN steht im Codebuch
-    # vor L und gewinnt unabhängig von der Konfidenz — kein Suffix.
+    # vor L und gewinnt unabhängig von der Konfidenz — kein Suffix, und
+    # die klassische Einzel-Spalte (keine Code-1..3-Spalten).
     assert merged[sc_col].tolist() == ["EN"]
+    assert not any(c in merged.columns for c in code_column_names(_t))

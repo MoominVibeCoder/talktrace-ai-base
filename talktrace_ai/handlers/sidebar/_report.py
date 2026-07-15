@@ -1,6 +1,8 @@
 """Report download: button, format/sections modal, download handler."""
 from .._common import *
 
+from ...utils.qualitative import primary_code_series
+
 
 def register(state):
     input = state.input
@@ -202,7 +204,12 @@ def register(state):
         if sections.get("transitions") and has_llm and impulse_table is not None and not impulse_table.empty:
             try:
                 sc_col = t("report", "shortcode")
-                t_codes, t_mat, t_n = build_transition_matrix(impulse_table, sc_col, normalize=True)
+                # Erster (bester) Code pro Turn, Konfidenz-Suffixe gestrippt —
+                # versteht die Multi-Coding-Spalten (Code 1..3) wie die
+                # klassische Einzel-Spalte.
+                df_tr = impulse_table.copy()
+                df_tr[sc_col] = primary_code_series(impulse_table, t)
+                t_codes, t_mat, t_n = build_transition_matrix(df_tr, sc_col, normalize=True)
                 if t_codes and t_n > 0:
                     df_transitions = t_mat
                     fig_tr, ax_tr = plt.subplots()
@@ -233,10 +240,11 @@ def register(state):
             try:
                 df_for_methods = impulse_table
                 if df_for_methods is not None and not df_for_methods.empty:
-                    sc_col = t("report", "shortcode")
-                    codes = df_for_methods[sc_col].astype(str).str.strip() if sc_col in df_for_methods.columns else None
+                    # primary_code_series: "codiert ja/nein" pro Turn — für
+                    # beide Tabellen-Formen (Code 1..3 oder Einzel-Spalte).
+                    codes = primary_code_series(df_for_methods, t)
                     n_imp = len(df_for_methods)
-                    n_cod = int((codes != "").sum()) if codes is not None else 0
+                    n_cod = int((codes != "").sum()) if len(codes) else 0
                 else:
                     n_imp = teacher_impulses_count.get() or 0
                     n_cod = 0

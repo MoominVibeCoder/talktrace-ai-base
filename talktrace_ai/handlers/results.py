@@ -3,8 +3,10 @@ from ._common import *
 
 from ..utils.codebook_hierarchy import build_priority_lookup, priority_for
 from ..utils.qualitative import (
-    CONFIDENCE_CUTOFF,
     aggregate_multicoded,
+    code_column_names,
+    collect_codes,
+    primary_code_series,
     strip_confidence,
 )
 from ..utils.plot_style import (
@@ -414,9 +416,10 @@ def register(state):
         df = qual_stats_df.get()
         if df is None or df.empty:
             return "0"
-        # Exclude uncoded turns (empty Shortcode from the LEFT JOIN in
-        # make_qualitative_stats_df) — same filter as code_most_used.
-        codes = df[t("report", "shortcode")].astype(str).str.strip()
+        # Exclude uncoded turns (empty first code from the LEFT JOIN in
+        # make_qualitative_stats_df). primary_code_series versteht beide
+        # Tabellen-Formen (Code-1..3-Spalten und klassische Einzel-Spalte).
+        codes = primary_code_series(df, t)
         return int((codes != "").sum())
 
 
@@ -433,15 +436,10 @@ def register(state):
             df = qual_stats_df.get()
             if df is None or df.empty:
                 return t("system_prompts", "no_code")
-            # Exclude uncoded turns (empty Shortcode from the LEFT JOIN in
-            # make_qualitative_stats_df) — otherwise "" usually wins the mode().
-            # Multi-codierte Zellen ("EN (85 %); L (62 %)") werden gesplittet
-            # und die Konfidenz-Suffixe gestrippt, damit der Modus über
-            # einzelne Codes läuft — konsistent zum Häufigkeits-Plot.
-            codes = df[t("report", "shortcode")].astype(str).str.strip()
-            codes = codes.str.split(r"\s*;\s*", regex=True).explode()
-            codes = codes.astype(str).apply(strip_confidence).str.strip()
-            codes = codes[codes != ""]
+            # Exclude uncoded turns — collect_codes liefert einzelne reine
+            # Codes aus beiden Tabellen-Formen (Konfidenz-Suffixe gestrippt),
+            # damit der Modus konsistent zum Häufigkeits-Plot läuft.
+            codes = collect_codes(df, t)
             if codes.empty:
                 return t("system_prompts", "no_code")
             most_used_codes = codes.mode().to_list()
@@ -554,26 +552,24 @@ def register(state):
             qual_plot.set(ax)
             return ax
         shortcode_col = t("report", "shortcode")
-        plot_df = merged_df.copy()
-        plot_df[shortcode_col] = plot_df[shortcode_col].astype(str).str.strip()
-        # Split multi-coded cells. For single-coding cells the regex returns
-        # a single-element list, so explode is a no-op.
-        plot_df[shortcode_col] = plot_df[shortcode_col].str.split(r"\s*;\s*", regex=True)
-        plot_df = plot_df.explode(shortcode_col)
-        # Konfidenz-Suffixe ("EN (85 %)") strippen, damit pro Code gezählt
-        # wird und nicht pro Code+Konfidenz-Kombination.
-        plot_df[shortcode_col] = plot_df[shortcode_col].astype(str).apply(strip_confidence).str.strip()
-        plot_df = plot_df[plot_df[shortcode_col] != ""]
-        if plot_df.empty:
+        # collect_codes versteht beide Tabellen-Formen (Code-1..3-Spalten und
+        # klassische Einzel-Spalte, ggf. "; "-gejoint) und strippt die
+        # Konfidenz-Suffixe, damit pro Code gezählt wird.
+        codes = collect_codes(merged_df, t)
+        if codes.empty:
             _, ax = _no_data_fig(t("results", "no_data"), mode)
             qual_plot.set(ax)
             return ax
-        analysis_plot = plot_df.groupby(shortcode_col).agg(
-            Anzahl=(shortcode_col, 'count'),
-            ).reset_index().plot(
-                kind='bar', x=shortcode_col, y='Anzahl',
-                alpha=1, rot=0, width=0.55, color=primary_color(mode),
-            )
+        analysis_plot = (
+            codes.value_counts()
+                 .sort_index()
+                 .rename_axis(shortcode_col)
+                 .reset_index(name='Anzahl')
+                 .plot(
+                     kind='bar', x=shortcode_col, y='Anzahl',
+                     alpha=1, rot=0, width=0.55, color=primary_color(mode),
+                 )
+        )
         analysis_plot.set_xlabel(t("report", "shortcode"))
         # Rotate tick labels without resetting ticks (avoids FixedLocator/labels mismatch)
         plt.setp(analysis_plot.get_xticklabels(), rotation=45, ha='right')
@@ -613,15 +609,6 @@ def register(state):
         if latest_df is None or latest_df.empty:
             _, ax = _no_data_fig(t("results", "no_data"), mode)
             return ax
-        # Konsistenz mit der Tabelle: im Multi-Coding-Modus zählen nur Codes
-        # über dem Konfidenz-Cutoff in die Verteilung (Zeilen ohne Konfidenz
-        # bleiben — Altbestand/ältere Sessions).
-        if "Konfidenz" in latest_df.columns and _is_multi_coding_on(input):
-            _conf = pd.to_numeric(latest_df["Konfidenz"], errors="coerce")
-            latest_df = latest_df[(_conf > CONFIDENCE_CUTOFF) | _conf.isna()]
-            if latest_df.empty:
-                _, ax = _no_data_fig(t("results", "no_data"), mode)
-                return ax
         transcript = transcript_data.get()
         teacher = input.name_teacher() or t("analysis", "name_teacher_var")
         n_segments = 3
@@ -674,12 +661,51 @@ def register(state):
         )
 
 
+    def _apply_code_edits_wide(df, num_col, code_cols, edits):
+        """Manuelle Korrekturen auf die Code-1..3-Spalten anwenden.
+
+        Neue Edits sind {turn: {position: code}}; Legacy-Edits (Strings,
+        ggf. "; "-gejoint aus der früheren Sammelzellen-Darstellung) werden
+        auf die Positionen verteilt."""
+        for _turn, _edit in edits.items():
+            _mask = df[num_col] == _turn
+            if not _mask.any():
+                continue
+            if isinstance(_edit, dict):
+                for _pos, _code in _edit.items():
+                    try:
+                        _pos = int(_pos)
+                    except (TypeError, ValueError):
+                        continue
+                    if 1 <= _pos <= len(code_cols):
+                        df.loc[_mask, code_cols[_pos - 1]] = str(_code)
+            else:
+                parts = [strip_confidence(p).strip() for p in str(_edit).split(";")]
+                parts = [p for p in parts if p][:len(code_cols)]
+                for i, c in enumerate(code_cols):
+                    df.loc[_mask, c] = parts[i] if i < len(parts) else ""
+
+    def _edit_as_single_cell(_edit):
+        """Edit-Wert für die Einzel-Spalten-Darstellung: Positions-Dicts
+        (aus dem Multi-Modus) werden zu "; "-gejointen Zellen."""
+        if isinstance(_edit, dict):
+            try:
+                items = sorted(_edit.items(), key=lambda kv: int(kv[0]))
+            except (TypeError, ValueError):
+                items = list(_edit.items())
+            return "; ".join(str(v).strip() for _, v in items if str(v).strip())
+        return _edit
+
     # Create a DataFrame for qualitative statistics
     @reactive.calc
     def make_qualitative_stats_df():
         req(llm_analysis_data.get())
         analysis_df = llm_analysis_data.get()[-1].copy()
-        cols = ['#', t("report", "speaker"), t("report", "teacher_statement"), t("report", "shortcode")]
+        is_multi = _is_multi_coding_on(input)
+        code_cols = code_column_names(t)
+        # Multi-Coding: bis zu drei Code-Spalten; Single: die klassische eine.
+        cols = ['#', t("report", "speaker"), t("report", "teacher_statement")]
+        cols = cols + code_cols if is_multi else cols + [t("report", "shortcode")]
         # Empty analysis (no codable turns) -> return empty, properly-named df
         if analysis_df.empty:
             empty_df = pd.DataFrame(columns=cols)
@@ -735,15 +761,26 @@ def register(state):
             )
             # Stabiler Sort: nach Priorität (aufsteigend = höhere Priorität zuerst).
             coded = coded.sort_values("__priority__", kind="mergesort")
-            if _is_multi_coding_on(input):
-                # Mehrfach-Codierung: Konfidenz-Filter (> 50 %) + Top-3 pro
-                # Turn + "CODE (NN %)"-Anzeige; ohne Konfidenz-Spalte der
-                # klassische Join in Priorität-Reihenfolge (dedupliziert).
+            if is_multi:
+                # Mehrfach-Codierung: Top-3 pro Turn auf eigene Spalten
+                # (Konfidenz absteigend, "CODE (NN %)"-Anzeige, ohne Schwelle).
                 coded = aggregate_multicoded(coded)
-            else:
-                # Single-Coding: höchstpriore Code überlebt pro Turn.
-                coded = coded.drop_duplicates(subset=["__key__"], keep="first")
-                coded = coded.drop(columns=["__priority__"])
+                wide_cols = [c for c in coded.columns if c != "__key__"]
+                merged = pd.merge(all_turns_df, coded, on="__key__", how="left")
+                merged = merged.drop(columns=["__key__"])
+                merged = merged[['#', 'Sprecher', 'Impuls', *wide_cols]].copy()
+                for c in wide_cols:
+                    merged[c] = merged[c].fillna("").astype(str)
+                merged.columns = cols
+                # Human-in-the-loop: apply manual code corrections
+                _edits = code_edits.get()
+                if _edits:
+                    _apply_code_edits_wide(merged, cols[0], code_cols, _edits)
+                qual_stats_df.set(merged)
+                return merged
+            # Single-Coding: höchstpriore Code überlebt pro Turn.
+            coded = coded.drop_duplicates(subset=["__key__"], keep="first")
+            coded = coded.drop(columns=["__priority__"])
             merged = pd.merge(
                 all_turns_df,
                 coded[["__key__", "Shortcode"]],
@@ -761,22 +798,25 @@ def register(state):
                 for _turn, _code in _edits.items():
                     _mask = merged[_num_col] == _turn
                     if _mask.any():
-                        merged.loc[_mask, _sc_col] = _code
+                        merged.loc[_mask, _sc_col] = _edit_as_single_cell(_code)
             qual_stats_df.set(merged)
             return merged
         else:
-            # Fallback: just coded impulses (no transcript available)
+            # Fallback: just coded impulses (no transcript available) — rohe
+            # Items (eine Zeile pro Code) in der klassischen 4-Spalten-Form,
+            # unabhängig vom Multi-Schalter.
+            legacy_cols = ['#', t("report", "speaker"), t("report", "teacher_statement"), t("report", "shortcode")]
             analysis_df['#'] = analysis_df.reset_index().index + 1
             analysis_df = analysis_df[['#', "Sprecher", "Impuls", "Shortcode"]]
-            analysis_df.columns = cols
+            analysis_df.columns = legacy_cols
             # Human-in-the-loop: apply manual code corrections
             _edits = code_edits.get()
             if _edits:
-                _num_col, _sc_col = cols[0], cols[3]
+                _num_col, _sc_col = legacy_cols[0], legacy_cols[3]
                 for _turn, _code in _edits.items():
                     _mask = analysis_df[_num_col] == _turn
                     if _mask.any():
-                        analysis_df.loc[_mask, _sc_col] = _code
+                        analysis_df.loc[_mask, _sc_col] = _edit_as_single_cell(_code)
             qual_stats_df.set(analysis_df)
             return analysis_df
 
@@ -785,8 +825,10 @@ def register(state):
     @render.data_frame
     def qualitative_stats_df_grid():
         df = make_qualitative_stats_df()
-        shortcode_col = t("report", "shortcode")
-        sc_idx = list(df.columns).index(shortcode_col) if shortcode_col in df.columns else -1
+        # Editierbare Code-Spalten hervorheben: im Multi-Modus "Code 1".."3",
+        # im Single-Modus die klassische Shortcode-Spalte.
+        code_like = set(code_column_names(t)) | {t("report", "shortcode")}
+        idxs = [i for i, c in enumerate(df.columns) if c in code_like]
         return render.DataGrid(
             df,
             editable=True,
@@ -794,9 +836,8 @@ def register(state):
             width="100%",
             height="400px",
             styles=[
-                # Highlight editable Shortcode column
                 {
-                    "cols": [sc_idx] if sc_idx >= 0 else [],
+                    "cols": idxs,
                     "style": {"background-color": "var(--bs-primary-bg-subtle, #cfe2ff)"},
                 },
             ],
@@ -804,31 +845,65 @@ def register(state):
 
     @qualitative_stats_df_grid.set_patch_fn
     def _(*, patch):
-        """Validate cell edits: only Shortcode column, only valid codebook codes."""
+        """Validate cell edits: only code columns, only valid codebook codes."""
         df = make_qualitative_stats_df()
+        columns = list(df.columns)
+        code_cols = code_column_names(t)
         shortcode_col = t("report", "shortcode")
-        sc_col_idx = list(df.columns).index(shortcode_col) if shortcode_col in df.columns else -1
+        # Spaltenindex → Code-Position (1..3) im Multi-Modus.
+        wide_pos = {columns.index(c): pos + 1 for pos, c in enumerate(code_cols) if c in columns}
+        sc_col_idx = columns.index(shortcode_col) if shortcode_col in columns else -1
+        col_idx = patch["column_index"]
 
-        # Reject edits to non-Shortcode columns
-        if patch["column_index"] != sc_col_idx:
-            return df.iloc[patch["row_index"], patch["column_index"]]
+        # Reject edits to non-code columns
+        if col_idx not in wide_pos and col_idx != sc_col_idx:
+            return df.iloc[patch["row_index"], col_idx]
 
+        valid_codes = set(build_priority_lookup(codebook_data.get()).keys())
+        turn_num = int(df.iloc[patch["row_index"], 0])
+
+        if col_idx in wide_pos:
+            # Multi-Modus: eine Zelle = ein Code (oder leer). Konfidenz-Suffixe
+            # werden gestrippt — eine manuelle Korrektur überschreibt die
+            # Modell-Konfidenz bewusst.
+            new_code = strip_confidence(str(patch["value"])).strip()
+            if new_code and new_code not in valid_codes:
+                ui.notification_show(
+                    t("results", "edit_code_invalid").format(
+                        code=new_code,
+                        valid=", ".join(sorted(valid_codes)),
+                    ),
+                    type="warning",
+                    duration=5,
+                )
+                return df.iloc[patch["row_index"], col_idx]
+            edits = dict(code_edits.get())
+            cur = edits.get(turn_num)
+            if isinstance(cur, dict):
+                cur = dict(cur)
+            elif isinstance(cur, str):
+                # Legacy-String-Edit auf Positionen verteilen, damit die
+                # bestehende Korrektur beim Positions-Update erhalten bleibt.
+                parts = [strip_confidence(p).strip() for p in cur.split(";")]
+                parts = [p for p in parts if p][:len(code_cols)]
+                cur = {i + 1: p for i, p in enumerate(parts)}
+            else:
+                cur = {}
+            cur[wide_pos[col_idx]] = new_code
+            edits[turn_num] = cur
+            code_edits.set(edits)
+            return new_code
+
+        # Single-Modus (klassische Spalte): leeren erlaubt, Semikolon-Listen
+        # erlaubt (Konfidenz-Suffixe werden gestrippt).
         new_code = str(patch["value"]).strip()
-        # Allow clearing a code (empty string)
         if not new_code:
-            turn_num = int(df.iloc[patch["row_index"], 0])
             edits = dict(code_edits.get())
             edits[turn_num] = ""
             code_edits.set(edits)
             return ""
-
-        # Validate against codebook. Multi-Coding-Zellen ("EN (85 %); L") sind
-        # als Semikolon-Liste editierbar; Konfidenz-Suffixe werden beim
-        # Validieren und Speichern gestrippt (eine manuelle Korrektur
-        # überschreibt die Modell-Konfidenz bewusst).
         parts = [strip_confidence(p).strip() for p in new_code.split(";")]
         parts = list(dict.fromkeys(p for p in parts if p))
-        valid_codes = set(build_priority_lookup(codebook_data.get()).keys())
         invalid = [p for p in parts if p not in valid_codes]
         if invalid:
             ui.notification_show(
@@ -840,10 +915,7 @@ def register(state):
                 duration=5,
             )
             return df.iloc[patch["row_index"], sc_col_idx]
-
-        # Store the edit
         normalized = "; ".join(parts)
-        turn_num = int(df.iloc[patch["row_index"], 0])
         edits = dict(code_edits.get())
         edits[turn_num] = normalized
         code_edits.set(edits)
@@ -919,10 +991,10 @@ def register(state):
         if df is None or df.empty:
             return [], pd.DataFrame(), 0
         shortcode_col = t("report", "shortcode")
-        # Konfidenz-Suffixe strippen, damit die Übergangsmatrix über reine
-        # Codes läuft ("EN (85 %)" und "EN (70 %)" sind derselbe Zustand).
+        # Übergänge laufen über den ERSTEN (besten) Code pro Turn — reine
+        # Codes, Konfidenz-Suffixe gestrippt; versteht beide Tabellen-Formen.
         df = df.copy()
-        df[shortcode_col] = df[shortcode_col].astype(str).apply(strip_confidence)
+        df[shortcode_col] = primary_code_series(df, t)
         return build_transition_matrix(df, shortcode_col, normalize=True)
 
 

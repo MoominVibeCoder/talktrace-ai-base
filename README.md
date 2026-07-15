@@ -170,7 +170,7 @@ Split into quantitative and qualitative sections.
 
 **Quantitative** (deterministic): participation metrics, conversation shares (absolute + relative), per-speaker turn stats (count / mean / median), three-segment over-time view.
 
-**Qualitative** (LLM-coded): per-speaker coding (every turn carries a `Sprecher` label), code distribution plot, coded-impulse table, over-time code distribution, **Markov-style code-transition heatmap**, and an **auto-generated methods paragraph** for paper manuscripts (copy-to-clipboard, EN/DE). With **multi-coding** enabled, each turn shows its **top 3 codes with the model's confidence** (e.g. `EN (92 %); L (61 %)`) — only codes the model rates above 50 % appear, and every cell stays hand-editable.
+**Qualitative** (LLM-coded): per-speaker coding (every turn carries a `Sprecher` label), code distribution plot, coded-impulse table, over-time code distribution, **Markov-style code-transition heatmap**, and an **auto-generated methods paragraph** for paper manuscripts (copy-to-clipboard, EN/DE). With **multi-coding** enabled, each turn shows its **top 3 candidate codes in dedicated columns**, each with the model's confidence (e.g. `EN (92 %)` · `L (61 %)` · `H (35 %)`) — uncertain candidates stay visible, the human judges. A **second review pass** automatically re-submits uncoded turns to the LLM for a careful re-check, and every cell stays hand-editable. All turns of the conversation appear in the table and reports, coded or not.
 
 </details>
 
