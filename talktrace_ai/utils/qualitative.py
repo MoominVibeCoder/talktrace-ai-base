@@ -24,12 +24,13 @@ from .stats import _parse_turns
 
 # --- Multi-Coding mit Konfidenz -------------------------------------------
 # Multi-Coding zeigt pro Turn bis zu MAX_CODES_PER_TURN Kandidaten-Codes in
-# EIGENEN Spalten ("Code 1".."Code 3"), jeweils als "EN (92 %)". Bewusst OHNE
+# EIGENEN Spalten ("Code 1", "Code 2"), jeweils als "EN (92 %)". Bewusst OHNE
 # Konfidenz-Schwelle: auch unsichere Kandidaten erscheinen — die Konfidenz
 # steht dabei, die Bewertung liegt beim Menschen. Das Top-N-Cap bleibt als
 # Post-Processing-Sicherheitsnetz zur gleichlautenden Prompt-Instruktion
-# (localization: *_multi_coding_on).
-MAX_CODES_PER_TURN = 3
+# (localization: *_multi_coding_on). Cap = 2, konsistent zur T-SEDA-Regel
+# „0–2 Codes pro Turn".
+MAX_CODES_PER_TURN = 2
 
 _CONF_SUFFIX_RE = re.compile(r"\s*\(\d+\s*%\)")
 

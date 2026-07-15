@@ -39,8 +39,10 @@ from talktrace_ai.utils.qualitative import (
 # T-SEDA-Vorlage
 # ---------------------------------------------------------------------------
 
-_EXPECTED_DE = ["EI", "I", "H", "EN", "N", "ZK", "V", "R", "L", "ÄN"]
-_EXPECTED_EN = ["IB", "B", "CH", "IR", "R", "CA", "C", "RD", "G", "E"]
+# Reihenfolge = offizielle Detailfassung (Pack-Folien 33–38); der Crosswalk
+# spiegelt sie 1:1 (dt. R=Reflexion ↔ engl. RD; dt. N=Begründen ↔ engl. R).
+_EXPECTED_DE = ["I", "EI", "H", "N", "EN", "ZK", "R", "V", "L", "ÄN"]
+_EXPECTED_EN = ["B", "IB", "CH", "R", "IR", "CA", "RD", "C", "G", "E"]
 
 
 def test_tseda_codebook_codes():
@@ -171,21 +173,31 @@ def _coded(rows):
 
 
 def _wide(out):
-    return out[["__code1__", "__code2__", "__code3__"]].values.tolist()
+    return out[["__code1__", "__code2__"]].values.tolist()
 
 
-def test_aggregate_caps_top3_no_cutoff():
-    # Kein Konfidenz-Filter mehr: auch unsichere Kandidaten erscheinen —
-    # aber höchstens drei, nach Konfidenz absteigend.
+def test_aggregate_caps_top2_no_cutoff():
+    # Kein Konfidenz-Filter: auch unsichere Kandidaten erscheinen — aber
+    # höchstens zwei (T-SEDA-Regel: 0–2 Codes pro Turn), Konfidenz absteigend.
     coded = _coded([
         ("t1", "EN", 4, 95),
-        ("t1", "H", 3, 40),     # unter 50 — bleibt trotzdem sichtbar
+        ("t1", "H", 3, 40),     # unter 50 — bleibt grundsätzlich sichtbar …
         ("t1", "EI", 1, 60),
-        ("t1", "ÄN", 10, 25),   # Platz 4 — fällt dem Top-3-Cap zum Opfer
+        ("t1", "ÄN", 10, 25),
     ])
     out = aggregate_multicoded(coded)
-    assert _wide(out) == [["EN (95 %)", "EI (60 %)", "H (40 %)"]]
-    assert MAX_CODES_PER_TURN == 3
+    # … fällt hier aber dem Top-2-Cap zum Opfer (Plätze 3+4 gekappt).
+    assert _wide(out) == [["EN (95 %)", "EI (60 %)"]]
+    assert MAX_CODES_PER_TURN == 2
+
+
+def test_aggregate_shows_uncertain_candidate_below_50():
+    coded = _coded([
+        ("t1", "EN", 4, 95),
+        ("t1", "H", 3, 35),    # unsicher — erscheint trotzdem mit Konfidenz
+    ])
+    out = aggregate_multicoded(coded)
+    assert _wide(out) == [["EN (95 %)", "H (35 %)"]]
 
 
 def test_aggregate_orders_by_confidence_not_priority():
@@ -194,7 +206,7 @@ def test_aggregate_orders_by_confidence_not_priority():
         ("t1", "L", 9, 90),
     ])
     out = aggregate_multicoded(coded)
-    assert _wide(out) == [["L (90 %)", "EI (60 %)", ""]]
+    assert _wide(out) == [["L (90 %)", "EI (60 %)"]]
 
 
 def test_aggregate_dedupes_same_code_keeps_highest_confidence():
@@ -203,7 +215,7 @@ def test_aggregate_dedupes_same_code_keeps_highest_confidence():
         ("t1", "EN", 4, 88),
     ])
     out = aggregate_multicoded(coded)
-    assert _wide(out) == [["EN (88 %)", "", ""]]
+    assert _wide(out) == [["EN (88 %)", ""]]
 
 
 def test_aggregate_without_confidence_column_is_priority_order():
@@ -213,7 +225,7 @@ def test_aggregate_without_confidence_column_is_priority_order():
     ]).sort_values("__priority__", kind="mergesort")
     out = aggregate_multicoded(coded)
     # Ohne Konfidenz: Prioritäts-Reihenfolge, kein Suffix.
-    assert _wide(out) == [["EI", "L", ""]]
+    assert _wide(out) == [["EI", "L"]]
 
 
 def test_aggregate_rows_without_confidence_sort_last():
@@ -223,7 +235,7 @@ def test_aggregate_rows_without_confidence_sort_last():
         ("t1", "V", 7, None),
     ])
     out = aggregate_multicoded(coded)
-    assert _wide(out) == [["EN (80 %)", "V", ""]]
+    assert _wide(out) == [["EN (80 %)", "V"]]
 
 
 def test_strip_confidence():
@@ -234,11 +246,11 @@ def test_strip_confidence():
 
 def test_collect_and_primary_from_wide_table():
     cols = code_column_names(_t)
+    assert len(cols) == 2
     df = pd.DataFrame({
         "#": [1, 2],
         cols[0]: ["EN (92 %)", ""],
         cols[1]: ["L (40 %)", ""],
-        cols[2]: ["", ""],
     })
     assert sorted(collect_codes(df, _t).tolist()) == ["EN", "L"]
     assert primary_code_series(df, _t).tolist() == ["EN", ""]
@@ -321,13 +333,13 @@ def test_build_qual_stats_df_multicoding_wide_columns():
         analysis_df, transcript, "LEHRER", TSEDA_CODEBOOK["de"],
         multi_coding=True, t=_t,
     )
-    c1, c2, c3 = code_column_names(_t)
+    c1, c2 = code_column_names(_t)
     # Alle Turns des Gesprächs erscheinen — auch der (uncodierte) S1-Turn.
     assert len(merged) == 2
-    # Alle Top-3-Kandidaten sichtbar, auch der unter 50 %.
+    # Top-2-Kandidaten sichtbar (Konfidenz absteigend); Platz 3 (ÄN, 30 %)
+    # fällt dem Cap zum Opfer.
     assert merged[c1].tolist() == ["EN (92 %)", ""]
     assert merged[c2].tolist() == ["L (61 %)", ""]
-    assert merged[c3].tolist() == ["ÄN (30 %)", ""]
 
 
 def test_build_qual_stats_df_single_coding_ignores_confidence():
