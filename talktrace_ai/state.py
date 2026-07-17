@@ -33,7 +33,12 @@ class AppState:
     api_key_mistral: Any
     api_key_deepseek: Any
     api_key_localmind: Any
-    api_key_custom: Any
+    # Custom providers are a dynamic set: the registry (list of
+    # {id,name,base_url}) and the per-id API keys ({id: key}). Replaces the old
+    # single api_key_custom. Dropdowns read custom_providers so they re-render
+    # when a provider is added/removed.
+    custom_providers: Any
+    custom_api_keys: Any
     ollama_status_refresh: Any
     current_api: Any
     num_participants: Any
@@ -162,7 +167,8 @@ def build_app_state(input, output, session) -> AppState:
         api_key_mistral=reactive.value(),
         api_key_deepseek=reactive.value(),
         api_key_localmind=reactive.value(),
-        api_key_custom=reactive.value(),
+        custom_providers=reactive.value(config.list_custom_providers()),
+        custom_api_keys=reactive.value({}),
         ollama_status_refresh=reactive.value(0),
         current_api=reactive.value(config.get_current_api()),
         num_participants=reactive.value(None),

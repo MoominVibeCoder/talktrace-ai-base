@@ -266,11 +266,12 @@ def register(state):
                         (sys_p, usr_p, mdl, transcript, cb, client),
                         {"language": lang},
                     )
-                elif current_api == "custom":
-                    req(state.api_key_custom.get() != None)
-                    req(bool(config.get_custom_base_url()))
-                    client = get_custom_client(state.api_key_custom.get(),
-                                               config.get_custom_base_url())
+                elif is_custom_provider(current_api):
+                    _key = api_key_for(state, current_api)
+                    _burl = config.custom_base_url(current_api)
+                    req(_key is not None)
+                    req(bool(_burl))
+                    client = get_custom_client(_key, _burl)
                     stream_gen_args = (
                         llm_analysis_custom_stream,
                         (sys_p, usr_p, mdl, transcript, cb, client),
@@ -315,11 +316,12 @@ def register(state):
                     client = get_localmind_client(state.api_key_localmind.get())
                     llm_task = asyncio.create_task(asyncio.to_thread(
                         llm_analysis_localmind, sys_p, usr_p, mdl, transcript, cb, client))
-                elif current_api == "custom":
-                    req(state.api_key_custom.get() != None)
-                    req(bool(config.get_custom_base_url()))
-                    client = get_custom_client(state.api_key_custom.get(),
-                                               config.get_custom_base_url())
+                elif is_custom_provider(current_api):
+                    _key = api_key_for(state, current_api)
+                    _burl = config.custom_base_url(current_api)
+                    req(_key is not None)
+                    req(bool(_burl))
+                    client = get_custom_client(_key, _burl)
                     llm_task = asyncio.create_task(asyncio.to_thread(
                         llm_analysis_custom, sys_p, usr_p, mdl, transcript, cb, client))
 
@@ -583,14 +585,6 @@ def register(state):
                 try:
                     mini_transcript = "\n".join(f"{spk}: {utt}" for spk, utt in pending)
                     provider = config.get_current_api()
-                    _key_rv = {
-                        "openai": api_key_openai,
-                        "anthropic": api_key_anthropic,
-                        "mistral": state.api_key_mistral,
-                        "deepseek": state.api_key_deepseek,
-                        "localmind": state.api_key_localmind,
-                        "custom": state.api_key_custom,
-                    }.get(provider)
                     second_suffix = t("sidebar", "second_pass_prompt")
                     df2, _raw2, err2 = await asyncio.to_thread(
                         run_llm_coding_once,
@@ -600,8 +594,8 @@ def register(state):
                         codebook=cb,
                         system_prompt=sys_p + second_suffix,
                         user_prompt=usr_p + second_suffix,
-                        api_key=_key_rv.get() if _key_rv is not None else None,
-                        base_url=config.get_custom_base_url() if provider == "custom" else None,
+                        api_key=api_key_for(state, provider),
+                        base_url=config.custom_base_url(provider) if is_custom_provider(provider) else None,
                     )
                     if df2 is not None and not df2.empty:
                         # Sicherheitsnetz: nur Items akzeptieren, die einem der

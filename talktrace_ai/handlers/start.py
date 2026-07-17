@@ -20,15 +20,6 @@ from ..paths import _mark_dataprotection_acknowledged, _clear_dataprotection_ack
 _NAV_TRANSCRIPTION = '<div id="loc_title_transcription" class="shiny-text-output"></div>'
 _NAV_ANALYSIS = '<div id="loc_title_analysis" class="shiny-text-output"></div>'
 
-_PROVIDER_LABELS = {
-    "localmind": "LocalMind",
-    "openai": "OpenAI", "anthropic": "Anthropic",
-    "mistral": "Mistral", "deepseek": "DeepSeek",
-    "custom": "Custom",
-    "groq": "Groq", "ollama": "Ollama", "openrouter": "OpenRouter",
-}
-
-
 def register(state):
     input = state.input
     config = state.config
@@ -37,18 +28,6 @@ def register(state):
     analysis_state = state.analysis_state
     analysis_llm_state = state.analysis_llm_state
     model = state.model
-
-    api_keys = {
-        "localmind": state.api_key_localmind,
-        "custom": state.api_key_custom,
-        "groq": state.api_key_groq,
-        "openai": state.api_key_openai,
-        "anthropic": state.api_key_anthropic,
-        "ollama": state.api_key_ollama,
-        "openrouter": state.api_key_openrouter,
-        "mistral": state.api_key_mistral,
-        "deepseek": state.api_key_deepseek,
-    }
 
     # ------------------------------------------------------------------
     # Localized tab title
@@ -109,11 +88,10 @@ def register(state):
                 icon_svg("circle-info"), " ", t("start", "config_line_no_provider"),
                 class_="alert alert-warning py-2 mb-0",
             )
-        rv = api_keys.get(provider)
-        has_key = bool(rv.get()) if rv is not None else False
+        has_key = bool(api_key_for(state, provider))
         status = t("start", "config_line_ready") if has_key else t("start", "config_line_no_key")
         line = t("start", "config_line_template").format(
-            provider=_PROVIDER_LABELS.get(provider, provider), model=mdl, status=status,
+            provider=provider_choices(state).get(provider, provider), model=mdl, status=status,
         )
         cls = "alert py-2 mb-0 " + ("alert-success" if has_key else "alert-warning")
         return ui.div(icon_svg("robot"), " ", line, class_=cls)

@@ -58,15 +58,8 @@ def register(state):
             return state.num_participants.get() or 0
 
     def _key_for(provider):
-        rv = {
-            "openai": state.api_key_openai,
-            "anthropic": state.api_key_anthropic,
-            "mistral": state.api_key_mistral,
-            "deepseek": state.api_key_deepseek,
-            "localmind": state.api_key_localmind,
-            "custom": state.api_key_custom,
-        }.get(provider)
-        return rv.get() if rv is not None else None
+        # Central resolver: built-in reactives + dynamic custom:<id> keys.
+        return api_key_for(state, provider)
 
     def _has_analysis():
         return bool(state.analysis_state.get() and state.analysis_llm_state.get())
@@ -184,15 +177,9 @@ def register(state):
     # legitimate combination. Starts synced to the global choice; the local
     # pick lives only in these inputs (per the module-local state convention).
     def _provider_choices():
-        # Same provider set as sidebar/_model_select and options.
-        return {
-            "localmind": "LocalMind",
-            "openai": "OpenAI",
-            "anthropic": "Anthropic",
-            "mistral": "Mistral",
-            "deepseek": "DeepSeek",
-            "custom": t("options", "provider_custom_label"),
-        }
+        # Same provider set as sidebar/_model_select and options — built-ins
+        # plus every registered custom provider (by name).
+        return provider_choices(state)
 
     def _llm_selector():
         # Read the current picks under isolate: this section re-renders on
@@ -291,8 +278,8 @@ def register(state):
             result = await asyncio.to_thread(
                 lambda: chat_completion(
                     provider, model, sys_p, usr_p, key,
-                    base_url=(config.get_custom_base_url()
-                              if provider == "custom" else None),
+                    base_url=(config.custom_base_url(provider)
+                              if is_custom_provider(provider) else None),
                 ),
             )
             result = fb.clean_markdown(result)  # plain text — no md in the field

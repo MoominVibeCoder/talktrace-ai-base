@@ -18,7 +18,8 @@ def register(state):
     api_key_mistral = state.api_key_mistral
     api_key_deepseek = state.api_key_deepseek
     api_key_localmind = state.api_key_localmind
-    api_key_custom = state.api_key_custom
+    custom_providers = state.custom_providers
+    custom_api_keys = state.custom_api_keys
     llm_analysis_data = state.llm_analysis_data
     model = state.model
     analysis_state = state.analysis_state
@@ -115,18 +116,9 @@ def register(state):
         except Exception:
             provider = config.get_current_api()
 
-        api_keys = {
-            "groq": api_key_groq.get(),
-            "openai": api_key_openai.get(),
-            "anthropic": api_key_anthropic.get(),
-            "ollama": api_key_ollama.get(),
-            "openrouter": api_key_openrouter.get(),
-            "mistral": api_key_mistral.get(),
-            "deepseek": api_key_deepseek.get(),
-            "localmind": api_key_localmind.get(),
-            "custom": api_key_custom.get(),
-        }
-        has_key_for_provider = bool(api_keys.get(provider))
+        # Custom providers resolve their key via the registry-keyed dict;
+        # built-ins keep their dedicated reactives. api_key_for centralizes both.
+        has_key_for_provider = bool(api_key_for(state, provider))
 
         try:
             llm_on = bool(input.llm_switch())
@@ -253,4 +245,23 @@ def register(state):
     api_key_mistral.set(safe_get_password("talktrace", "api_key_mistral"))
     api_key_deepseek.set(safe_get_password("talktrace", "api_key_deepseek"))
     api_key_localmind.set(safe_get_password("talktrace", "api_key_localmind"))
-    api_key_custom.set(safe_get_password("talktrace", "api_key_custom"))
+
+    # Custom providers: registry + one keyring entry per provider id
+    # (username ``api_key_custom:<id>``). The legacy single-endpoint key
+    # (``api_key_custom``) is copied to the migrated provider's username by
+    # config.migrate_legacy_custom(); as a safety net we also fall back to it
+    # here for the migrated entry in case that copy didn't run.
+    providers = config.list_custom_providers()
+    custom_providers.set(providers)
+    legacy_id = getattr(config, "_legacy_custom_key_id", None)
+    custom_keys = {}
+    for e in providers:
+        uname = f"api_key_custom:{e['id']}"
+        val = safe_get_password("talktrace", uname)
+        if not val and (e.get("from_legacy") or e["id"] == legacy_id):
+            legacy = safe_get_password("talktrace", "api_key_custom")
+            if legacy:
+                safe_set_password("talktrace", uname, legacy)
+                val = legacy
+        custom_keys[e["id"]] = val
+    custom_api_keys.set(custom_keys)

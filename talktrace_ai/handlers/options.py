@@ -18,26 +18,19 @@ def register(state):
     api_key_mistral = state.api_key_mistral
     api_key_deepseek = state.api_key_deepseek
     api_key_localmind = state.api_key_localmind
-    api_key_custom = state.api_key_custom
+    custom_providers = state.custom_providers
+    custom_api_keys = state.custom_api_keys
     ollama_status_refresh = state.ollama_status_refresh
     current_api = state.current_api
     model_deleted = state.model_deleted
     system_prompt = state.system_prompt
     user_prompt = state.user_prompt
 
-    # -- API-key registry: single source of truth for save + delete ------
-    _api_key_name = {
-        "localmind": "api_key_localmind",
-        "openai": "api_key_openai",
-        "groq": "api_key_groq",
-        "anthropic": "api_key_anthropic",
-        "ollama": "api_key_ollama",
-        "openrouter": "api_key_openrouter",
-        "mistral": "api_key_mistral",
-        "deepseek": "api_key_deepseek",
-        "custom": "api_key_custom",
-    }
-    _api_key_reactive = {
+    # -- API-key plumbing ------------------------------------------------
+    # Keyring username is uniform across providers: ``api_key_<slug>`` — for a
+    # custom provider that yields ``api_key_custom:<id>``. Built-ins keep their
+    # dedicated reactives; custom keys live in the ``custom_api_keys`` dict.
+    _builtin_key_reactive = {
         "localmind": api_key_localmind,
         "openai": api_key_openai,
         "groq": api_key_groq,
@@ -46,8 +39,24 @@ def register(state):
         "openrouter": api_key_openrouter,
         "mistral": api_key_mistral,
         "deepseek": api_key_deepseek,
-        "custom": api_key_custom,
     }
+
+    def _keyring_username(provider):
+        return f"api_key_{provider}"
+
+    def _get_key(provider):
+        return api_key_for(state, provider)
+
+    def _set_key_reactive(provider, value):
+        if is_custom_provider(provider):
+            pid = custom_provider_id(provider)
+            keys = dict(custom_api_keys.get() or {})
+            keys[pid] = value
+            custom_api_keys.set(keys)
+        else:
+            rv = _builtin_key_reactive.get(provider)
+            if rv is not None:
+                rv.set(value)
 
     ### Optionen --------------------------------------------------------
 
@@ -67,28 +76,30 @@ def register(state):
         return t("options", "api_select_title")
 
 
-    def _options_provider_choices():
-        # Mirror of the sidebar/_model_select dropdown. LocalMind (EU-hosted)
-        # leads as the GDPR-conformant default. Groq / Ollama / OpenRouter are
-        # commented out below and reappear in one place once KNOWN_PROVIDERS
-        # is restored.
-        # if state.local_only.get():
-        #     return {"ollama": "Ollama"}
-        return {
-            "localmind": "LocalMind",
-            "openai": "OpenAI",
-            "anthropic": "Anthropic",
-            "mistral": "Mistral",
-            "deepseek": "DeepSeek",
-            "custom": t("options", "provider_custom_label"),
-            # "groq": "Groq",
-            # "openrouter": "OpenRouter",
-            # "ollama": "Ollama",
-        }
-
     @render.ui
     def loc_api_select():
-        return ui.input_select("api_select", t("options", "api_select_title"), choices=_options_provider_choices(), selected=config.get_current_api())
+        # Re-render when a custom provider is added/renamed/removed. Below the
+        # dropdown: "+ add provider", plus edit/delete when a custom provider
+        # is selected (built-ins can't be edited or removed).
+        custom_providers.get()
+        sel = config.get_current_api()
+        controls = [
+            ui.input_action_button(
+                "button_add_provider", t("options", "add_provider_button"),
+                icon=icon_svg("plus"), class_="btn-outline-secondary btn-sm"),
+        ]
+        if is_custom_provider(sel):
+            controls.append(ui.input_action_button(
+                "button_edit_provider", t("options", "edit_provider_button"),
+                icon=icon_svg("pen"), class_="btn-outline-secondary btn-sm"))
+            controls.append(ui.input_action_button(
+                "button_delete_provider", t("options", "delete_provider_button"),
+                icon=icon_svg("trash-can"), class_="btn-outline-danger btn-sm"))
+        return ui.div(
+            ui.input_select("api_select", t("options", "api_select_title"),
+                            choices=provider_choices(state), selected=sel),
+            ui.div(*controls, class_="d-flex gap-2 flex-wrap mt-2"),
+        )
 
     @reactive.effect
     def update_api_selection():
@@ -100,35 +111,134 @@ def register(state):
         config.set_current_api(selected)
         current_api.set(selected)
 
+    # --- Custom-Provider verwalten: anlegen / bearbeiten / löschen -------
+    @reactive.effect
+    @reactive.event(input.button_add_provider)
+    def _add_provider_modal():
+        ui.modal_show(ui.modal(
+            ui.input_text("new_provider_name", t("options", "provider_name_label"),
+                          placeholder=t("options", "provider_name_placeholder"), width="100%"),
+            ui.input_text("new_provider_base_url", t("options", "custom_base_url_label"),
+                          placeholder="https://host.example/v1", width="100%"),
+            ui.tags.p(t("options", "custom_base_url_hint"), class_="text-muted small"),
+            title=t("options", "add_provider_title"),
+            easy_close=True,
+            footer=(ui.input_action_button("button_save_provider", t("options", "add_api_key_save"), class_="btn-success"),
+                    ui.modal_button(t("analysis", "modal_button_cancel"), class_="btn-danger")),
+        ))
+
+    @reactive.effect
+    @reactive.event(input.button_save_provider)
+    def _save_provider():
+        name = (input.new_provider_name() or "").strip()
+        url = (input.new_provider_base_url() or "").strip()
+        if not name or not url:
+            ui.notification_show(t("options", "provider_incomplete"), type="warning", duration=6)
+            return
+        pid = config.add_custom_provider(name, url)
+        slug = custom_provider_slug(pid)
+        keys = dict(custom_api_keys.get() or {})
+        keys.setdefault(pid, None)
+        custom_api_keys.set(keys)
+        config.set_current_api(slug)
+        current_api.set(slug)
+        custom_providers.set(config.list_custom_providers())  # re-renders dropdowns
+        model_deleted.set(model_deleted.get() + 1)
+        ui.modal_remove()
+        ui.notification_show(t("options", "provider_added").format(name=name), type="message", duration=5)
+
+    @reactive.effect
+    @reactive.event(input.button_edit_provider)
+    def _edit_provider_modal():
+        sel = config.get_current_api()
+        if not is_custom_provider(sel):
+            return
+        e = config.get_custom_provider(sel) or {}
+        ui.modal_show(ui.modal(
+            ui.input_text("edit_provider_name", t("options", "provider_name_label"),
+                          value=e.get("name", ""), width="100%"),
+            ui.input_text("edit_provider_base_url", t("options", "custom_base_url_label"),
+                          value=e.get("base_url", ""), width="100%"),
+            title=t("options", "edit_provider_title"),
+            easy_close=True,
+            footer=(ui.input_action_button("button_save_provider_edit", t("options", "add_api_key_save"), class_="btn-success"),
+                    ui.modal_button(t("analysis", "modal_button_cancel"), class_="btn-danger")),
+        ))
+
+    @reactive.effect
+    @reactive.event(input.button_save_provider_edit)
+    def _save_provider_edit():
+        sel = config.get_current_api()
+        if not is_custom_provider(sel):
+            ui.modal_remove()
+            return
+        name = (input.edit_provider_name() or "").strip()
+        url = (input.edit_provider_base_url() or "").strip()
+        config.update_custom_provider(sel, name=name or None, base_url=url or None)
+        custom_providers.set(config.list_custom_providers())
+        ui.modal_remove()
+        ui.notification_show(t("options", "provider_updated"), type="message", duration=5)
+
+    @reactive.effect
+    @reactive.event(input.button_delete_provider)
+    def _delete_provider_modal():
+        sel = config.get_current_api()
+        if not is_custom_provider(sel):
+            return
+        e = config.get_custom_provider(sel) or {}
+        ui.modal_show(ui.modal(
+            ui.p(t("options", "delete_provider_warning").format(name=e.get("name", sel))),
+            title=t("options", "delete_provider_title"),
+            easy_close=True,
+            footer=(ui.input_action_button("button_confirm_delete_provider", t("options", "delete_api_key_confirm"), class_="btn-success"),
+                    ui.modal_button(t("analysis", "modal_button_cancel"), class_="btn-danger")),
+        ))
+
+    @reactive.effect
+    @reactive.event(input.button_confirm_delete_provider)
+    def _confirm_delete_provider():
+        sel = config.get_current_api()
+        if not is_custom_provider(sel):
+            ui.modal_remove()
+            return
+        pid = custom_provider_id(sel)
+        safe_delete_password("talktrace", _keyring_username(sel))
+        keys = dict(custom_api_keys.get() or {})
+        keys.pop(pid, None)
+        custom_api_keys.set(keys)
+        config.remove_custom_provider(pid)
+        # get_current_api migrates a now-deleted custom slug back to the default.
+        new_api = config.get_current_api()
+        current_api.set(new_api)
+        custom_providers.set(config.list_custom_providers())  # re-renders dropdowns
+        model_deleted.set(model_deleted.get() + 1)
+        ui.modal_remove()
+        ui.notification_show(t("options", "provider_deleted"), type="message", duration=5)
+
+    # Found/not-found string pair per built-in provider.
+    _KEY_STATUS_KEYS = {
+        "localmind": ("api_localmind_found", "api_localmind_not_found"),
+        "openai": ("api_openai_found", "api_openai_not_found"),
+        "groq": ("api_groq_found", "api_groq_not_found"),
+        "anthropic": ("api_anthropic_found", "api_anthropic_not_found"),
+        "openrouter": ("api_openrouter_found", "api_openrouter_not_found"),
+        "mistral": ("api_mistral_found", "api_mistral_not_found"),
+        "deepseek": ("api_deepseek_found", "api_deepseek_not_found"),
+    }
+
     # Anzeige, ob ein API-Key vorhanden ist
     @render.text
     def loc_api_key_exists():
         selected = input.api_select()
-        if selected == "localmind":
-            a = api_key_localmind.get()
-            return t("options", "api_localmind_found") if api_key_localmind.get() else t("options", "api_localmind_not_found")
-        elif selected == "custom":
-            a = api_key_custom.get()
-            return t("options", "api_custom_found") if api_key_custom.get() else t("options", "api_custom_not_found")
-        elif selected == "openai":
-            a = api_key_openai.get()
-            return t("options", "api_openai_found") if api_key_openai.get() else t("options", "api_openai_not_found")
-        elif selected == "groq":
-            a = api_key_groq.get()
-            return t("options", "api_groq_found") if api_key_groq.get() else t("options", "api_groq_not_found")
-        elif selected == "anthropic":
-            a = api_key_anthropic.get()
-            return t("options", "api_anthropic_found") if api_key_anthropic.get() else t("options", "api_anthropic_not_found")
-        elif selected == "openrouter":
-            a = api_key_openrouter.get()
-            return t("options", "api_openrouter_found") if api_key_openrouter.get() else t("options", "api_openrouter_not_found")
-        elif selected == "mistral":
-            a = api_key_mistral.get()
-            return t("options", "api_mistral_found") if api_key_mistral.get() else t("options", "api_mistral_not_found")
-        elif selected == "deepseek":
-            a = api_key_deepseek.get()
-            return t("options", "api_deepseek_found") if api_key_deepseek.get() else t("options", "api_deepseek_not_found")
-        elif selected == "ollama":
+        if is_custom_provider(selected):
+            # Re-render when the custom key changes.
+            custom_api_keys.get()
+            return (t("options", "api_custom_found") if _get_key(selected)
+                    else t("options", "api_custom_not_found"))
+        if selected in _KEY_STATUS_KEYS:
+            found_key, not_found_key = _KEY_STATUS_KEYS[selected]
+            return t("options", found_key) if _get_key(selected) else t("options", not_found_key)
+        if selected == "ollama":
             ollama_status_refresh.get()  # reactivity
             reactive.invalidate_later(600)
             url = "http://localhost:11434/"
@@ -161,17 +271,13 @@ def register(state):
     def _():
         req(input.llm_switch(), input.button_analysis(), transcript_data.get() != None, codebook_data.get() != None)
         selected = input.api_select()
-        missing_key = (
-            (selected == "localmind" and api_key_localmind.get() == None) or
-            (selected == "openai" and api_key_openai.get() == None) or
-            (selected == "groq" and api_key_groq.get() == None) or
-            (selected == "anthropic" and api_key_anthropic.get() == None) or
-            (selected == "openrouter" and api_key_openrouter.get() == None) or
-            (selected == "mistral" and api_key_mistral.get() == None) or
-            (selected == "deepseek" and api_key_deepseek.get() == None) or
-            (selected == "custom" and (api_key_custom.get() == None
-                                       or not config.get_custom_base_url()))
-        )
+        if selected == "ollama":
+            missing_key = False  # local server, no key needed
+        elif is_custom_provider(selected):
+            missing_key = (_get_key(selected) is None
+                           or not config.custom_base_url(selected))
+        else:
+            missing_key = _get_key(selected) is None
         if missing_key:
             m = ui.modal(
                     ui.p(t("options", "no_api_key_warning")),
@@ -232,9 +338,9 @@ def register(state):
     def save_api_key():
         req(input.api_key())
         selected = input.api_select()
-        if selected in _api_key_name:
-            persisted = safe_set_password("talktrace", _api_key_name[selected], input.api_key())
-            _api_key_reactive[selected].set(input.api_key())
+        if selected and selected != "ollama":
+            persisted = safe_set_password("talktrace", _keyring_username(selected), input.api_key())
+            _set_key_reactive(selected, input.api_key())
             if not persisted:
                 ui.notification_show(
                     t("options", "keyring_unavailable"),
@@ -267,9 +373,9 @@ def register(state):
     @reactive.event(input.button_confirm_delete_api_key)
     def confirm_delete_api_key():
         selected = input.api_select()
-        if selected in _api_key_name:
-            safe_delete_password("talktrace", _api_key_name[selected])
-            _api_key_reactive[selected].set(None)
+        if selected and selected != "ollama":
+            safe_delete_password("talktrace", _keyring_username(selected))
+            _set_key_reactive(selected, None)
         ui.modal_remove()
 
 
@@ -289,18 +395,19 @@ def register(state):
         deleted_models = model_deleted.get() # for reactivity/invalidation
         return config.get_models(local_only=state.local_only.get())
 
-    # Custom-Provider: Base-URL des OpenAI-kompatiblen Endpoints. Nur sichtbar,
-    # wenn "custom" der ausgewählte Provider ist; persistiert in der Config
-    # (der Key liegt wie bei allen Providern im OS-Keyring).
+    # Custom-Provider: Base-URL des gewählten OpenAI-kompatiblen Endpoints.
+    # Nur sichtbar, wenn ein eigener Anbieter ausgewählt ist; persistiert je
+    # Anbieter in der Registry (der Key liegt wie überall im OS-Keyring).
     @render.ui
     def loc_custom_base_url():
-        if input.api_select() != "custom":
+        selected = input.api_select()
+        if not is_custom_provider(selected):
             return None
         return ui.div(
             ui.input_text(
                 "custom_base_url",
                 t("options", "custom_base_url_label"),
-                value=config.get_custom_base_url(),
+                value=config.custom_base_url(selected),
                 placeholder="https://host.example/v1",
                 width="100%",
             ),
@@ -311,7 +418,12 @@ def register(state):
     @reactive.effect
     @reactive.event(input.custom_base_url)
     def _persist_custom_base_url():
-        config.set_custom_base_url(input.custom_base_url())
+        # Write to the currently selected custom provider. No custom_providers
+        # re-render here (would reset the field mid-typing); the base URL is
+        # only read fresh at dispatch time, so the reactive list can stay stale.
+        selected = config.get_current_api()
+        if is_custom_provider(selected):
+            config.update_custom_provider(selected, base_url=input.custom_base_url())
 
     # Modell-Katalog live vom Anbieter laden (GET /v1/models bzw. Anthropics
     # models.list). Modell-Listen sind lebende Kataloge — der Button holt die
@@ -322,8 +434,8 @@ def register(state):
     @render.ui
     def loc_fetch_models():
         provider = input.api_select()
-        rv = _api_key_reactive.get(provider)
-        has_key = bool(rv.get()) if rv is not None else False
+        custom_api_keys.get()  # re-render when a custom key is saved
+        has_key = bool(_get_key(provider))
         if provider == "ollama":
             return None  # local server, model list managed by Ollama itself
         return ui.div(
@@ -346,14 +458,13 @@ def register(state):
     @reactive.event(input.button_fetch_models)
     def fetch_model_list():
         provider = input.api_select()
-        rv = _api_key_reactive.get(provider)
-        key = rv.get() if rv is not None else None
+        key = _get_key(provider)
         if not key:
             ui.notification_show(
                 t("options", "fetch_models_no_key"), type="warning", duration=6)
             return
-        base_url = config.get_custom_base_url() if provider == "custom" else None
-        if provider == "custom" and not base_url:
+        base_url = config.custom_base_url(provider) if is_custom_provider(provider) else None
+        if is_custom_provider(provider) and not base_url:
             ui.notification_show(
                 t("options", "custom_base_url_missing"), type="warning", duration=6)
             return
@@ -373,7 +484,7 @@ def register(state):
         # (per "Modell hinzufügen" nachjustierbar).
         try:
             current = {m["name"]: m for m in eval(config.config.get(
-                "MODELS", f"{provider}_models", fallback="[]"))}
+                "MODELS", config._models_key(provider), fallback="[]"))}
         except Exception:
             current = {}
         entries = [

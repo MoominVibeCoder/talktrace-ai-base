@@ -177,7 +177,7 @@ Split into quantitative and qualitative sections.
 <details>
 <summary><strong>Options tab</strong></summary>
 
-- **API configuration** — keys for LocalMind, OpenAI, Anthropic, Mistral, DeepSeek, plus a **custom OpenAI-compatible endpoint** (enter its base URL, e.g. a self-hosted vLLM server or an institutional gateway). Keys live in the OS keyring (Keychain / Credential Manager / SecretService); the base URL persists in your local config.
+- **API configuration** — keys for LocalMind, OpenAI, Anthropic, Mistral, DeepSeek, plus **any number of your own custom OpenAI-compatible endpoints** (add/rename/delete them in Options — each with a name, base URL and its own key, e.g. a self-hosted vLLM server and an institutional gateway side by side). Keys live in the OS keyring (Keychain / Credential Manager / SecretService); names and base URLs persist in your local config.
 - **Models for LLM Selection** — edit the registry (add/remove models, set per-million-token prices); changes propagate to the Analysis-tab model picker in real time. A **Load models from provider** button refreshes the selected provider's list straight from its live catalogue (needs a saved key); embedding/audio/image models are filtered out and prices you already set are kept.
 - **Custom Prompts** — modify the system + user prompts used for qualitative coding; defaults restorable any time.
 - **Cost tracker** — cumulative spend across all analyses, per provider.

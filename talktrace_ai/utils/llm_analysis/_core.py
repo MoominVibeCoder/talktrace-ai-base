@@ -22,7 +22,7 @@ from typing import Any, Optional
 
 import pandas as pd
 
-from ...config.config_manager import KNOWN_PROVIDERS
+from ...config.config_manager import KNOWN_PROVIDERS, is_custom_provider
 from ._shared import analysis_items_to_df
 from .anthropic import llm_analysis_anthropic
 from .openai import llm_analysis_openai
@@ -147,7 +147,7 @@ def _build_client(provider: str, *, api_key: Optional[str], base_url: Optional[s
     if provider == "localmind":
         from ..llm_clients import get_localmind_client
         return get_localmind_client(api_key)
-    if provider == "custom":
+    if is_custom_provider(provider):
         from ..llm_clients import get_custom_client
         if not base_url:
             return None
@@ -172,7 +172,7 @@ def run_llm_coding_once(
     went wrong; raw_json may still hold the unparsed provider response. This
     is the function the Autopilot calls twice in sequence.
     """
-    if provider not in set(KNOWN_PROVIDERS):
+    if provider not in set(KNOWN_PROVIDERS) and not is_custom_provider(provider):
         return None, None, f"Unsupported provider: {provider}"
 
     if not api_key:
@@ -192,7 +192,7 @@ def run_llm_coding_once(
             raw = llm_analysis_deepseek(system_prompt, user_prompt, model, transcript, codebook, client)
         elif provider == "localmind":
             raw = llm_analysis_localmind(system_prompt, user_prompt, model, transcript, codebook, client)
-        elif provider == "custom":
+        elif is_custom_provider(provider):
             raw = llm_analysis_custom(system_prompt, user_prompt, model, transcript, codebook, client)
         else:
             return None, None, f"Unsupported provider: {provider}"

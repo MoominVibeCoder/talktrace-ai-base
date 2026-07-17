@@ -66,7 +66,10 @@ from ..examples.demo import (
     DEMO_CODE_LEGEND, DEMO_CODEBOOK, build_demo_llm_analysis_df,
 )
 from ..examples.tseda import TSEDA_CODEBOOK, TSEDA_PRESETS, TSEDA_ATTRIBUTION
-from ..config.config_manager import ConfigManager, KNOWN_PROVIDERS
+from ..config.config_manager import (
+    ConfigManager, KNOWN_PROVIDERS,
+    is_custom_provider, custom_provider_id, custom_provider_slug,
+)
 from ..localization.translation import TRANSLATIONS
 from ..paths import (
     _WELCOME_FLAG_FILE, _welcome_shown, _mark_welcome_shown,
@@ -166,6 +169,54 @@ def detect_teacher_label(file_dict):
         if any(kw in norm for kw in _TEACHER_LABEL_KEYWORDS):
             return raw
     return None
+
+
+# --- Provider helpers (built-in + dynamic custom providers) ---------------
+# Built-in providers shown in the dropdowns, in display order. LocalMind
+# (EU-hosted) leads as the GDPR-conformant default. Custom providers are
+# appended dynamically from the registry (see provider_choices).
+_BUILTIN_PROVIDER_LABELS = {
+    "localmind": "LocalMind",
+    "openai": "OpenAI",
+    "anthropic": "Anthropic",
+    "mistral": "Mistral",
+    "deepseek": "DeepSeek",
+    # "groq": "Groq", "openrouter": "OpenRouter", "ollama": "Ollama",
+}
+
+
+def provider_choices(state):
+    """Ordered ``{slug: label}`` for the provider dropdowns: built-ins first,
+    then every registered custom provider by its user-chosen name (slug
+    ``custom:<id>``). Reads ``state.custom_providers`` so any dropdown built
+    from this re-renders when a provider is added, renamed or removed."""
+    choices = dict(_BUILTIN_PROVIDER_LABELS)
+    try:
+        entries = state.custom_providers.get() or []
+    except Exception:
+        entries = state.config.list_custom_providers()
+    for e in entries:
+        choices[custom_provider_slug(e["id"])] = e.get("name") or e["id"]
+    return choices
+
+
+def api_key_for(state, provider):
+    """Stored API key for any provider slug (built-in or ``custom:<id>``), or
+    None. Central resolver so handlers don't hardcode the per-provider map."""
+    if is_custom_provider(provider):
+        keys = state.custom_api_keys.get() or {}
+        return keys.get(custom_provider_id(provider))
+    rv = {
+        "groq": state.api_key_groq,
+        "openai": state.api_key_openai,
+        "anthropic": state.api_key_anthropic,
+        "ollama": state.api_key_ollama,
+        "openrouter": state.api_key_openrouter,
+        "mistral": state.api_key_mistral,
+        "deepseek": state.api_key_deepseek,
+        "localmind": state.api_key_localmind,
+    }.get(provider)
+    return rv.get() if rv is not None else None
 
 
 def main_tab_is(value, slot_id: str) -> bool:
@@ -272,6 +323,8 @@ __all__ = [
     "DEMO_NUM_PUPILS", "DEMO_CODE_LEGEND", "DEMO_CODEBOOK", "build_demo_llm_analysis_df",
     "TSEDA_CODEBOOK", "TSEDA_PRESETS", "TSEDA_ATTRIBUTION",
     "ConfigManager", "KNOWN_PROVIDERS", "TRANSLATIONS",
+    "is_custom_provider", "custom_provider_id", "custom_provider_slug",
+    "provider_choices", "api_key_for",
     "_WELCOME_FLAG_FILE", "_welcome_shown", "_mark_welcome_shown",
     "_DATAPROTECTION_FLAG_FILE", "_dataprotection_acknowledged",
     "_mark_dataprotection_acknowledged",

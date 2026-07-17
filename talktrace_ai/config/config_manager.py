@@ -1,5 +1,7 @@
 import configparser
+import json
 import os
+import re
 from pathlib import Path
 
 
@@ -29,8 +31,36 @@ KNOWN_PROVIDERS = [
     # 'openrouter', # disabled (May 2026)
     'mistral',
     'deepseek',
-    'custom',       # user-supplied OpenAI-compatible endpoint (base URL + key)
 ]
+
+
+# --- Custom providers -----------------------------------------------------
+# Users can register **any number** of their own OpenAI-compatible endpoints
+# (self-hosted vLLM/llama.cpp, institutional gateways, …). Each carries a
+# user-chosen name, a base URL and its own key in the OS keyring. Internally a
+# custom provider is addressed by the composite slug ``custom:<id>`` — the
+# ``id`` is a filesystem/config-safe slug derived from the name. The registry
+# itself lives in the ``[CUSTOM_PROVIDERS]`` config section (JSON), the model
+# lists under ``MODELS.custom_<id>_models`` (a colon in a configparser option
+# name collides with the ``:`` key/value delimiter, so the slug's colon is
+# swapped for an underscore in the models key only). Keyring username follows
+# the same formula as the built-ins: ``api_key_<slug>`` → ``api_key_custom:<id>``.
+CUSTOM_PREFIX = 'custom:'
+
+
+def is_custom_provider(slug) -> bool:
+    """True for a ``custom:<id>`` provider slug."""
+    return isinstance(slug, str) and slug.startswith(CUSTOM_PREFIX)
+
+
+def custom_provider_id(slug):
+    """The ``<id>`` part of a ``custom:<id>`` slug, else ``None``."""
+    return slug[len(CUSTOM_PREFIX):] if is_custom_provider(slug) else None
+
+
+def custom_provider_slug(pid) -> str:
+    """Compose the ``custom:<id>`` slug for a custom-provider id."""
+    return f'{CUSTOM_PREFIX}{pid}'
 
 
 class ConfigManager:
@@ -45,7 +75,12 @@ class ConfigManager:
         
         # Create config directory if it doesn't exist
         self.config_dir.mkdir(parents=True, exist_ok=True)
-        
+
+        # Set by migrate_legacy_custom() when it moves the single legacy custom
+        # provider into the registry — signals the key loader to migrate the
+        # keyring entry too. Transient (per-instance), never persisted.
+        self._legacy_custom_key_id = None
+
         # Load or create config file
         self._load_or_create_config()
 
@@ -69,6 +104,9 @@ class ConfigManager:
                 if not self.config.has_section(section):
                     self.config.add_section(section)
             self._migrate_missing_keys()
+        # Fold a pre-existing single custom endpoint into the new registry
+        # (idempotent — a no-op once migrated or on a fresh install).
+        self.migrate_legacy_custom()
 
     def _migrate_missing_keys(self):
         """Copy keys from default_config.ini that the user's config.ini is
@@ -167,26 +205,26 @@ class ConfigManager:
             return [v for v in entries if self._is_local_model(prov, v)]
 
         if provider:
-            models = self.config.get('MODELS', f'{provider}_models', fallback='[]')
+            models = self.config.get('MODELS', self._models_key(provider), fallback='[]')
             return [v["name"] for v in _filter(provider, eval(models))]
           # Convert string representation to list
         else:
-            # Return all models combined
+            # Return all models combined (built-ins + registered custom providers)
             all_models = []
-            for p in KNOWN_PROVIDERS:
-                entries = eval(self.config.get('MODELS', f'{p}_models', fallback='[]'))
+            for p in self.all_providers():
+                entries = eval(self.config.get('MODELS', self._models_key(p), fallback='[]'))
                 all_models += _filter(p, entries)
             return [v["name"] for v in all_models]
 
 
     def set_models(self, provider, models):
-        if provider not in KNOWN_PROVIDERS:
-            raise ValueError(f"Provider must be one of {KNOWN_PROVIDERS}")
-        
+        if provider not in KNOWN_PROVIDERS and not is_custom_provider(provider):
+            raise ValueError(f"Provider must be one of {KNOWN_PROVIDERS} or a custom:<id> slug")
+
         if not self.config.has_section('MODELS'):
             self.config.add_section('MODELS')
-            
-        self.config.set('MODELS', f'{provider}_models', str(models))
+
+        self.config.set('MODELS', self._models_key(provider), str(models))
         self.save_config()
 
 
@@ -201,13 +239,13 @@ class ConfigManager:
         suffix) and False for everything else. Pass an explicit bool to
         override.
         """
-        if provider not in KNOWN_PROVIDERS:
-            raise ValueError(f"Provider must be one of {KNOWN_PROVIDERS}")
+        if provider not in KNOWN_PROVIDERS and not is_custom_provider(provider):
+            raise ValueError(f"Provider must be one of {KNOWN_PROVIDERS} or a custom:<id> slug")
 
         if not self.config.has_section('MODELS'):
             self.config.add_section('MODELS')
 
-        key = f'{provider}_models'
+        key = self._models_key(provider)
 
         # Safely load the existing models
         try:
@@ -249,8 +287,8 @@ class ConfigManager:
         if not self.config.has_section('MODELS'):
             self.config.add_section('MODELS')
 
-        for provider in KNOWN_PROVIDERS:
-            key = f'{provider}_models'
+        for provider in self.all_providers():
+            key = self._models_key(provider)
 
             # Load current models safely
             try:
@@ -302,37 +340,172 @@ class ConfigManager:
         # phase). Snap back to the first known provider silently — otherwise
         # downstream ``set_current_api`` validation would refuse to round-trip
         # the value and the UI would land on a broken default.
-        # ``KNOWN_PROVIDERS[0]`` is LocalMind (the EU-hosted default).
-        if api not in KNOWN_PROVIDERS:
-            print(f"[config] current_api={api!r} no longer in KNOWN_PROVIDERS — migrating to {KNOWN_PROVIDERS[0]!r}")
+        # ``KNOWN_PROVIDERS[0]`` is LocalMind (the EU-hosted default). A custom
+        # slug is valid only while its registry entry still exists — a deleted
+        # custom provider snaps back to the default the same way.
+        valid = api in KNOWN_PROVIDERS or (
+            is_custom_provider(api) and self.get_custom_provider(api) is not None)
+        if not valid:
+            print(f"[config] current_api={api!r} not available — migrating to {KNOWN_PROVIDERS[0]!r}")
             api = KNOWN_PROVIDERS[0]
             self.config.set('MODELS', 'current_api', api)
             self.save_config()
         return api
-        
+
 
     def set_current_api(self, provider):
-        if provider not in KNOWN_PROVIDERS:
-            raise ValueError(f"Provider must be one of {KNOWN_PROVIDERS}")
-        
+        if provider not in KNOWN_PROVIDERS and not is_custom_provider(provider):
+            raise ValueError(f"Provider must be one of {KNOWN_PROVIDERS} or a custom:<id> slug")
+
         if not self.config.has_section('MODELS'):
             self.config.add_section('MODELS')
-            
+
         self.config.set('MODELS', 'current_api', provider)
         self.save_config()
         
-    ### Custom-Provider Endpoint ###
-    def get_custom_base_url(self):
-        """Base URL of the user-supplied OpenAI-compatible endpoint, '' if unset."""
-        if not self.config.has_section('CUSTOM'):
-            self.config.add_section('CUSTOM')
-        return self.config.get('CUSTOM', 'base_url', fallback='').strip()
+    ### Custom-Provider Registry ###
+    # Any number of user-registered OpenAI-compatible endpoints, each a dict
+    # ``{"id", "name", "base_url"}`` (the migrated legacy one also carries
+    # ``"from_legacy": true``). Stored as a JSON list in [CUSTOM_PROVIDERS].
+    def _load_custom_providers(self):
+        if not self.config.has_section('CUSTOM_PROVIDERS'):
+            return []
+        raw = self.config.get('CUSTOM_PROVIDERS', 'providers', fallback='[]')
+        try:
+            data = json.loads(raw)
+        except Exception:
+            return []
+        return [e for e in data if isinstance(e, dict) and e.get('id')] if isinstance(data, list) else []
 
-    def set_custom_base_url(self, url):
-        if not self.config.has_section('CUSTOM'):
-            self.config.add_section('CUSTOM')
-        self.config.set('CUSTOM', 'base_url', (url or '').strip().rstrip('/'))
+    def _save_custom_providers(self, providers):
+        if not self.config.has_section('CUSTOM_PROVIDERS'):
+            self.config.add_section('CUSTOM_PROVIDERS')
+        self.config.set('CUSTOM_PROVIDERS', 'providers',
+                        json.dumps(providers, ensure_ascii=False))
         self.save_config()
+
+    def list_custom_providers(self):
+        """All registered custom providers (list of ``{id, name, base_url}``)."""
+        return self._load_custom_providers()
+
+    def get_custom_provider(self, pid):
+        """The registry entry for a custom-provider id (or slug), else ``None``."""
+        pid = custom_provider_id(pid) or pid
+        for e in self._load_custom_providers():
+            if e.get('id') == pid:
+                return e
+        return None
+
+    def custom_base_url(self, provider):
+        """Base URL of a custom provider (accepts slug or bare id), '' if unknown."""
+        e = self.get_custom_provider(provider)
+        return (e or {}).get('base_url', '').strip()
+
+    def _slugify_custom_id(self, name, existing):
+        base = re.sub(r'[^a-z0-9]+', '-', (name or '').strip().lower()).strip('-') or 'provider'
+        pid = base
+        i = 2
+        while pid in existing:
+            pid = f'{base}-{i}'
+            i += 1
+        return pid
+
+    def add_custom_provider(self, name, base_url):
+        """Register a new custom provider; returns its generated id."""
+        providers = self._load_custom_providers()
+        pid = self._slugify_custom_id(name, {e['id'] for e in providers})
+        providers.append({
+            'id': pid,
+            'name': (name or '').strip() or pid,
+            'base_url': (base_url or '').strip().rstrip('/'),
+        })
+        self._save_custom_providers(providers)
+        return pid
+
+    def update_custom_provider(self, pid, *, name=None, base_url=None):
+        pid = custom_provider_id(pid) or pid
+        providers = self._load_custom_providers()
+        for e in providers:
+            if e.get('id') == pid:
+                if name is not None:
+                    e['name'] = name.strip() or e['id']
+                if base_url is not None:
+                    e['base_url'] = base_url.strip().rstrip('/')
+                self._save_custom_providers(providers)
+                return True
+        return False
+
+    def remove_custom_provider(self, pid):
+        """Drop a custom provider and its stored model list. Returns True if removed."""
+        pid = custom_provider_id(pid) or pid
+        providers = self._load_custom_providers()
+        remaining = [e for e in providers if e.get('id') != pid]
+        if len(remaining) == len(providers):
+            return False
+        key = f'custom_{pid}_models'
+        if self.config.has_section('MODELS') and self.config.has_option('MODELS', key):
+            self.config.remove_option('MODELS', key)
+        self._save_custom_providers(remaining)
+        return True
+
+    def all_providers(self):
+        """Built-in providers plus every registered custom slug (``custom:<id>``)."""
+        return list(KNOWN_PROVIDERS) + [
+            custom_provider_slug(e['id']) for e in self._load_custom_providers()
+        ]
+
+    def _models_key(self, provider):
+        """Config option name holding a provider's model list. Custom slugs use
+        an underscore (configparser treats ``:`` as a key/value delimiter)."""
+        if is_custom_provider(provider):
+            return f'custom_{custom_provider_id(provider)}_models'
+        return f'{provider}_models'
+
+    def migrate_legacy_custom(self):
+        """Fold a pre-registry single custom endpoint into the registry.
+
+        Older configs stored one endpoint in ``[CUSTOM] base_url`` + model list
+        under ``MODELS.custom_models`` + keyring ``api_key_custom``. Move all
+        three into a first registry entry (marked ``from_legacy``), then clear
+        the legacy config so this runs exactly once. Idempotent and safe on a
+        fresh install (nothing to migrate)."""
+        legacy_url = ''
+        if self.config.has_section('CUSTOM'):
+            legacy_url = self.config.get('CUSTOM', 'base_url', fallback='').strip()
+        legacy_models = ''
+        if self.config.has_section('MODELS'):
+            legacy_models = self.config.get('MODELS', 'custom_models', fallback='').strip()
+        has_models = legacy_models not in ('', '[]')
+        if not legacy_url and not has_models:
+            return  # nothing to migrate (fresh install or already done)
+        providers = self._load_custom_providers()
+        if any(e.get('from_legacy') for e in providers):
+            return  # already migrated in a previous run
+        pid = self._slugify_custom_id('Custom endpoint', {e['id'] for e in providers})
+        providers.append({
+            'id': pid,
+            'name': 'Custom endpoint',
+            'base_url': legacy_url.rstrip('/'),
+            'from_legacy': True,
+        })
+        self._save_custom_providers(providers)  # persists
+        if has_models:
+            self.config.set('MODELS', f'custom_{pid}_models', legacy_models)
+        # Clear the legacy markers so a re-run is a no-op.
+        if self.config.has_section('CUSTOM'):
+            self.config.set('CUSTOM', 'base_url', '')
+        if self.config.has_option('MODELS', 'custom_models'):
+            self.config.remove_option('MODELS', 'custom_models')
+        # Best-effort keyring copy so the existing key keeps working.
+        try:
+            import keyring
+            old = keyring.get_password('talktrace', 'api_key_custom')
+            if old:
+                keyring.set_password('talktrace', f'api_key_custom:{pid}', old)
+        except Exception:
+            pass
+        self.save_config()
+        self._legacy_custom_key_id = pid
 
     ### Parameter Management Methods ###
     def get_parameters(self):
@@ -406,8 +579,8 @@ class ConfigManager:
     def get_api_pricing(self):
         """Returns pricing for different APIs and models"""
         pricing = {}
-        for provider in KNOWN_PROVIDERS:
-            key = f"{provider}_models"
+        for provider in self.all_providers():
+            key = self._models_key(provider)
             models_str = self.config.get('MODELS', key, fallback='[]')
             try:
                 models = eval(models_str)  # convert to list of dicts

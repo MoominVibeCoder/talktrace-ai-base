@@ -44,6 +44,11 @@ def default_provider_label(api: str | None) -> str:
     """Display label for the configured provider, or empty for local."""
     if not api:
         return ""
+    # Any user-registered custom endpoint (slug ``custom:<id>``): recipient and
+    # location are unknown to the app — leave empty so the mandatory-field guard
+    # flags it for manual entry (same as the former single custom endpoint).
+    if api.lower().startswith("custom:"):
+        return ""
     return PROVIDER_LOCATIONS.get(api.lower(), api)
 
 

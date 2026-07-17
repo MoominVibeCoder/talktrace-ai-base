@@ -22,7 +22,7 @@ from openai import OpenAI
 import anthropic as anthropic_sdk
 import tiktoken
 from ..localization.translation import TRANSLATIONS
-from ..config.config_manager import ConfigManager
+from ..config.config_manager import ConfigManager, is_custom_provider
 
 # Client-Cache: je API-Key wird nur ein SDK-Client instanziert.
 _client_cache = {}
@@ -162,7 +162,7 @@ def fetch_provider_models(provider, api_key, base_url=None):
         "deepseek": get_deepseek_client,
         "localmind": get_localmind_client,
     }
-    if provider == "custom":
+    if is_custom_provider(provider):
         if not base_url:
             raise ValueError("custom provider needs a base URL")
         client = get_custom_client(api_key, base_url)

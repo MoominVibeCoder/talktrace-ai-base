@@ -23,7 +23,7 @@ from ..llm_clients import (
     get_mistral_client, get_deepseek_client, get_localmind_client,
     get_custom_client,
 )
-from ...config.config_manager import KNOWN_PROVIDERS
+from ...config.config_manager import KNOWN_PROVIDERS, is_custom_provider
 
 # Providers that speak the OpenAI-compatible chat.completions surface (the
 # OpenAI SDK pointed at a custom base_url). OpenAI proper uses the Responses
@@ -46,13 +46,13 @@ def chat_completion(provider, model, system_prompt, user_prompt, api_key,
     error.
     """
     provider = (provider or "").lower()
-    if provider not in KNOWN_PROVIDERS:
+    if provider not in KNOWN_PROVIDERS and not is_custom_provider(provider):
         raise ValueError(f"unknown provider: {provider!r}")
     if not api_key:
         raise RuntimeError("feedback_failed: missing API key")
     if not model:
         raise RuntimeError("feedback_failed: no model selected")
-    if provider == "custom" and not base_url:
+    if is_custom_provider(provider) and not base_url:
         raise RuntimeError("feedback_failed: custom provider has no base URL configured")
 
     try:
@@ -80,7 +80,7 @@ def chat_completion(provider, model, system_prompt, user_prompt, api_key,
             )
             text = resp.output_text
         else:
-            if provider == "custom":
+            if is_custom_provider(provider):
                 client = get_custom_client(api_key, base_url)
             else:
                 client = _OPENAI_CHAT_FACTORIES[provider](api_key)

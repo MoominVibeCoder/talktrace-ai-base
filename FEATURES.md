@@ -52,7 +52,7 @@ Own **Consent** tab — generate a print-ready **GDPR Art. 13** consent declarat
 
 ## LLM backends
 
-- **Five providers + custom endpoint** — [LocalMind](https://www.localmind.ai/) (EU-hosted gateway, the GDPR-friendly default), OpenAI, Anthropic, Mistral, DeepSeek, plus any **OpenAI-compatible endpoint of your own** (base URL in Options, key in the OS keyring — e.g. a self-hosted vLLM/llama.cpp server or an institutional gateway)
+- **Five providers + your own custom endpoints** — [LocalMind](https://www.localmind.ai/) (EU-hosted gateway, the GDPR-friendly default), OpenAI, Anthropic, Mistral, DeepSeek, plus **any number of your own OpenAI-compatible endpoints** — add, rename and delete them in the Options tab (each with a name, base URL and its own key in the OS keyring), e.g. one self-hosted vLLM/llama.cpp server and one institutional gateway side by side. Each custom provider keeps its own model list.
 - **Live model refresh** — one click per provider pulls the current model list straight from its catalogue (OpenAI-compatible `/v1/models` or Anthropic's model list; needs a saved key); embedding/audio/image models are filtered out, and prices of models already in the registry survive the refresh
 - **Editable model registry** — add or remove models, set per-million-token pricing
 - **Custom prompts** — edit system and user prompts, reset to default any time

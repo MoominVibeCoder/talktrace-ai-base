@@ -10,23 +10,12 @@ def register(state):
     model = state.model
 
     def _provider_choices():
-        # Same provider set as the Options-tab dropdown in handlers/options.py.
-        # LocalMind (EU-hosted) leads as the GDPR-conformant default. Local-only
-        # branch is dead because Ollama is gone from KNOWN_PROVIDERS — restore
-        # both paths together.
+        # Built-ins + every registered custom provider (shared with the
+        # Options-tab and Feedback dropdowns via provider_choices). LocalMind
+        # (EU-hosted) leads as the GDPR-conformant default.
         # if state.local_only.get():
         #     return {"ollama": "Ollama"}
-        return {
-            "localmind": "LocalMind",
-            "openai": "OpenAI",
-            "anthropic": "Anthropic",
-            "mistral": "Mistral",
-            "deepseek": "DeepSeek",
-            "custom": t("options", "provider_custom_label"),
-            # "groq": "Groq",
-            # "openrouter": "OpenRouter",
-            # "ollama": "Ollama",
-        }
+        return provider_choices(state)
 
     # Card header for the LLM-configuration card in the Analysis tab (the
     # model picker, switches, cost chip and analyse button now live there
@@ -37,6 +26,7 @@ def register(state):
 
     @render.ui
     def loc_dynamic_model_select():
+        state.custom_providers.get()  # re-render when the registry changes
         return ui.div(
             ui.input_select("provider_select", t("sidebar", "provider_select"), choices=_provider_choices(), selected=config.get_current_api()),
             ui.input_select("model_select", t("sidebar", "model_select"), choices=state.select_api_choices(), selected=config.get_current_model()),
@@ -65,7 +55,9 @@ def register(state):
             provider = input.provider_select()
         except Exception:
             return None
-        keys = _PROVIDER_HINTS.get(provider)
+        # Any custom:<id> provider shares the generic custom-endpoint hint.
+        keys = _PROVIDER_HINTS.get(
+            "custom" if is_custom_provider(provider) else provider)
         if not keys:
             return None
         label_key, text_key = keys
