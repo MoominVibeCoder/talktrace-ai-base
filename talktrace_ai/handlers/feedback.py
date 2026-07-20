@@ -551,6 +551,15 @@ def register(state):
         with tempfile.NamedTemporaryFile(suffix=".docx", delete=False) as tmp:
             docx_path = tmp.name
         pdf_path = docx_path[:-5] + ".pdf"
+        # Die Word-COM-Konvertierung braucht mehrere Sekunden — gleicher
+        # Arbeitshinweis wie beim Report-Download, sonst wirkt der Klick tot.
+        ui.notification_show(
+            ui.div(
+                ui.tags.span(class_="spinner-border spinner-border-sm", role="status"),
+                " ", t("feedback", "exporting"),
+            ),
+            id="feedback_exporting", duration=None,
+        )
         try:
             _write_docx(docx_path)
             from docx2pdf import convert as _docx2pdf_convert
@@ -564,6 +573,7 @@ def register(state):
             )
             return
         finally:
+            ui.notification_remove("feedback_exporting")
             for p in (docx_path, pdf_path):
                 try:
                     os.remove(p)

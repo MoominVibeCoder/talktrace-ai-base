@@ -546,6 +546,8 @@ STRINGS = {
         "import_teacher_label": "\"{label}\" is counted as the teacher (taken from the "
                                 "report).",
         "import_legend": "Codebook taken from the report legend ({codes} codes).",
+        "exporting": "Creating the document … PDF takes a moment (Word "
+                     "conversion).",
         "import_legend_active": "The code meanings come from the report legend ({codes} "
                                 "codes). A codebook loaded in the Analysis tab would "
                                 "take precedence — it also carries the full "
@@ -801,6 +803,8 @@ STRINGS = {
         "cancel": "Cancel",
         "quali_disabled_hint": "Run LLM analysis first to enable qualitative options.",
         "no_section_selected": "Please select at least one section.",
+        "generating": "Generating the report … this can take a moment "
+                      "(noticeably longer for PDF).",
         "pdf_unavailable": "PDF generation failed (Word or LibreOffice required).",
         "pdf_unavailable_linux": "PDF export is not supported on Linux. Please use the DOCX format instead.",
         "xlsx_unavailable": "XLSX generation requires the openpyxl package.",

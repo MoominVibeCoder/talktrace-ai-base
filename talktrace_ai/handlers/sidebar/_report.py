@@ -165,6 +165,23 @@ def register(state):
             ui.notification_show(t("report_options", "no_section_selected"), type="warning", duration=4)
             return None
 
+        # Sichtbarer Arbeitshinweis: Plots exportieren + Dokument bauen dauert
+        # spürbar, PDF (Word-COM) deutlich länger — ohne Hinweis wirkt der
+        # Klick wie verpufft und wird wiederholt. duration=None hält die
+        # Notification, bis das finally sie wieder abräumt (auch im Fehlerfall).
+        ui.notification_show(
+            ui.div(
+                ui.tags.span(class_="spinner-border spinner-border-sm", role="status"),
+                " ", t("report_options", "generating"),
+            ),
+            id="report_generating", duration=None,
+        )
+        try:
+            return _build_report_file(sections, fmt)
+        finally:
+            ui.notification_remove("report_generating")
+
+    def _build_report_file(sections, fmt):
         suffix = _report_file_suffix(fmt)
         tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
         tmp_file.close()

@@ -551,6 +551,8 @@ STRINGS = {
         "import_teacher_label": "Als Lehrkraft wird „{label}“ gezählt (aus dem Report "
                                 "übernommen).",
         "import_legend": "Codebuch aus der Report-Legende übernommen ({codes} Codes).",
+        "exporting": "Dokument wird erstellt … PDF braucht einen Moment (Word-"
+                     "Konvertierung).",
         "import_legend_active": "Die Code-Bedeutungen stammen aus der Legende des "
                                 "Reports ({codes} Codes). Ein im Tab „Analyse“ "
                                 "geladenes Codebuch hätte Vorrang — es enthält auch "
@@ -809,6 +811,8 @@ STRINGS = {
         "cancel": "Abbrechen",
         "quali_disabled_hint": "Bitte zuerst die LLM-Analyse durchführen, um qualitative Optionen zu nutzen.",
         "no_section_selected": "Bitte mindestens einen Abschnitt auswählen.",
+        "generating": "Report wird erstellt … das kann einen Moment dauern "
+                      "(PDF deutlich länger).",
         "pdf_unavailable": "PDF-Erzeugung fehlgeschlagen (Word oder LibreOffice erforderlich).",
         "pdf_unavailable_linux": "PDF-Export wird unter Linux nicht unterstützt. Bitte stattdessen das DOCX-Format verwenden.",
         "xlsx_unavailable": "Für XLSX wird das Paket openpyxl benötigt.",
