@@ -33,6 +33,11 @@ from talktrace_ai.utils.qualitative import (
     build_qual_stats_df,
     code_column_names,
     code_counts_by_group,
+    CONFIDENCE_HIGH_MIN,
+    CONFIDENCE_LOW_MAX,
+    confidence_band,
+    confidence_band_of_cell,
+    extract_confidence,
     collect_codes,
     primary_code_over_time,
     primary_code_series,
@@ -603,11 +608,14 @@ def test_docx_code_group_table_totals():
     _docx_code_group_table(doc, counts)
     table = doc.tables[0]
     # Kopfzeile + zwei Codes + Summenzeile; letzte Spalte ist die Zeilensumme.
+    # Zeilen über die POSITION prüfen, nicht über lokalisierte Labels: der
+    # DOCX-Builder übersetzt gegen die eingestellte App-Sprache, die Tests
+    # dürfen nicht von der Config des ausführenden Rechners abhängen.
     assert len(table.rows) == 4
-    body = {r.cells[0].text: [c.text for c in r.cells[1:]] for r in table.rows[1:]}
+    body = {r.cells[0].text: [c.text for c in r.cells[1:]] for r in table.rows[1:3]}
     assert body["EN"] == ["1", "1", "2"]
     assert body["L"] == ["1", "0", "1"]
-    assert body[_t("report", "total")] == ["2", "1", "3"]
+    assert [c.text for c in table.rows[-1].cells[1:]] == ["2", "1", "3"]
 
 
 def test_docx_code_group_table_skipped_without_data():
@@ -618,3 +626,89 @@ def test_docx_code_group_table_skipped_without_data():
     _docx_code_group_table(doc, None)
     _docx_code_group_table(doc, pd.DataFrame())
     assert len(doc.tables) == 0
+
+
+# ---------------------------------------------------------------------------
+# Konfidenz-Bänder (Report-Einfärbung)
+# ---------------------------------------------------------------------------
+
+def test_extract_confidence_from_cell():
+    assert extract_confidence("EN (92 %)") == 92
+    assert extract_confidence("EN (7 %)") == 7
+    # Handkorrigierte / konfidenzlose Zellen tragen keinen Wert.
+    assert extract_confidence("EN") is None
+    assert extract_confidence("") is None
+
+
+@pytest.mark.parametrize("value,expected", [
+    (100, "high"), (90, "high"),           # Untergrenze "sicher"
+    (89, "medium"), (60, "medium"), (50, "medium"),
+    (49, "low"), (0, "low"),               # Obergrenze "sehr unsicher"
+    (None, None),
+])
+def test_confidence_band_thresholds(value, expected):
+    assert confidence_band(value) == expected
+
+
+def test_confidence_thresholds_match_prompt_anchors():
+    # Die Schwellen sind bewusst an die Kalibrier-Anker im Prompt gebunden
+    # ("90+ NUR bei eindeutiger Passung", "unter 50 = spekulativ"). Laufen
+    # sie auseinander, markiert der Report als sicher, was das Modell laut
+    # Instruktion nicht als sicher gemeint hat.
+    from talktrace_ai.localization.translation import TRANSLATIONS
+    assert CONFIDENCE_HIGH_MIN == 90
+    assert CONFIDENCE_LOW_MAX == 49  # "unter 50"
+    for lang in ("de", "en"):
+        txt = TRANSLATIONS[lang]["sidebar"]["prompt_multi_coding_on"]
+        assert str(CONFIDENCE_HIGH_MIN) in txt
+        assert str(CONFIDENCE_LOW_MAX + 1) in txt
+
+
+def test_confidence_band_of_cell_roundtrip():
+    assert confidence_band_of_cell("EN (92 %)") == "high"
+    assert confidence_band_of_cell("L (61 %)") == "medium"
+    assert confidence_band_of_cell("ÄN (30 %)") == "low"
+    assert confidence_band_of_cell("EN") is None
+
+
+def test_docx_code_cells_carry_mark_and_shading():
+    from docx import Document
+    from talktrace_ai.utils.reports import (
+        CONFIDENCE_MARKS, _docx_quali_section, translate as _rt,
+    )
+
+    # Spalten gegen DIESELBE Übersetzungsquelle bauen, die der DOCX-Builder
+    # nutzt (Config-Sprache) — sonst hängt der Test an der App-Sprache des
+    # ausführenden Rechners.
+    c1, c2 = code_column_names(_rt)
+    df = pd.DataFrame({
+        "#": [1, 2, 3],
+        _rt("report", "speaker"): ["LEHRER", "S1", "LEHRER"],
+        _rt("report", "teacher_statement"): ["a", "b", "c"],
+        c1: ["EN (92 %)", "H (61 %)", "L"],   # sicher / unsicher / ohne Wert
+        c2: ["", "", ""],
+    })
+    doc = Document()
+    # Die Sektion bettet immer den Plot ein — echten mitgeben statt None.
+    _docx_quali_section(doc, 3, build_qual_plot(df, _rt, "light", "LEHRER"), df)
+    table = doc.tables[-1]
+    cells = [r.cells[-2].text for r in table.rows[1:]]  # Spalte "Code 1"
+    assert cells[0].endswith(CONFIDENCE_MARKS["high"])
+    assert cells[1].endswith(CONFIDENCE_MARKS["medium"])
+    # Ohne Konfidenzwert bleibt die Zelle unmarkiert — eine handkorrigierte
+    # Zuordnung darf nicht wie eine spekulative Modell-Zuordnung aussehen.
+    assert cells[2] == "L"
+    # Schattierung nur auf den beiden markierten Zellen.
+    shaded = [len(r.cells[-2]._tc.xpath('.//w:shd')) for r in table.rows[1:]]
+    assert shaded == [1, 1, 0]
+
+
+def test_confidence_legend_derives_bounds_from_code():
+    from talktrace_ai.utils.reports import _confidence_legend_text
+
+    txt = _confidence_legend_text()
+    # Die Legende baut ihre Grenzen aus den Konstanten — kein hartcodierter
+    # String, der beim Verschieben der Schwellen stehen bliebe.
+    assert f"≥ {CONFIDENCE_HIGH_MIN} %" in txt
+    assert f"{CONFIDENCE_LOW_MAX + 1}–{CONFIDENCE_HIGH_MIN - 1} %" in txt
+    assert f"< {CONFIDENCE_LOW_MAX + 1} %" in txt

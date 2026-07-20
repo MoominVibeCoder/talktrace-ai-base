@@ -591,6 +591,11 @@ STRINGS = {
         "shortcode": "Shortcode",
         "code_by_speaker": "Code distribution by speaker group",
         "total": "Total",
+        "confidence_legend": "Confidence of the LLM coding",
+        "confidence_high": "certain",
+        "confidence_medium": "uncertain",
+        "confidence_low": "highly uncertain",
+        "confidence_none": "no confidence value (e.g. hand-corrected)",
         "caption": "Legend",
         "fingerprint": "Reproducibility hash",
         "methods_section": "Methods text"

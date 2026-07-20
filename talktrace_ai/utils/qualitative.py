@@ -41,6 +41,51 @@ def strip_confidence(text) -> str:
     return _CONF_SUFFIX_RE.sub("", str(text))
 
 
+# --- Konfidenz-Bänder -----------------------------------------------------
+# Schwellen bewusst IDENTISCH zu den Kalibrier-Ankern im Prompt
+# (localization: *_multi_coding_on): "90+ NUR bei eindeutiger, wörtlich
+# belegbarer Passung" und "unter 50 = spekulativ". Anzeige und Kalibrierung
+# müssen dieselbe Sprache sprechen — sonst markiert der Report als sicher,
+# was das Modell laut Instruktion nicht als sicher gemeint hat. Wer hier
+# etwas ändert, ändert auch den Prompt (und umgekehrt).
+CONFIDENCE_HIGH_MIN = 90
+CONFIDENCE_LOW_MAX = 49  # alles darunter/gleich gilt als spekulativ
+
+_CONF_VALUE_RE = re.compile(r"\((\d+)\s*%\)")
+
+
+def extract_confidence(text):
+    """Konfidenzwert aus einer Shortcode-Zelle ("EN (92 %)") als int.
+
+    Gegenstück zu strip_confidence. None, wenn die Zelle keinen Wert trägt —
+    im Single-Coding-Modus und bei handkorrigierten Zellen ist das der
+    Normalfall, nicht der Fehlerfall.
+    """
+    m = _CONF_VALUE_RE.search(str(text))
+    return int(m.group(1)) if m else None
+
+
+def confidence_band(value):
+    """Band einer Konfidenz: "high" | "medium" | "low" | None.
+
+    None heißt "keine Konfidenz-Information" (nicht "niedrig") — eine
+    handkorrigierte Zelle darf nicht wie eine spekulative Modell-Zuordnung
+    aussehen.
+    """
+    if value is None:
+        return None
+    if value >= CONFIDENCE_HIGH_MIN:
+        return "high"
+    if value <= CONFIDENCE_LOW_MAX:
+        return "low"
+    return "medium"
+
+
+def confidence_band_of_cell(text):
+    """Band direkt aus einer Shortcode-Zelle — Kurzform für die Renderer."""
+    return confidence_band(extract_confidence(text))
+
+
 def code_column_names(t) -> list:
     """Lokalisierte Spaltennamen der Multi-Coding-Anzeige ("Code 1".."Code 3")."""
     base = t("report", "shortcode")
