@@ -533,8 +533,40 @@ STRINGS = {
                       "Es wird von einem Sprachmodell aus den Analyse-Daten erzeugt — bitte "
                       "kritisch prüfen.",
         "empty_state": "Bitte zuerst eine Analyse mit LLM-Codierung durchführen (Tab "
-                       "„Analyse“). Das Feedback wird aus der Codierung und den "
+                       "„Analyse“) — oder unten einen bereits exportierten Report "
+                       "hochladen. Das Feedback wird aus der Codierung und den "
                        "Redekennzahlen erzeugt.",
+        "upload_label": "Report hochladen (optional)",
+        "upload_button": "Datei wählen",
+        "upload_placeholder": "Keine Datei ausgewählt",
+        "upload_hint": "Exportierten Report einlesen — etwa nachdem du die Codierungen "
+                       "in Word oder Excel geprüft und korrigiert hast. Das Feedback "
+                       "beruht dann auf deiner geprüften Fassung statt auf der Roh-"
+                       "Ausgabe des Modells. Unterstützt: DOCX, XLSX, CSV/ZIP, HTML. "
+                       "Kennzahlen und Codes werden aus dem Dokument gelesen, eine "
+                       "laufende Analyse ist nicht nötig.",
+        "import_ok": "Report eingelesen: {turns} Beiträge, davon {coded} codiert.",
+        "import_active": "Feedback nutzt den hochgeladenen Report ({turns} Beiträge, "
+                         "{coded} codiert) statt der Analyse in dieser Sitzung.",
+        "import_teacher_label": "Als Lehrkraft wird „{label}“ gezählt (aus dem Report "
+                                "übernommen).",
+        "import_clear": "Verwerfen",
+        "import_cleared": "Hochgeladener Report verworfen.",
+        "import_no_codebook": "Kein Codebuch geladen — das Modell kennt dann nur die "
+                              "Kürzel, nicht ihre Bedeutung. Für ein aussagekräftiges "
+                              "Feedback im Tab „Analyse“ ein Codebuch laden (die "
+                              "T-SEDA-Vorlage genügt).",
+        "import_unsupported_format": "Dieses Dateiformat wird nicht unterstützt. Möglich "
+                                     "sind DOCX, XLSX, CSV/ZIP und HTML — PDF nicht, da "
+                                     "sich daraus die Tabellenstruktur nicht sicher "
+                                     "rekonstruieren lässt.",
+        "import_unreadable": "Die Datei ließ sich nicht lesen. Ist es ein unveränderter "
+                             "TalkTrace-Report?",
+        "import_no_table": "In der Datei wurde keine Codierungs-Tabelle gefunden. Sie "
+                           "braucht die Spalten für Äußerung und Shortcode — beim Export "
+                           "muss der Abschnitt „Qualitative Codierung“ aktiviert sein.",
+        "xlsx_unavailable": "Für XLSX-Dateien fehlt das Paket openpyxl. Bitte ein "
+                            "anderes Format wählen.",
         "generate_button": "Feedback erzeugen",
         "regenerate_button": "Neu erzeugen",
         "generating": "Feedback wird erzeugt…",

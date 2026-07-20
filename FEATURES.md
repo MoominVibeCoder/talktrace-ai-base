@@ -33,6 +33,7 @@ Own **Feedback** tab — generate **research-grounded, formative feedback for th
 
 - **Three structured axes** — *Stärken*, *Entwicklungsfelder*, *Konkrete Umsetzungshinweise*
 - **Grounded in the analysis** — uses the teacher's per-code profile, the codebook definitions, and the quantitative metrics of the current session; no external context required
+- **Upload a corrected report** — export the report, check and fix the codings in Word or Excel, then read it back here so the feedback rests on the **reviewed** version rather than the model's raw output. Accepts DOCX, XLSX, CSV/ZIP and HTML (not PDF — the table structure cannot be reliably reconstructed from it). The import carries itself: codes *and* metrics come out of the document, so it also works as a **standalone entry point** in a fresh session with no analysis run. Tables are located by their column headers in both languages, never by position, and the teacher label is taken from the report — otherwise a mismatch between the report's label and the app setting would silently drop every teacher turn from the metrics.
 - **Short reference list** — anchored in dialogic-teaching literature (T-SEDA, IRE/IRF, accountable talk, productive disciplinary engagement)
 - **Bilingual** — German or English prompt set, follows the active UI language
 - **Editable in place** — refine, tighten, or rephrase before exporting; edits persist across re-renders
