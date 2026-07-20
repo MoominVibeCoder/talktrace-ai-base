@@ -98,6 +98,18 @@ def register(state):
         key = "user_prompt_context" if kind == "user" else "prompt_context"
         return t("sidebar", key)
 
+    def _relevance_suffix(kind: str = "system") -> str:
+        """Anweisung, Nicht-Züge uncodiert zu lassen: bloßes Drannehmen,
+        Minimal-Feedback ohne eigenen Inhalt („Ja.", „Genau."), Unverständ-
+        liches („(unv.)"). Immer aktiv und bewusst CODE-unabhängig in der
+        Prompt-Schicht: die Drannehmen-Regel stand zuvor nur in einzelnen
+        Codebuch-Einträgen (L/ÄN) — Modelle griffen dann zu einem Code, in
+        dessen Eintrag die Regel nicht stand (EN, 90 % Konfidenz). Die
+        Kontext-Ausnahme bleibt: ein „Nein." als Widerspruch oder eine
+        knappe Sachantwort SIND codierbare Züge."""
+        key = "user_prompt_relevance" if kind == "user" else "prompt_relevance"
+        return t("sidebar", key)
+
     def _speaker_filter_suffix(kind: str = "system"):
         teacher, students = _speaker_flags()
         prefix = "user_prompt_filter" if kind == "user" else "prompt_filter"
@@ -168,19 +180,22 @@ def register(state):
         teacher, students = _speaker_flags()
         base = _sanitize_prompt_for_speakers(system_prompt.get(), teacher, students)
         return (base + _speaker_filter_suffix("system")
-                + _context_suffix("system") + _multi_coding_suffix("system"))
+                + _context_suffix("system") + _relevance_suffix("system")
+                + _multi_coding_suffix("system"))
 
     @reactive.calc
     def effective_user_prompt():
         teacher, students = _speaker_flags()
         raw = _sanitize_prompt_for_speakers(user_prompt.get(), teacher, students)
-        # Alle Instruktions-Suffixe (Sprecher-Filter + Kontext + Multi-Coding)
-        # werden gemeinsam direkt nach dem {transcript}-Block platziert.
-        # Hintergrund: LLMs leiden bei sehr langen Kontexten unter "lost in
-        # the middle" — Anweisungen über Output-Format und Filter müssen nahe
-        # am Transkript sitzen, nicht am Ende nach tausenden Token Codebook.
+        # Alle Instruktions-Suffixe (Sprecher-Filter + Kontext + Relevanz +
+        # Multi-Coding) werden gemeinsam direkt nach dem {transcript}-Block
+        # platziert. Hintergrund: LLMs leiden bei sehr langen Kontexten unter
+        # "lost in the middle" — Anweisungen über Output-Format und Filter
+        # müssen nahe am Transkript sitzen, nicht am Ende nach tausenden
+        # Token Codebook.
         combined = (_speaker_filter_suffix("user")
-                    + _context_suffix("user") + _multi_coding_suffix("user"))
+                    + _context_suffix("user") + _relevance_suffix("user")
+                    + _multi_coding_suffix("user"))
         if not combined:
             return raw
         if "{transcript}" in raw:

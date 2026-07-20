@@ -80,18 +80,47 @@ def test_tseda_presets():
 
 
 def test_context_prompt_keys_exist_in_both_languages():
-    # Die Kontext-Anweisung (Turns im Gesprächsverlauf codieren) hängt als
-    # Suffix an System- UND User-Prompt — beide Keys müssen in beiden
-    # Sprachen existieren und nicht leer sein.
+    # Kontext-Anweisung (Turns im Gesprächsverlauf codieren) und
+    # Relevanz-Regel (Nicht-Züge wie Drannehmen/Minimal-Feedback/(unv.)
+    # bleiben uncodiert) hängen als Suffixe an System- UND User-Prompt —
+    # alle Keys müssen in beiden Sprachen existieren und nicht leer sein.
     from talktrace_ai.localization.translation import TRANSLATIONS
     for lang in ("de", "en"):
-        for key in ("prompt_context", "user_prompt_context"):
+        for key in ("prompt_context", "user_prompt_context",
+                    "prompt_relevance", "user_prompt_relevance"):
             assert TRANSLATIONS[lang]["sidebar"][key].strip()
+
+
+def test_multi_coding_prompt_has_calibration_anchors():
+    # Kalibrier-Anker gegen uniforme 90/95er-Konfidenzen (Befund Testrunde 5):
+    # volle Skala mit benannten Stufen, kein pauschaler Standardwert.
+    from talktrace_ai.localization.translation import TRANSLATIONS
+    for lang in ("de", "en"):
+        for key in ("prompt_multi_coding_on", "user_prompt_multi_coding_on"):
+            txt = TRANSLATIONS[lang]["sidebar"][key]
+            assert "90" in txt and "60" in txt and "50" in txt
 
 
 def test_tseda_attribution_names_cambridge():
     assert "Cambridge" in TSEDA_ATTRIBUTION
     assert "CC BY" in TSEDA_ATTRIBUTION
+
+
+def test_teacher_typical_codes_carry_speaker_note():
+    # EI/EN/ZK/L (EN: IB/IR/CA/G) sind im Klassengespräch Lehrkraft-Züge —
+    # bei Schüler:innen nur ohne beteiligte Lehrkraft plausibel (Befund
+    # Testrunde 5: Modelle vergaben Einlade-/Leitungs-Codes an Schülerturns).
+    de_map = {e["Code"]: e["Beschreibung"] for e in TSEDA_CODEBOOK["de"]}
+    en_map = {e["Code"]: e["Description"] for e in TSEDA_CODEBOOK["en"]}
+    for c in ("EI", "EN", "ZK", "L"):
+        assert "Klassengespräch" in de_map[c], c
+    for c in ("IB", "IR", "CA", "G"):
+        assert "whole-class" in en_map[c], c
+    # Die übrigen Codes bleiben sprecherneutral (offizielle Fassung).
+    for c in ("I", "H", "N", "R", "V", "ÄN"):
+        assert "Klassengespräch" not in de_map[c], c
+    for c in ("B", "CH", "R", "RD", "C", "E"):
+        assert "whole-class" not in en_map[c], c
 
 
 # ---------------------------------------------------------------------------

@@ -19,6 +19,12 @@ the English original):
   "make the learning trajectory explicit via outside references" clause
   belongs to ``V`` (as in the English original: RD vs. C).
 
+One project-specific sharpening beyond the official slides (which are
+speaker-neutral): ``EI/EN/ZK/L`` (EN: ``IB/IR/CA/G``) carry a note that they
+are TEACHER moves in whole-class talk, assignable to student turns only in
+teacher-less peer/group settings. Finding from trial run 5: models assigned
+invite/guide codes to plain student turns in a teacher-led discussion.
+
 Language handling differs from ``DEMO_CODEBOOK``: the demo keeps the German
 abbreviations in both languages (they label the same demo data), while this
 template uses the **official abbreviations of each language version** —
@@ -78,7 +84,10 @@ TSEDA_CODEBOOK = {
              "Schlüsselwörter: „Was?“, „Sag mir“, „Kannst du das "
              "umformulieren?“, „Meinst du, dass …?“, „Stimmst du zu?“, "
              "„Kannst du ergänzen …?“. "
-             "Abgrenzung: lädt zum Begründen ein → EN."
+             "Abgrenzung: lädt zum Begründen ein → EN. "
+             "Im Klassengespräch ein Zug der LEHRKRAFT — bei Schüler:innen "
+             "nur plausibel, wenn keine Lehrkraft am Gespräch beteiligt ist "
+             "(z. B. Gruppenarbeit)."
          )},
         {"Code": "H", "Bezeichnung": "Herausfordern",
          "Beschreibung": (
@@ -102,7 +111,10 @@ TSEDA_CODEBOOK = {
              "begründen und/oder Alternativen zu suchen. "
              "Schlüsselwörter: „Warum?“, „Wie?“, „Meinst du?“, „Kannst du "
              "das genauer erklären?“. "
-             "Abgrenzung: lädt nur zum Ausbauen ein → EI."
+             "Abgrenzung: lädt nur zum Ausbauen ein → EI. "
+             "Im Klassengespräch ein Zug der LEHRKRAFT — bei Schüler:innen "
+             "nur plausibel, wenn keine Lehrkraft am Gespräch beteiligt ist "
+             "(z. B. Gruppenarbeit)."
          )},
         {"Code": "ZK", "Bezeichnung": "Ideen zusammenführen und Konsens finden",
          "Beschreibung": (
@@ -112,7 +124,10 @@ TSEDA_CODEBOOK = {
              "Schlüsselwörter: „ich stimme zu“, „um es zusammenzufassen“, "
              "„also sind wir alle der Meinung, dass …“, „ähnlich und "
              "unterschiedlich“. "
-             "Abgrenzung: greift nur einen einzelnen Beitrag auf → I."
+             "Abgrenzung: greift nur einen einzelnen Beitrag auf → I. "
+             "Im Klassengespräch ein Zug der LEHRKRAFT — bei Schüler:innen "
+             "nur plausibel, wenn keine Lehrkraft am Gespräch beteiligt ist "
+             "(z. B. Gruppenarbeit)."
          )},
         {"Code": "R", "Bezeichnung": "Reflexion",
          "Beschreibung": (
@@ -145,7 +160,10 @@ TSEDA_CODEBOOK = {
              "Abgrenzung: ohne eigenen Inhaltsbeitrag (→ N/ÄN). Das bloße "
              "Drannehmen einer Person — der Turn besteht nur aus einem "
              "Namen oder Sprecherlabel (z. B. „S2“) — ist KEIN Code; solche "
-             "Turns bleiben uncodiert."
+             "Turns bleiben uncodiert. "
+             "Im Klassengespräch ein Zug der LEHRKRAFT — bei Schüler:innen "
+             "nur plausibel, wenn keine Lehrkraft am Gespräch beteiligt ist "
+             "(z. B. Gruppenarbeit)."
          )},
         {"Code": "ÄN", "Bezeichnung": "Äußerungen und Nachfragen",
          "Beschreibung": (
@@ -176,7 +194,10 @@ TSEDA_CODEBOOK = {
              "comment on their own or others' ideas. "
              "Keywords: 'What?', 'Tell me', 'Can you rephrase that?', "
              "'Do you mean that …?', 'Do you agree?', 'Can you add …?'. "
-             "Distinction: invites justification → IR."
+             "Distinction: invites justification → IR. "
+             "In whole-class talk a TEACHER move — plausible for student "
+             "turns only when no teacher takes part in the conversation "
+             "(e.g. group work)."
          )},
         {"Code": "CH", "Label": "Challenge",
          "Description": (
@@ -199,7 +220,10 @@ TSEDA_CODEBOOK = {
              "regarding their own or others' ideas. "
              "Keywords: 'Why?', 'How?', 'Do you mean?', 'Can you explain "
              "that in more detail?'. "
-             "Distinction: invites mere elaboration → IB."
+             "Distinction: invites mere elaboration → IB. "
+             "In whole-class talk a TEACHER move — plausible for student "
+             "turns only when no teacher takes part in the conversation "
+             "(e.g. group work)."
          )},
         {"Code": "CA", "Label": "Coordination of ideas and agreement",
          "Description": (
@@ -207,7 +231,10 @@ TSEDA_CODEBOOK = {
              "express agreement/consensus or invite others to do so. "
              "Keywords: 'I agree', 'to sum up', 'so we all think that …', "
              "'similar and different'. "
-             "Distinction: takes up only a single contribution → B."
+             "Distinction: takes up only a single contribution → B. "
+             "In whole-class talk a TEACHER move — plausible for student "
+             "turns only when no teacher takes part in the conversation "
+             "(e.g. group work)."
          )},
         {"Code": "RD", "Label": "Reflect on dialogue or activity",
          "Description": (
@@ -238,7 +265,10 @@ TSEDA_CODEBOOK = {
              "Distinction: without contributing content itself (→ R/E). "
              "Merely nominating a person — the turn consists only of a name "
              "or speaker label (e.g. 'S2') — is NOT a code; such turns stay "
-             "uncoded."
+             "uncoded. "
+             "In whole-class talk a TEACHER move — plausible for student "
+             "turns only when no teacher takes part in the conversation "
+             "(e.g. group work)."
          )},
         {"Code": "E", "Label": "Express or invite ideas",
          "Description": (
