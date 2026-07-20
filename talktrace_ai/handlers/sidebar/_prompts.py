@@ -100,12 +100,24 @@ def register(state):
 
     def _relevance_suffix(kind: str = "system") -> str:
         """Anweisung, Nicht-Züge uncodiert zu lassen: bloßes Drannehmen,
-        Minimal-Feedback ohne eigenen Inhalt („Ja.", „Genau."), Unverständ-
-        liches („(unv.)"). Immer aktiv und bewusst CODE-unabhängig in der
-        Prompt-Schicht: die Drannehmen-Regel stand zuvor nur in einzelnen
-        Codebuch-Einträgen (L/ÄN) — Modelle griffen dann zu einem Code, in
-        dessen Eintrag die Regel nicht stand (EN, 90 % Konfidenz). Die
-        Kontext-Ausnahme bleibt: ein „Nein." als Widerspruch oder eine
+        reine Quittungen („Ja.", „Genau."), Unverständliches („(unv.)").
+        Immer aktiv und bewusst CODE-unabhängig in der Prompt-Schicht: die
+        Drannehmen-Regel stand zuvor nur in einzelnen Codebuch-Einträgen
+        (L/ÄN) — Modelle griffen dann zu einem Code, in dessen Eintrag die
+        Regel nicht stand (EN, 90 % Konfidenz).
+
+        Zwei Präzisierungen aus Testrunde 6:
+        - **Scoping:** Die Quittungs-Regel greift nur, wenn der GESAMTE
+          Beitrag daraus besteht. Ohne diese Klausel übertrug das Modell sie
+          auf Beiträge, die bloß mit „Ja," beginnen und dann inhaltlich
+          weiterlaufen — 5 hochkonfidente Codierungen substanzieller Turns
+          gingen so verloren.
+        - **Vorrang:** Die Regel sticht die Multi-Coding-Anweisung „nenne
+          Kandidaten auch bei Unsicherheit" aus. Sonst löst das Modell den
+          Konflikt, indem es den Nicht-Zug doch ausgibt und die Konfidenz auf
+          0–20 % setzt (beobachtet: „S12?" → EI 0 %, „Genau." → ZK 18 %).
+
+        Die Kontext-Ausnahme bleibt: ein „Nein." als Widerspruch oder eine
         knappe Sachantwort SIND codierbare Züge."""
         key = "user_prompt_relevance" if kind == "user" else "prompt_relevance"
         return t("sidebar", key)

@@ -91,6 +91,23 @@ def test_context_prompt_keys_exist_in_both_languages():
             assert TRANSLATIONS[lang]["sidebar"][key].strip()
 
 
+def test_relevance_rule_is_scoped_and_takes_precedence():
+    # Zwei Präzisierungen aus Testrunde 6, beide sprachübergreifend:
+    # (1) Scoping — die Quittungs-Regel gilt nur für Beiträge, die
+    #     AUSSCHLIESSLICH daraus bestehen (sonst verlor das Modell
+    #     substanzielle Turns, die bloß mit „Ja," beginnen).
+    # (2) Vorrang — kein Eintrag mit Niedrig-Konfidenz statt Weglassen.
+    from talktrace_ai.localization.translation import TRANSLATIONS
+    for key in ("prompt_relevance", "user_prompt_relevance"):
+        de = TRANSLATIONS["de"]["sidebar"][key]
+        # Bindestrich-tolerant: "low confidence" / "low-confidence".
+        en = TRANSLATIONS["en"]["sidebar"][key].replace("-", " ")
+        assert "AUSSCHLIESSLICH" in de, key
+        assert "EXCLUSIVELY" in en, key
+        assert "niedriger Konfidenz" in de, key
+        assert "low confidence" in en, key
+
+
 def test_multi_coding_prompt_has_calibration_anchors():
     # Kalibrier-Anker gegen uniforme 90/95er-Konfidenzen (Befund Testrunde 5):
     # volle Skala mit benannten Stufen, kein pauschaler Standardwert.
