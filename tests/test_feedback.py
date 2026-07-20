@@ -129,6 +129,27 @@ def test_system_prompt_demands_author_and_year(lang):
     assert "Littleton, K. (2007)" in refs
 
 
+@pytest.mark.parametrize("lang", ["de", "en"])
+def test_system_prompt_demands_depth_and_full_labels(lang):
+    # Befund aus dem ersten Testlauf: das Feedback nannte Kürzel statt der
+    # Bezeichnungen und blieb beim Benennen statt Begründen. Drei Ursachen,
+    # alle im Prompt: kein Benennungsgebot, kein Punkt-Schema (Beobachtung →
+    # Einordnung → Konsequenz), zu knappes Wortbudget (400–600).
+    sys_p, usr_p = fb.build_feedback_prompts(lang=lang)
+    assert "700" in sys_p and "1000" in sys_p
+    assert "400" not in sys_p              # altes Budget wirklich raus
+    if lang == "de":
+        assert "vollen Bezeichnung" in sys_p
+        assert "Beobachtung" in sys_p and "Konsequenz" in sys_p
+        assert "Beispielformulierung" in sys_p
+        assert "Beispielformulierung" in usr_p
+    else:
+        assert "full label" in sys_p
+        assert "observation" in sys_p and "consequence" in sys_p
+        assert "example phrasing" in sys_p
+        assert "example phrasing" in usr_p
+
+
 def test_build_feedback_prompts_langs_differ():
     de_sys, _ = fb.build_feedback_prompts(lang="de")
     en_sys, _ = fb.build_feedback_prompts(lang="en")
