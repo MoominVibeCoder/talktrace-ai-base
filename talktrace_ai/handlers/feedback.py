@@ -22,6 +22,7 @@ from ..utils.report_import import (
     parse_report,
     turns_to_transcript,
 )
+from ..utils.reports import convert_docx_to_pdf
 from ..utils.stats import count_pupils, dialog_stats
 
 
@@ -446,6 +447,19 @@ def register(state):
         )
 
         feedback_busy.set(True)
+        # Sichtbarer Arbeitshinweis SOFORT, per Notification statt nur über
+        # den busy-Zustand: das Re-Render der Sektion (busy-Spinner) läuft
+        # erst, wenn dieser Effekt fertig ist — und dann ist busy schon
+        # wieder False, der Inline-Spinner erscheint also nie. Die
+        # Notification geht dagegen direkt raus (run_coro_hybrid) und steht,
+        # bis das finally sie abräumt.
+        ui.notification_show(
+            ui.div(
+                ui.tags.span(class_="spinner-border spinner-border-sm", role="status"),
+                " ", t("feedback", "generating"),
+            ),
+            id="feedback_generating", duration=None,
+        )
         try:
             result = await asyncio.to_thread(
                 lambda: chat_completion(
@@ -473,6 +487,7 @@ def register(state):
                 type="error", duration=8,
             )
         finally:
+            ui.notification_remove("feedback_generating")
             feedback_busy.set(False)
 
     def _log_cost(provider, model, sys_p, usr_p, result):
@@ -540,7 +555,7 @@ def register(state):
             pass
 
     @render.download(filename=lambda: f"{_stem()}.pdf")
-    def feedback_download_pdf():
+    async def feedback_download_pdf():
         # PDF needs Word (COM on Windows / AppleScript on macOS); unavailable on
         # Linux — surface a clean localized message instead of a COM traceback.
         if sys.platform.startswith("linux"):
@@ -552,7 +567,10 @@ def register(state):
             docx_path = tmp.name
         pdf_path = docx_path[:-5] + ".pdf"
         # Die Word-COM-Konvertierung braucht mehrere Sekunden — gleicher
-        # Arbeitshinweis wie beim Report-Download, sonst wirkt der Klick tot.
+        # Arbeitshinweis wie beim Report-Download. Async + Worker-Thread aus
+        # demselben Grund wie dort: ein synchroner Handler blockiert den
+        # Event-Loop und die Notification käme erst nach getaner Arbeit an.
+        # convert_docx_to_pdf initialisiert die COM-Runtime im Thread.
         ui.notification_show(
             ui.div(
                 ui.tags.span(class_="spinner-border spinner-border-sm", role="status"),
@@ -560,12 +578,15 @@ def register(state):
             ),
             id="feedback_exporting", duration=None,
         )
-        try:
+
+        def _build_pdf():
             _write_docx(docx_path)
-            from docx2pdf import convert as _docx2pdf_convert
-            _docx2pdf_convert(docx_path, pdf_path)
+            convert_docx_to_pdf(docx_path, pdf_path)
             with open(pdf_path, "rb") as fh:
-                yield fh.read()
+                return fh.read()
+
+        try:
+            yield await asyncio.to_thread(_build_pdf)
         except Exception as exc:  # noqa: BLE001
             ui.notification_show(
                 t("feedback", "pdf_failed").format(error=str(exc)),

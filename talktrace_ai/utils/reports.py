@@ -536,6 +536,33 @@ def _docx_quali_section(doc, num_impulses, plot_impulse_coding, impulse_table,
             col += 1
 
 
+def convert_docx_to_pdf(docx_path, pdf_path):
+    """docx2pdf-Konvertierung, COM-sicher auch aus Worker-Threads.
+
+    Die Download-Handler laufen seit dem Spinner-Fix in einem Worker-Thread
+    (asyncio.to_thread), damit die Busy-Notification den Event-Loop noch
+    erreicht. Word-COM verlangt aber eine im AUFRUFENDEN Thread
+    initialisierte COM-Runtime — docx2pdf selbst ruft CoInitialize nicht
+    auf. Ohne die Initialisierung hier schlüge jede PDF-Konvertierung im
+    Thread fehl; im Hauptthread ist der Aufruf harmlos.
+    """
+    from docx2pdf import convert
+
+    co_initialized = False
+    if sys.platform == "win32":
+        try:
+            import pythoncom
+            pythoncom.CoInitialize()
+            co_initialized = True
+        except ImportError:
+            pass                      # pywin32 fehlt → convert scheitert selbst
+    try:
+        convert(docx_path, pdf_path)
+    finally:
+        if co_initialized:
+            pythoncom.CoUninitialize()
+
+
 def _save_as_pdf(docx_path, pdf_path):
     # docx2pdf relies on Microsoft Word (Windows COM) or Pages/Word (macOS
     # AppleScript). On Linux there is no supported backend, so fail fast with
@@ -543,11 +570,9 @@ def _save_as_pdf(docx_path, pdf_path):
     if sys.platform.startswith("linux"):
         raise RuntimeError("pdf_unavailable_linux")
     try:
-        from docx2pdf import convert
+        convert_docx_to_pdf(docx_path, pdf_path)
     except ImportError as e:
         raise RuntimeError("pdf_unavailable") from e
-    try:
-        convert(docx_path, pdf_path)
     except Exception as e:
         raise RuntimeError("pdf_unavailable") from e
 

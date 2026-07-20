@@ -155,7 +155,7 @@ def register(state):
         return ".zip" if fmt == "csv" else f".{fmt}"
 
     @render.download(filename=lambda: f"{date.today().isoformat()} - TalkTrace AI {t('results', 'results_group')} {input.name_group()}{_report_file_suffix(_current_report_format())}")
-    def download_report():
+    async def download_report():
         sections = _current_report_sections()
         fmt = _current_report_format()
         # Persist last selection for the next modal open.
@@ -163,7 +163,7 @@ def register(state):
 
         if not any(sections.values()):
             ui.notification_show(t("report_options", "no_section_selected"), type="warning", duration=4)
-            return None
+            return  # async generator: bare return (kein Wert erlaubt)
 
         # Sichtbarer Arbeitshinweis: Plots exportieren + Dokument bauen dauert
         # spürbar, PDF (Word-COM) deutlich länger — ohne Hinweis wirkt der
@@ -176,10 +176,32 @@ def register(state):
             ),
             id="report_generating", duration=None,
         )
+        # Der Bau läuft im Worker-Thread: ein synchroner Handler blockiert
+        # den Event-Loop, und die Notification erreicht den Browser dann
+        # erst NACH getaner Arbeit (gemessen: Ankunft bei 351 ms von 374 ms
+        # Bauzeit — zusammen mit ihrem Remove, also unsichtbar). Das await
+        # gibt den Loop frei; UI-Aufrufe bleiben hier draußen, im Thread
+        # liefe _send_message_sync nicht zuverlässig. Async verlangt bei
+        # render.download die GENERATOR-Form (Bytes yielden) — eine async
+        # Funktion, die einen Pfad returned, kann Shiny nicht iterieren.
         try:
-            return _build_report_file(sections, fmt)
+            path = await asyncio.to_thread(_build_report_file, sections, fmt)
+        except RuntimeError as e:
+            key = str(e)
+            msg = t("report_options", key) if key in ("pdf_unavailable", "pdf_unavailable_linux", "xlsx_unavailable") else str(e)
+            ui.notification_show(msg, type="error", duration=6)
+            return
         finally:
             ui.notification_remove("report_generating")
+        ui.modal_remove()
+        try:
+            with open(path, "rb") as fh:
+                yield fh.read()
+        finally:
+            try:
+                os.remove(path)
+            except OSError:
+                pass
 
     def _build_report_file(sections, fmt):
         suffix = _report_file_suffix(fmt)
@@ -308,8 +330,10 @@ def register(state):
                 print(f"[REPORT] methods text generation failed: {e}")
                 methods_text = ""
 
-        try:
-            generate_report2(
+        # RuntimeError (pdf/xlsx nicht verfügbar) propagiert zum async
+        # Wrapper — Fehler-Notifications gehören auf den Event-Loop, nicht
+        # in diesen Worker-Thread.
+        generate_report2(
                 tmp_file.name,
                 input.name_group(), input.num_pupils(), num_participants.get(), participation_rate.get(),
                 {"num": t_turns.get(), "words": t_turns_length.get(), "mean_sd": t_turns_length_mean_sd.get()},
@@ -332,11 +356,4 @@ def register(state):
                 transitions_df=df_transitions,
                 code_group_df=df_code_group,
             )
-        except RuntimeError as e:
-            key = str(e)
-            msg = t("report_options", key) if key in ("pdf_unavailable", "pdf_unavailable_linux", "xlsx_unavailable") else str(e)
-            ui.notification_show(msg, type="error", duration=6)
-            return None
-
-        ui.modal_remove()
         return tmp_file.name
