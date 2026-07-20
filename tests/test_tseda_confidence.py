@@ -5,8 +5,11 @@ zuletzt), Schema-Erweiterung (Konfidenz nullable + required), Item-
 Normalisierung, DataFrame-Aufbau und das Top-3/Cutoff-Postprocessing der
 Ergebnistabelle.
 """
+import matplotlib
 import pandas as pd
 import pytest
+
+matplotlib.use("Agg")  # headless: die Plot-Helfer dürfen kein Tk anfassen
 
 from talktrace_ai.examples.tseda import (
     TSEDA_ATTRIBUTION,
@@ -29,6 +32,7 @@ from talktrace_ai.utils.qualitative import (
     build_qual_plot,
     build_qual_stats_df,
     code_column_names,
+    code_counts_by_group,
     collect_codes,
     primary_code_over_time,
     primary_code_series,
@@ -502,3 +506,115 @@ def test_build_qual_stats_df_single_coding_ignores_confidence():
     # die klassische Einzel-Spalte (keine Code-1..3-Spalten).
     assert merged[sc_col].tolist() == ["EN"]
     assert not any(c in merged.columns for c in code_column_names(_t))
+
+
+# ---------------------------------------------------------------------------
+# Code-Verteilung nach Sprechergruppe (Balkenplot + Report-Tabelle)
+# ---------------------------------------------------------------------------
+
+def _grouped_df(speakers, primary, secondary=None):
+    """Ergebnistabelle in Multi-Coding-Form mit frei wählbaren Sprechern."""
+    c1, c2 = code_column_names(_t)
+    return pd.DataFrame({
+        "#": range(1, len(speakers) + 1),
+        _t("report", "speaker"): speakers,
+        _t("report", "teacher_statement"): [f"u{i}" for i in range(len(speakers))],
+        c1: primary,
+        c2: secondary if secondary is not None else [""] * len(speakers),
+    })
+
+
+def test_code_counts_by_group_splits_teacher_and_students():
+    df = _grouped_df(
+        ["LEHRER", "S1", "LEHRER", "S2"],
+        ["EN (90 %)", "EN (80 %)", "L (70 %)", "I (60 %)"],
+    )
+    counts = code_counts_by_group(df, _t, "LEHRER")
+    teacher, pupils = _t("report", "teacher"), _t("report", "pupils")
+    assert counts.loc["EN", teacher] == 1
+    assert counts.loc["EN", pupils] == 1
+    assert counts.loc["L", teacher] == 1 and counts.loc["L", pupils] == 0
+    assert counts.loc["I", teacher] == 0 and counts.loc["I", pupils] == 1
+    # Gesamtsumme bleibt die Gesamthäufigkeit — die Aufteilung verliert nichts.
+    assert int(counts.to_numpy().sum()) == 4
+
+
+def test_code_counts_by_group_counts_primary_code_only():
+    # Gleiche Regel wie Balken/Chip/Zeitverlauf: Spalte 2 zählt nicht mit.
+    df = _grouped_df(["LEHRER", "S1"], ["EN (90 %)", "H (80 %)"],
+                     ["L (61 %)", "ÄN (30 %)"])
+    counts = code_counts_by_group(df, _t, "LEHRER")
+    assert sorted(counts.index) == ["EN", "H"]
+    assert int(counts.to_numpy().sum()) == 2
+
+
+def test_code_counts_by_group_resolves_teacher_aliases():
+    # Der Fallback-Pfad ohne Transkript trägt die rohen LLM-Sprecherlabels;
+    # "Lehrperson" muss dort genauso als Lehrkraft zählen wie "LEHRER".
+    df = _grouped_df(["Lehrperson", "S1"], ["EN (90 %)", "I (60 %)"])
+    counts = code_counts_by_group(df, _t, "LEHRER")
+    assert counts.loc["EN", _t("report", "teacher")] == 1
+    assert counts.loc["I", _t("report", "pupils")] == 1
+
+
+def test_code_counts_by_group_without_teacher_name_is_empty_split():
+    # Ohne Lehrkraft-Namen gibt es keine Rollen-Information — dann landet
+    # alles in der Schüler-Spalte und der Plot fällt einfarbig zurück.
+    df = _grouped_df(["LEHRER", "S1"], ["EN (90 %)", "I (60 %)"])
+    counts = code_counts_by_group(df, _t, "")
+    assert counts[_t("report", "teacher")].sum() == 0
+    assert counts[_t("report", "pupils")].sum() == 2
+
+
+def test_code_counts_by_group_empty_inputs():
+    assert code_counts_by_group(None, _t, "LEHRER").empty
+    assert code_counts_by_group(pd.DataFrame(), _t, "LEHRER").empty
+    # Turns vorhanden, aber nichts codiert:
+    assert code_counts_by_group(_grouped_df(["LEHRER"], [""]), _t, "LEHRER").empty
+
+
+def test_qual_plot_stacks_by_speaker_group():
+    df = _grouped_df(["LEHRER", "S1", "LEHRER"],
+                     ["EN (90 %)", "EN (80 %)", "L (70 %)"])
+    ax = build_qual_plot(df, _t, "light", "LEHRER")
+    # Zwei Container = zwei gestapelte Segmente, Legende benennt beide Gruppen.
+    assert len(ax.containers) == 2
+    legend_labels = [txt.get_text() for txt in ax.get_legend().get_texts()]
+    assert legend_labels == [_t("report", "teacher"), _t("report", "pupils")]
+
+
+def test_qual_plot_falls_back_to_single_colour_for_one_group():
+    # Nur die Lehrkraft codiert: ein Stapel mit toter zweiter Farbe wäre
+    # irreführend — dann die klassische einfarbige Darstellung ohne Legende.
+    df = _grouped_df(["LEHRER", "LEHRER"], ["EN (90 %)", "L (70 %)"])
+    ax = build_qual_plot(df, _t, "light", "LEHRER")
+    assert len(ax.containers) == 1
+    assert ax.get_legend() is None
+
+
+def test_docx_code_group_table_totals():
+    from docx import Document
+    from talktrace_ai.utils.reports import _docx_code_group_table
+
+    df = _grouped_df(["LEHRER", "S1", "LEHRER"],
+                     ["EN (90 %)", "EN (80 %)", "L (70 %)"])
+    counts = code_counts_by_group(df, _t, "LEHRER")
+    doc = Document()
+    _docx_code_group_table(doc, counts)
+    table = doc.tables[0]
+    # Kopfzeile + zwei Codes + Summenzeile; letzte Spalte ist die Zeilensumme.
+    assert len(table.rows) == 4
+    body = {r.cells[0].text: [c.text for c in r.cells[1:]] for r in table.rows[1:]}
+    assert body["EN"] == ["1", "1", "2"]
+    assert body["L"] == ["1", "0", "1"]
+    assert body[_t("report", "total")] == ["2", "1", "3"]
+
+
+def test_docx_code_group_table_skipped_without_data():
+    from docx import Document
+    from talktrace_ai.utils.reports import _docx_code_group_table
+
+    doc = Document()
+    _docx_code_group_table(doc, None)
+    _docx_code_group_table(doc, pd.DataFrame())
+    assert len(doc.tables) == 0

@@ -4,6 +4,7 @@ from ._common import *
 from ..utils.codebook_hierarchy import build_priority_lookup, priority_for
 from ..utils.qualitative import (
     aggregate_multicoded,
+    build_qual_plot,
     code_column_names,
     primary_code_over_time,
     primary_code_series,
@@ -547,43 +548,14 @@ def register(state):
         # same multi-coding aggregation. With multi-coding ON cells contain
         # "RE; A; CO" which we split + explode below so each code is counted
         # individually.
+        # Nur der PRIMÄRE Code (Shortcode 1) zählt in die Häufigkeiten — die
+        # Nebenkandidaten aus Spalte 2 würden die Verteilung verzerren. Der
+        # Balken ist nach Sprechergruppe gestapelt (Lehrkraft / Schüler:innen);
+        # die Zählung teilt sich build_qual_plot mit der Verteilungstabelle im
+        # Report, damit Plot und Tabelle nicht auseinanderlaufen.
         merged_df = make_qualitative_stats_df()
-        if merged_df is None or merged_df.empty:
-            _, ax = _no_data_fig(t("results", "no_data"), mode)
-            qual_plot.set(ax)
-            return ax
-        shortcode_col = t("report", "shortcode")
-        # Nur der PRIMÄRE Code (Shortcode 1) zählt in die Häufigkeiten —
-        # die Nebenkandidaten aus Spalte 2 würden die Verteilung verzerren.
-        # primary_code_series versteht beide Tabellen-Formen und strippt
-        # die Konfidenz-Suffixe.
-        codes = primary_code_series(merged_df, t)
-        codes = codes[codes != ""]
-        if codes.empty:
-            _, ax = _no_data_fig(t("results", "no_data"), mode)
-            qual_plot.set(ax)
-            return ax
-        analysis_plot = (
-            codes.value_counts()
-                 .sort_index()
-                 .rename_axis(shortcode_col)
-                 .reset_index(name='Anzahl')
-                 .plot(
-                     kind='bar', x=shortcode_col, y='Anzahl',
-                     alpha=1, rot=0, width=0.55, color=primary_color(mode),
-                 )
-        )
-        analysis_plot.set_xlabel(t("report", "shortcode"))
-        # Rotate tick labels without resetting ticks (avoids FixedLocator/labels mismatch)
-        plt.setp(analysis_plot.get_xticklabels(), rotation=45, ha='right')
-        analysis_plot.set_ylabel(t("report", "quantity"))
-        legend = analysis_plot.get_legend()
-        if legend is not None:
-            legend.remove()
-        for container in analysis_plot.containers:
-            analysis_plot.bar_label(container, label_type='edge')
-        round_bar_corners(analysis_plot)
-        apply_axes_style(analysis_plot, mode)
+        teacher_name = input.name_teacher() or t("analysis", "name_teacher_var")
+        analysis_plot = build_qual_plot(merged_df, t, mode, teacher_name)
         qual_plot.set(analysis_plot)
         return analysis_plot
 

@@ -17,6 +17,7 @@ from .plot_style import (
     apply_axes_style,
     primary_color,
     round_bar_corners,
+    secondary_color,
     style_no_data_axes,
 )
 from .stats import _parse_turns, code_distribution_over_time
@@ -155,6 +156,61 @@ def primary_code_over_time(merged_df, t, n_segments=3, segment_labels=None):
     )
 
 
+# Sprecher-Aliasse: LLMs benennen die Lehrkraft gern generisch, auch wenn
+# das Transkript ein konfiguriertes Label nutzt.
+_TEACHER_ALIAS_BASE = {"lehrperson", "lehrer", "lehrkraft", "teacher"}
+
+
+def speaker_group_mask(merged_df, t, teacher_name):
+    """Boolesche Serie: True = Turn stammt von der Lehrkraft.
+
+    Grundlage jeder Rollen-Auswertung (Balken, Verteilungstabelle). Nutzt die
+    Sprecher-Spalte der zusammengeführten Tabelle, die build_qual_stats_df
+    bereits auf die kanonische Schreibweise normalisiert hat; die Aliasse
+    fangen zusätzlich den Fallback-Pfad ohne Transkript ab, in dem die roh
+    vom LLM gelieferten Sprecherlabels stehen. Fehlt die Spalte oder der
+    Lehrkraft-Name, ist die Maske durchgehend False (→ keine Aufteilung).
+    """
+    speaker_col = t("report", "speaker")
+    if merged_df is None or speaker_col not in merged_df.columns:
+        return pd.Series(False, index=getattr(merged_df, "index", None))
+    teacher_name = str(teacher_name or "").strip()
+    if not teacher_name:
+        return pd.Series(False, index=merged_df.index)
+    aliases = _TEACHER_ALIAS_BASE | {teacher_name.lower()}
+    return merged_df[speaker_col].astype(str).str.strip().str.lower().isin(aliases)
+
+
+def code_counts_by_group(merged_df, t, teacher_name):
+    """Häufigkeit je Code, aufgeteilt nach Lehrkraft und Schüler:innen.
+
+    Zählt wie alle anderen Häufigkeits-Auswertungen nur den PRIMÄRcode
+    (Shortcode 1). Gibt einen DataFrame mit Index = Code (alphabetisch) und
+    den beiden lokalisierten Spalten zurück; leer, wenn nichts codiert ist.
+    Gemeinsame Datenbasis von Balkenplot und Report-Verteilungstabelle, damit
+    beide nicht auseinanderlaufen können.
+    """
+    teacher_label = t("report", "teacher")
+    pupils_label = t("report", "pupils")
+    empty = pd.DataFrame(columns=[teacher_label, pupils_label], dtype=int)
+    if merged_df is None or merged_df.empty:
+        return empty
+    codes = primary_code_series(merged_df, t)
+    is_teacher = speaker_group_mask(merged_df, t, teacher_name)
+    keep = codes != ""
+    if not keep.any():
+        return empty
+    out = pd.DataFrame({"__code__": codes[keep], "__teacher__": is_teacher[keep]})
+    counts = (
+        out.groupby("__code__")["__teacher__"]
+        .agg(**{teacher_label: "sum", pupils_label: lambda s: (~s).sum()})
+        .sort_index()
+        .astype(int)
+    )
+    counts.index.name = t("report", "shortcode")
+    return counts
+
+
 def norm_impuls(s):
     """Toleranter Merge-Schlüssel für Impuls-Texte: lowercase, Rand-
     Interpunktion gestrippt, Whitespace kollabiert. LLMs geben Impulse
@@ -166,11 +222,6 @@ def norm_impuls(s):
         "",
         t_,
     ).lower()
-
-
-# Sprecher-Aliasse: LLMs benennen die Lehrkraft gern generisch, auch wenn
-# das Transkript ein konfiguriertes Label nutzt.
-_TEACHER_ALIAS_BASE = {"lehrperson", "lehrer", "lehrkraft", "teacher"}
 
 
 def uncoded_turns(transcript_text, teacher_name, analysis_items,
@@ -321,54 +372,73 @@ def build_qual_stats_df(
     return merged
 
 
-def build_qual_plot(merged_df, t, mode="light"):
-    """Bar plot of code frequencies. Returns a matplotlib axes (always)."""
+def build_qual_plot(merged_df, t, mode="light", teacher_name=None):
+    """Balkenplot der Code-Häufigkeiten, gestapelt nach Sprechergruppe.
+
+    Ein Balken pro Code; die Gesamthöhe bleibt die Gesamthäufigkeit (wie vor
+    der Aufteilung), zweifarbig geteilt in Lehrkraft- und Schüler:innen-
+    Anteil. So bleibt "wie häufig" lesbar und "von wem" kommt dazu — das ist
+    der Interaktions-Aspekt, den die reine Gesamtverteilung verdeckt.
+    Ohne `teacher_name` (oder ohne Sprecher-Spalte) fällt der Plot auf die
+    einfarbige Gesamtdarstellung zurück. Gibt immer ein matplotlib-Axes
+    zurück. Gezählt wird nur der PRIMÄRcode — siehe primary_code_series.
+    """
     if merged_df is None or merged_df.empty:
-        fig, ax = plt.subplots()
-        ax.text(0.5, 0.5, t("results", "no_data"),
-                ha="center", va="center", fontsize=12)
-        ax.axis("off")
-        style_no_data_axes(ax, mode)
-        return ax
-    shortcode_col = t("report", "shortcode")
-    # Nur der PRIMÄRE Code (Shortcode 1) zählt in die Häufigkeiten —
-    # gleiche Regel wie der Plot im Results-Handler. primary_code_series
-    # versteht beide Tabellen-Formen und strippt Konfidenz-Suffixe.
-    codes = primary_code_series(merged_df, t)
-    codes = codes[codes != ""]
-    if codes.empty:
-        fig, ax = plt.subplots()
-        ax.text(0.5, 0.5, t("results", "no_data"),
-                ha="center", va="center", fontsize=12)
-        ax.axis("off")
-        style_no_data_axes(ax, mode)
-        return ax
-    analysis_plot = (
-        codes.value_counts()
-        .sort_index()
-        .rename_axis(shortcode_col)
-        .reset_index(name="Anzahl")
-        .plot(
-            kind="bar",
-            x=shortcode_col,
-            y="Anzahl",
-            alpha=1,
-            rot=0,
-            width=0.55,
+        return _no_data_axes(t, mode)
+    counts = code_counts_by_group(merged_df, t, teacher_name)
+    if counts.empty:
+        return _no_data_axes(t, mode)
+
+    teacher_label = t("report", "teacher")
+    pupils_label = t("report", "pupils")
+    split = bool(counts[teacher_label].any() and counts[pupils_label].any())
+    # Eigene Figure statt der aktuellen Achse (gca): sonst zeichnet ein
+    # zweiter Aufruf in denselben Axes und die Balken stapeln sich auf.
+    _, ax = plt.subplots()
+    if split:
+        analysis_plot = counts.plot(
+            ax=ax, kind="bar", stacked=True, alpha=1, rot=0, width=0.55,
+            color=[primary_color(mode), secondary_color(mode)],
+        )
+    else:
+        # Nur eine Sprechergruppe codiert: Stapel + Legende wären irreführend
+        # (eine Farbe, ein toter Legendeneintrag) — dann die klassische
+        # einfarbige Darstellung der Gesamtsumme.
+        total = counts.sum(axis=1).rename(t("report", "quantity"))
+        analysis_plot = total.plot(
+            ax=ax, kind="bar", alpha=1, rot=0, width=0.55,
             color=primary_color(mode),
         )
-    )
     analysis_plot.set_xlabel(t("report", "shortcode"))
     plt.setp(analysis_plot.get_xticklabels(), rotation=45, ha="right")
     analysis_plot.set_ylabel(t("report", "quantity"))
     legend = analysis_plot.get_legend()
     if legend is not None:
-        legend.remove()
+        if split:
+            legend.set_title(None)
+        else:
+            legend.remove()
     for container in analysis_plot.containers:
-        analysis_plot.bar_label(container, label_type="edge")
+        # Beim Stapel nur Segmente > 0 beschriften, sonst überlagern sich
+        # "0"-Labels mit den Nachbarsegmenten.
+        labels = [int(v) if v else "" for v in container.datavalues]
+        analysis_plot.bar_label(
+            container, labels=labels,
+            label_type="center" if split else "edge",
+        )
     round_bar_corners(analysis_plot)
     apply_axes_style(analysis_plot, mode)
     return analysis_plot
+
+
+def _no_data_axes(t, mode):
+    """Leeres Axes mit "keine Daten"-Hinweis (Plot-Helfer)."""
+    _, ax = plt.subplots()
+    ax.text(0.5, 0.5, t("results", "no_data"),
+            ha="center", va="center", fontsize=12)
+    ax.axis("off")
+    style_no_data_axes(ax, mode)
+    return ax
 
 
 def build_sim_plot(stats_df, teacher_name, t, mode="light"):

@@ -112,6 +112,7 @@ def generate_report2(
     methods_text: str = "",
     plot_transitions=None,
     transitions_df=None,
+    code_group_df=None,
 ):
     if sections is None:
         sections = dict(DEFAULT_REPORT_SECTIONS)
@@ -130,7 +131,7 @@ def generate_report2(
                            plot_impulse_coding, impulse_table,
                            plot_distribution_over_time, plot_coding_over_time,
                            sections, model_name, fingerprint, methods_text,
-                           plot_transitions, transitions_df)
+                           plot_transitions, transitions_df, code_group_df)
     elif fmt == "pdf":
         with tempfile.NamedTemporaryFile(suffix=".docx", delete=False) as tmp:
             tmp_docx = tmp.name
@@ -139,7 +140,7 @@ def generate_report2(
                            plot_impulse_coding, impulse_table,
                            plot_distribution_over_time, plot_coding_over_time,
                            sections, model_name, fingerprint, methods_text,
-                           plot_transitions, transitions_df)
+                           plot_transitions, transitions_df, code_group_df)
         _save_as_pdf(tmp_docx, output_path)
     elif fmt == "xlsx":
         _save_as_xlsx(output_path, group_name, num_pupils, num_participants, participation_rate,
@@ -152,7 +153,7 @@ def generate_report2(
                       plot_impulse_coding, impulse_table,
                       plot_distribution_over_time, plot_coding_over_time,
                       sections, model_name, fingerprint, methods_text,
-                      plot_transitions, transitions_df)
+                      plot_transitions, transitions_df, code_group_df)
     elif fmt == "csv":
         _save_as_csv_zip(output_path, group_name, num_pupils, num_participants,
                          participation_rate, teacher_data, student_data,
@@ -169,7 +170,7 @@ def _build_docx_report(
     plot_impulse_coding, impulse_table,
     plot_distribution_over_time, plot_coding_over_time,
     sections, model_name, fingerprint="", methods_text="",
-    plot_transitions=None, transitions_df=None,
+    plot_transitions=None, transitions_df=None, code_group_df=None,
 ):
     doc = Document()
 
@@ -217,7 +218,8 @@ def _build_docx_report(
         _add_plot_to_doc(doc, plot_distribution_over_time, translate("results", "over_time_quant_title"))
 
     if sections.get("quali"):
-        _docx_quali_section(doc, num_impulses, plot_impulse_coding, impulse_table)
+        _docx_quali_section(doc, num_impulses, plot_impulse_coding, impulse_table,
+                            code_group_df)
 
     if sections.get("over_time_quali") and plot_coding_over_time is not None:
         _add_plot_to_doc(doc, plot_coding_over_time, translate("results", "over_time_quali_title"))
@@ -338,11 +340,59 @@ def _docx_quant_section(doc, num_pupils, num_participants, participation_rate,
     _add_plot_to_doc(doc, plot_distribution, translate("report", "distribution_of_turns"))
 
 
-def _docx_quali_section(doc, num_impulses, plot_impulse_coding, impulse_table):
+def _docx_code_group_table(doc, code_group_df):
+    """Verteilungstabelle Code x Sprechergruppe (Lehrkraft / Schueler:innen).
+
+    Ergaenzt den gestapelten Balkenplot um die exakten Zahlen: der Plot zeigt
+    das Verhaeltnis, die Tabelle macht es zitierfaehig. Zeilensumme in einer
+    Gesamt-Spalte, Spaltensumme in einer Summenzeile. Ohne Daten (oder ohne
+    Sprecher-Information) faellt der Block ersatzlos weg.
+    """
+    if code_group_df is None or code_group_df.empty:
+        return
+    par = doc.add_paragraph()
+    par.add_run(f"{translate('report', 'table')}: ")
+    par.add_run(translate("report", "code_by_speaker")).italic = True
+
+    group_cols = [str(c) for c in code_group_df.columns]
+    headers = [translate("report", "shortcode"), *group_cols,
+               translate("report", "total")]
+    tbl = doc.add_table(rows=1, cols=len(headers))
+    tbl.style = 'Table Grid'
+    for i, h in enumerate(headers):
+        tbl.rows[0].cells[i].text = h
+
+    for code, row in code_group_df.iterrows():
+        cells = tbl.add_row().cells
+        cells[0].text = str(code)
+        for i, c in enumerate(code_group_df.columns, start=1):
+            cells[i].text = str(int(row[c]))
+        cells[-1].text = str(int(row.sum()))
+
+    totals = tbl.add_row().cells
+    totals[0].text = translate("report", "total")
+    for i, c in enumerate(code_group_df.columns, start=1):
+        totals[i].text = str(int(code_group_df[c].sum()))
+    totals[-1].text = str(int(code_group_df.to_numpy().sum()))
+
+    for cell in tbl.rows[0].cells:
+        cell.paragraphs[0].runs[0].bold = True
+    for cell in totals:
+        cell.paragraphs[0].runs[0].bold = True
+    for row in tbl.rows:
+        for cell in row.cells[1:]:
+            cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
+    doc.add_paragraph("")
+
+
+def _docx_quali_section(doc, num_impulses, plot_impulse_coding, impulse_table,
+                        code_group_df=None):
     doc.add_heading(translate("report", "section_2"), level=2)
     doc.add_paragraph("").paragraph_format.line_spacing = 0.3
     doc.add_paragraph(f"{translate('report', 'impulses_count')}: N = {num_impulses}")
     _add_plot_to_doc(doc, plot_impulse_coding, translate("report", "teacher_impulses"))
+
+    _docx_code_group_table(doc, code_group_df)
 
     par3 = doc.add_paragraph()
     par3.add_run(f"{translate('report', 'table')}: ")
@@ -594,7 +644,7 @@ def _save_as_html(output_path, group_name, num_pupils, num_participants, partici
                   plot_impulse_coding, impulse_table,
                   plot_distribution_over_time, plot_coding_over_time,
                   sections, model_name, fingerprint="", methods_text="",
-                  plot_transitions=None, transitions_df=None):
+                  plot_transitions=None, transitions_df=None, code_group_df=None):
     parts = []
     e = _html_escape
     parts.append("<!doctype html><html><head><meta charset='utf-8'>")
@@ -640,6 +690,26 @@ def _save_as_html(output_path, group_name, num_pupils, num_participants, partici
         parts.append(f"<p>{e(translate('report', 'impulses_count'))}: N = {e(num_impulses)}</p>")
         b64 = _fig_to_base64_png(plot_impulse_coding)
         parts.append(f"<img src='data:image/png;base64,{b64}' alt='impulses coding'>")
+
+        # Verteilungstabelle Code x Sprechergruppe — gleiche Zahlen wie der
+        # gestapelte Balkenplot, nur zitierfaehig (siehe _docx_code_group_table).
+        if code_group_df is not None and not code_group_df.empty:
+            parts.append(f"<p class='caption'>{e(translate('report', 'table'))}: "
+                         f"{e(translate('report', 'code_by_speaker'))}</p>")
+            parts.append(f"<table><thead><tr><th>{e(translate('report', 'shortcode'))}</th>")
+            for c in code_group_df.columns:
+                parts.append(f"<th>{e(c)}</th>")
+            parts.append(f"<th>{e(translate('report', 'total'))}</th></tr></thead><tbody>")
+            for code, row in code_group_df.iterrows():
+                parts.append(f"<tr><td>{e(code)}</td>")
+                for c in code_group_df.columns:
+                    parts.append(f"<td>{int(row[c])}</td>")
+                parts.append(f"<td>{int(row.sum())}</td></tr>")
+            parts.append(f"<tr><th>{e(translate('report', 'total'))}</th>")
+            for c in code_group_df.columns:
+                parts.append(f"<th>{int(code_group_df[c].sum())}</th>")
+            parts.append(f"<th>{int(code_group_df.to_numpy().sum())}</th></tr>")
+            parts.append("</tbody></table>")
 
         speaker_col = translate("report", "speaker")
         statement_col = translate("report", "teacher_statement")

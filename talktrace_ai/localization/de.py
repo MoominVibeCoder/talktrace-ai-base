@@ -595,6 +595,8 @@ STRINGS = {
         "speaker": "Sprecher:in",
         "code": "Code",
         "shortcode": "Shortcode",
+        "code_by_speaker": "Code-Verteilung nach Sprechergruppe",
+        "total": "Gesamt",
         "caption": "Legende",
         "fingerprint": "Reproduzierbarkeits-Hash",
         "methods_section": "Methodentext"

@@ -1,7 +1,11 @@
 """Report download: button, format/sections modal, download handler."""
 from .._common import *
 
-from ...utils.qualitative import primary_code_over_time, primary_code_series
+from ...utils.qualitative import (
+    code_counts_by_group,
+    primary_code_over_time,
+    primary_code_series,
+)
 
 
 def register(state):
@@ -169,6 +173,19 @@ def register(state):
         impulse_table = qual_stats_df.get() if has_llm else None
         plot_qual = qual_plot.get() if has_llm else None
 
+        # Code-Verteilung nach Sprechergruppe: dieselbe Zaehlung, die der
+        # gestapelte Balkenplot zeichnet — der Report zeigt beide, damit die
+        # Interaktion (wer bringt welchen Zug ein) auch zitierfaehig ist.
+        df_code_group = None
+        if has_llm and impulse_table is not None and not impulse_table.empty:
+            try:
+                df_code_group = code_counts_by_group(
+                    impulse_table, t,
+                    input.name_teacher() or t("analysis", "name_teacher_var"),
+                )
+            except Exception as e:
+                print(f"[REPORT] code group table failed: {e}")
+
         plot_ot_quant = None
         plot_ot_quali = None
         df_ot_quant = None
@@ -296,6 +313,7 @@ def register(state):
                 methods_text=methods_text,
                 plot_transitions=plot_transitions,
                 transitions_df=df_transitions,
+                code_group_df=df_code_group,
             )
         except RuntimeError as e:
             key = str(e)
