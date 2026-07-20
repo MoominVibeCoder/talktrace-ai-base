@@ -18,30 +18,30 @@ from .qualitative import (
 from .stats import count_teacher_impulses
 from .plot_style import light_export_style
 
-# Konfidenz-Bänder in der Codierungs-Tabelle. Farbe UND Zeichen: der Report
-# landet im SW-Druck und in Prüfungskontexten, da darf die Markierung nicht
-# allein an der Farbe hängen (SW-Druck, Rot-Grün-Schwäche, Copy-Paste).
+# Konfidenz-Bänder in der Codierungs-Tabelle. Eingefaerbt werden NUR die
+# beiden Raender: was belastbar ist und was nachgesehen gehoeren sollte. Das
+# mittlere Band ist der Normalfall (in echten Laeufen rund drei Viertel) und
+# bleibt neutral — sonst ist der halbe Report bunt und die Hervorhebung
+# verliert ihre Wirkung. Die Information traegt ohnehin die Prozentzahl in
+# der Zelle: sie ist praeziser als jede Stufe und bleibt im SW-Druck lesbar.
 # Die Schwellen selbst stehen in qualitative.py — dort, wo sie mit den
 # Kalibrier-Ankern des Prompts abgeglichen sind.
-CONFIDENCE_MARKS = {"high": "●●●", "medium": "●●", "low": "●"}
-CONFIDENCE_SHADES = {"high": "DDEAE6", "medium": "F6EBD6", "low": "F2DEDA"}
+CONFIDENCE_SHADES = {"high": "DDEAE6", "low": "F2DEDA"}
 
 
-def _confidence_legend_text():
-    """Legendenzeile — Schwellen kommen aus dem Code, nie aus dem String,
-    damit Legende und Einfärbung nicht auseinanderlaufen können."""
-    mid_max = CONFIDENCE_HIGH_MIN - 1
-    mid_min = CONFIDENCE_LOW_MAX + 1
-    return (
-        f"{translate('report', 'confidence_legend')}: "
-        f"{CONFIDENCE_MARKS['high']} {translate('report', 'confidence_high')} "
-        f"(≥ {CONFIDENCE_HIGH_MIN} %) · "
-        f"{CONFIDENCE_MARKS['medium']} {translate('report', 'confidence_medium')} "
-        f"({mid_min}–{mid_max} %) · "
-        f"{CONFIDENCE_MARKS['low']} {translate('report', 'confidence_low')} "
-        f"(< {mid_min} %) · "
-        f"— {translate('report', 'confidence_none')}"
-    )
+def _confidence_legend_parts():
+    """Legenden-Segmente als [(Text, Band)] — die Renderer faerben selbst.
+
+    Schwellen kommen aus dem Code, nie aus einem String, damit Legende und
+    Einfaerbung nicht auseinanderlaufen koennen. Nur die eingefaerbten
+    Baender werden erklaert; der neutrale Rest braucht keine Legende.
+    """
+    return [
+        (f"{translate('report', 'confidence_high')} "
+         f"(≥ {CONFIDENCE_HIGH_MIN} %)", "high"),
+        (f"{translate('report', 'confidence_low')} "
+         f"(< {CONFIDENCE_LOW_MAX + 1} %)", "low"),
+    ]
 
 
 def _shade_cell(cell, hex_colour):
@@ -52,15 +52,13 @@ def _shade_cell(cell, hex_colour):
     cell._tc.get_or_add_tcPr().append(shd)
 
 
-def _code_cell_text(value):
-    """Zellinhalt mit Konfidenz-Zeichen — "EN (92 %)" -> "EN (92 %) OOO".
-
-    Nur fuer die Report-Darstellung; der zugrundeliegende DataFrame (und
-    damit die editierbare Tabelle in der App) bleibt unveraendert.
-    """
-    text = str(value)
-    band = confidence_band_of_cell(text)
-    return f"{text} {CONFIDENCE_MARKS[band]}" if band else text
+def _shade_run(run, hex_colour):
+    """Textlauf hinterlegen — faerbt die Legenden-Woerter in ihrer Bandfarbe,
+    sonst erklaerte die Legende Farben, die sie selbst nicht zeigt."""
+    shd = OxmlElement('w:shd')
+    shd.set(qn('w:val'), 'clear')
+    shd.set(qn('w:fill'), hex_colour)
+    run._r.get_or_add_rPr().append(shd)
 
 def remove_table_borders(table):
     tbl = table._tbl  # Access the XML element
@@ -489,13 +487,12 @@ def _docx_quali_section(doc, num_impulses, plot_impulse_coding, impulse_table,
         col += 1
         for c in code_cols:
             raw = str(row[c]) if c in row.index else ""
-            # Konfidenz sichtbar machen: Zellfarbe + Zeichen. Beides greift
-            # nur, wenn die Zelle wirklich einen Wert traegt — eine
-            # handkorrigierte Zelle bleibt neutral statt "spekulativ".
-            band = confidence_band_of_cell(raw)
-            row_cells[col].text = _code_cell_text(raw)
-            if band:
-                _shade_cell(row_cells[col], CONFIDENCE_SHADES[band])
+            row_cells[col].text = raw
+            # Nur die beiden Raender einfaerben; das mittlere Band und
+            # handkorrigierte Zellen (ohne Wert) bleiben neutral.
+            shade = CONFIDENCE_SHADES.get(confidence_band_of_cell(raw))
+            if shade:
+                _shade_cell(row_cells[col], shade)
                 has_confidence = True
             col += 1
 
@@ -508,9 +505,18 @@ def _docx_quali_section(doc, num_impulses, plot_impulse_coding, impulse_table,
 
     if has_confidence:
         legend = doc.add_paragraph()
-        run = legend.add_run(_confidence_legend_text())
-        run.font.size = Pt(8)
-        run.italic = True
+        intro = legend.add_run(f"{translate('report', 'confidence_legend')}: ")
+        intro.font.size = Pt(8)
+        intro.italic = True
+        for i, (text, band) in enumerate(_confidence_legend_parts()):
+            if i:
+                sep = legend.add_run(" · ")
+                sep.font.size = Pt(8)
+                sep.italic = True
+            run = legend.add_run(text)
+            run.font.size = Pt(8)
+            run.italic = True
+            _shade_run(run, CONFIDENCE_SHADES[band])
 
     # Breiten: schmale #-/Code-Spalten, der Rest geht in die Äußerung.
     # Mit Konfidenz-Suffix ("EN (92 %)") brauchen Code-Spalten etwas Platz.
@@ -720,11 +726,11 @@ def _save_as_html(output_path, group_name, num_pupils, num_participants, partici
                  "th,td{border:1px solid #999;padding:0.3rem 0.5rem;text-align:left;vertical-align:top}"
                  "th{background:#f2f2f2}img{max-width:100%;height:auto;display:block;margin:0.5rem 0}"
                  ".caption{font-style:italic;color:#555;font-size:0.9rem}"
-                 # Konfidenz-Baender: gleiche Farben wie im DOCX. Das Zeichen
-                 # im Zelltext traegt die Information auch ohne Farbe.
-                 f"td.conf-high{{background:#{CONFIDENCE_SHADES['high']}}}"
-                 f"td.conf-medium{{background:#{CONFIDENCE_SHADES['medium']}}}"
-                 f"td.conf-low{{background:#{CONFIDENCE_SHADES['low']}}}"
+                 # Konfidenz-Baender: gleiche Farben wie im DOCX, nur die
+                 # beiden Raender. Die Prozentzahl in der Zelle traegt die
+                 # Information auch ohne Farbe.
+                 f".conf-high{{background:#{CONFIDENCE_SHADES['high']}}}"
+                 f".conf-low{{background:#{CONFIDENCE_SHADES['low']}}}"
                  "</style></head><body>")
     parts.append(f"<h1>{e(translate('report', 'header'))} {e(group_name)}</h1>")
 
@@ -807,14 +813,19 @@ def _save_as_html(output_path, group_name, num_pupils, num_participants, partici
             for c in code_cols:
                 raw = str(row[c]) if c in row.index else ""
                 band = confidence_band_of_cell(raw)
-                cls = f" class='conf-{band}'" if band else ""
-                if band:
+                cls = f" class='conf-{band}'" if band in CONFIDENCE_SHADES else ""
+                if cls:
                     has_confidence = True
-                parts.append(f"<td{cls}>{e(_code_cell_text(raw)) if raw else ''}</td>")
+                parts.append(f"<td{cls}>{e(raw)}</td>")
             parts.append("</tr>")
         parts.append("</tbody></table>")
         if has_confidence:
-            parts.append(f"<p class='caption'>{e(_confidence_legend_text())}</p>")
+            seg = " · ".join(
+                f"<span class='conf-{band}'>{e(text)}</span>"
+                for text, band in _confidence_legend_parts()
+            )
+            parts.append(f"<p class='caption'>"
+                         f"{e(translate('report', 'confidence_legend'))}: {seg}</p>")
 
     if sections.get("over_time_quali") and plot_coding_over_time is not None:
         b64 = _fig_to_base64_png(plot_coding_over_time)

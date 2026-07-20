@@ -671,10 +671,11 @@ def test_confidence_band_of_cell_roundtrip():
     assert confidence_band_of_cell("EN") is None
 
 
-def test_docx_code_cells_carry_mark_and_shading():
+def test_docx_code_cells_shade_only_the_edges():
     from docx import Document
+    from docx.oxml.ns import qn
     from talktrace_ai.utils.reports import (
-        CONFIDENCE_MARKS, _docx_quali_section, translate as _rt,
+        CONFIDENCE_SHADES, _docx_quali_section, translate as _rt,
     )
 
     # Spalten gegen DIESELBE Übersetzungsquelle bauen, die der DOCX-Builder
@@ -682,33 +683,48 @@ def test_docx_code_cells_carry_mark_and_shading():
     # ausführenden Rechners.
     c1, c2 = code_column_names(_rt)
     df = pd.DataFrame({
-        "#": [1, 2, 3],
-        _rt("report", "speaker"): ["LEHRER", "S1", "LEHRER"],
-        _rt("report", "teacher_statement"): ["a", "b", "c"],
-        c1: ["EN (92 %)", "H (61 %)", "L"],   # sicher / unsicher / ohne Wert
-        c2: ["", "", ""],
+        "#": [1, 2, 3, 4],
+        _rt("report", "speaker"): ["LEHRER", "S1", "LEHRER", "S2"],
+        _rt("report", "teacher_statement"): ["a", "b", "c", "d"],
+        # sicher / mittel / sehr unsicher / ohne Wert (handkorrigiert)
+        c1: ["EN (92 %)", "H (61 %)", "N (30 %)", "L"],
+        c2: ["", "", "", ""],
     })
     doc = Document()
     # Die Sektion bettet immer den Plot ein — echten mitgeben statt None.
-    _docx_quali_section(doc, 3, build_qual_plot(df, _rt, "light", "LEHRER"), df)
+    _docx_quali_section(doc, 4, build_qual_plot(df, _rt, "light", "LEHRER"), df)
     table = doc.tables[-1]
-    cells = [r.cells[-2].text for r in table.rows[1:]]  # Spalte "Code 1"
-    assert cells[0].endswith(CONFIDENCE_MARKS["high"])
-    assert cells[1].endswith(CONFIDENCE_MARKS["medium"])
-    # Ohne Konfidenzwert bleibt die Zelle unmarkiert — eine handkorrigierte
-    # Zuordnung darf nicht wie eine spekulative Modell-Zuordnung aussehen.
-    assert cells[2] == "L"
-    # Schattierung nur auf den beiden markierten Zellen.
-    shaded = [len(r.cells[-2]._tc.xpath('.//w:shd')) for r in table.rows[1:]]
-    assert shaded == [1, 1, 0]
+    code_cells = [r.cells[-2] for r in table.rows[1:]]  # Spalte "Code 1"
+
+    # Der Zellinhalt bleibt unangetastet — die Prozentzahl trägt die
+    # Information, es kommt kein Zeichen mehr dazu.
+    assert [c.text for c in code_cells] == [
+        "EN (92 %)", "H (61 %)", "N (30 %)", "L",
+    ]
+
+    def fill(cell):
+        shd = cell._tc.xpath('.//w:shd')
+        return shd[0].get(qn('w:fill')) if shd else None
+
+    # Nur die beiden Ränder sind eingefärbt. Das mittlere Band ist der
+    # Normalfall (rund drei Viertel eines echten Laufs) und bleibt neutral,
+    # ebenso die handkorrigierte Zelle ohne Wert.
+    assert fill(code_cells[0]) == CONFIDENCE_SHADES["high"]
+    assert fill(code_cells[1]) is None
+    assert fill(code_cells[2]) == CONFIDENCE_SHADES["low"]
+    assert fill(code_cells[3]) is None
 
 
 def test_confidence_legend_derives_bounds_from_code():
-    from talktrace_ai.utils.reports import _confidence_legend_text
+    from talktrace_ai.utils.reports import (
+        CONFIDENCE_SHADES, _confidence_legend_parts,
+    )
 
-    txt = _confidence_legend_text()
-    # Die Legende baut ihre Grenzen aus den Konstanten — kein hartcodierter
+    parts = _confidence_legend_parts()
+    # Die Legende erklärt genau die eingefärbten Bänder — nicht mehr, nicht
+    # weniger. Ihre Grenzen baut sie aus den Konstanten, kein hartcodierter
     # String, der beim Verschieben der Schwellen stehen bliebe.
-    assert f"≥ {CONFIDENCE_HIGH_MIN} %" in txt
-    assert f"{CONFIDENCE_LOW_MAX + 1}–{CONFIDENCE_HIGH_MIN - 1} %" in txt
-    assert f"< {CONFIDENCE_LOW_MAX + 1} %" in txt
+    assert [band for _, band in parts] == list(CONFIDENCE_SHADES)
+    texts = dict((band, txt) for txt, band in parts)
+    assert f"≥ {CONFIDENCE_HIGH_MIN} %" in texts["high"]
+    assert f"< {CONFIDENCE_LOW_MAX + 1} %" in texts["low"]
