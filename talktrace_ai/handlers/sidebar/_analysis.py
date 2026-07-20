@@ -558,13 +558,16 @@ def register(state):
 
         # --- Zweite Prüfrunde --------------------------------------------
         # Uncodierte, aber codierbare Turns (Speaker-Filter!) werden dem LLM
-        # als Mini-Transkript mit einer Sorgfalts-Instruktion erneut
-        # vorgelegt. LLMs lassen im ersten Durchgang gelegentlich echte
-        # Treffer aus; die Rückfrage holt sie nach, ohne den Grundsatz zu
-        # kippen, dass Turns legitim uncodiert bleiben dürfen. Läuft VOR
-        # Cost-Tracking und Auto-Save, damit die gespeicherte Session die
-        # Nachcodierungen enthält. Fehler brechen die Analyse nie ab —
-        # der erste Durchgang steht bereits im UI.
+        # mit einer Sorgfalts-Instruktion erneut vorgelegt — als Liste im
+        # Prompt, während das VOLLE Transkript als Kontext mitgeht (seit der
+        # Kontext-Codierung 2026-07: eine knappe Begründung nach einer
+        # Warum-Frage wäre isoliert nicht als solche erkennbar). LLMs lassen
+        # im ersten Durchgang gelegentlich echte Treffer aus; die Rückfrage
+        # holt sie nach, ohne den Grundsatz zu kippen, dass Turns legitim
+        # uncodiert bleiben dürfen. Läuft VOR Cost-Tracking und Auto-Save,
+        # damit die gespeicherte Session die Nachcodierungen enthält. Fehler
+        # brechen die Analyse nie ab — der erste Durchgang steht bereits im
+        # UI.
         if did_llm_analysis and coded_items is not None:
             try:
                 pending = uncoded_turns(
@@ -583,14 +586,21 @@ def register(state):
                     await reactive.flush()
                 new_items = []
                 try:
-                    mini_transcript = "\n".join(f"{spk}: {utt}" for spk, utt in pending)
+                    # Zu prüfende Beiträge als Liste in den Prompt; das volle
+                    # Transkript geht als {transcript} mit, damit der Kontext
+                    # erhalten bleibt. Das Sicherheitsnetz unten merged nur
+                    # Items, die einem gelisteten Turn entsprechen — falls
+                    # das Modell doch andere Turns (nach)codiert, fallen die
+                    # dort heraus.
+                    pending_list = "\n".join(f"- {spk}: {utt}" for spk, utt in pending)
                     provider = config.get_current_api()
-                    second_suffix = t("sidebar", "second_pass_prompt")
+                    second_suffix = t("sidebar", "second_pass_prompt").format(
+                        pending_list=pending_list)
                     df2, _raw2, err2 = await asyncio.to_thread(
                         run_llm_coding_once,
                         provider=provider,
                         model=mdl,
-                        transcript=mini_transcript,
+                        transcript=transcript,
                         codebook=cb,
                         system_prompt=sys_p + second_suffix,
                         user_prompt=usr_p + second_suffix,

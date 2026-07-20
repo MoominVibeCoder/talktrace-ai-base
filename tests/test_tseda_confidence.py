@@ -70,10 +70,23 @@ def test_tseda_catchall_is_last():
 
 
 def test_tseda_presets():
+    # Seit 2026-07 codiert die Vorlage BEIDE Sprechergruppen: T-SEDA erfasst
+    # dialogische Züge aller Beteiligten, und Lehrkraft-Züge sind ohne die
+    # umgebenden Schülerturns oft nicht interpretierbar.
     assert TSEDA_PRESETS["llm_switch"] is True
     assert TSEDA_PRESETS["analyse_teacher_switch"] is True
-    assert TSEDA_PRESETS["analyse_students_switch"] is False
+    assert TSEDA_PRESETS["analyse_students_switch"] is True
     assert TSEDA_PRESETS["multi_coding_switch"] is True
+
+
+def test_context_prompt_keys_exist_in_both_languages():
+    # Die Kontext-Anweisung (Turns im Gesprächsverlauf codieren) hängt als
+    # Suffix an System- UND User-Prompt — beide Keys müssen in beiden
+    # Sprachen existieren und nicht leer sein.
+    from talktrace_ai.localization.translation import TRANSLATIONS
+    for lang in ("de", "en"):
+        for key in ("prompt_context", "user_prompt_context"):
+            assert TRANSLATIONS[lang]["sidebar"][key].strip()
 
 
 def test_tseda_attribution_names_cambridge():

@@ -8,7 +8,7 @@
 
 - **Transcript upload** — `.txt`, `.docx`, `.pdf`
 - **Codebook upload** — `.txt`, `.docx`, `.pdf`, with live preview
-- **Built-in T-SEDA codebook template** — one click (Start tile or next to the codebook upload) loads the official [T-SEDA](https://camtree.learnworlds.com/t-seda) scheme for dialogic classroom talk (T-SEDA Collective 2023, University of Cambridge, CC BY; German pack abbreviations in the DE UI, English originals in the EN UI; definitions and keywords follow the official detailed coding frame, deliberately kept concise) and presets the pipeline: LLM coding on, **teacher-only**, **multi-coding with confidence**. Just upload a transcript.
+- **Built-in T-SEDA codebook template** — one click (Start tile or next to the codebook upload) loads the official [T-SEDA](https://camtree.learnworlds.com/t-seda) scheme for dialogic classroom talk (T-SEDA Collective 2023, University of Cambridge, CC BY; German pack abbreviations in the DE UI, English originals in the EN UI; definitions and keywords follow the official detailed coding frame, deliberately kept concise) and presets the pipeline: LLM coding on, **teacher and student turns** (dialogue quality is co-constructed), **context-aware coding** (each turn is coded in the light of the surrounding conversation), **multi-coding with confidence**. Just upload a transcript.
 - **Multi-stage format converter** — speaker mapping, bracket/timestamp stripping, side-by-side preview before download
 - **Group metadata** — class ID, class size, teacher name (all optional)
 
@@ -71,6 +71,7 @@ Own **Consent** tab — generate a print-ready **GDPR Art. 13** consent declarat
 ## Qualitative results
 
 - **Per-speaker coding** — every coded turn carries a speaker label
+- **Context-aware coding** — the LLM is explicitly instructed to code each turn in the light of the surrounding conversation (a brief answer after a why-question is a justification, a "no, but…" after a proposal is a challenge), not in isolation; codes are still assigned per turn
 - **Multi-coding with confidence** — opt-in toggle; the model assigns up to **2 candidate codes per utterance, each with a 0–100 confidence** (matching T-SEDA's 0–2-codes-per-turn rule), shown in **dedicated columns** (`Code 1`, `Code 2`, e.g. `EN (92 %)`), ranked by confidence. Uncertain candidates stay visible — the confidence value makes the uncertainty transparent, the human decides. A post-processing safety net enforces the cap even if the model over-delivers; the frequency plot, most-frequent-code chip, over-time distribution and transition matrix count the **primary code** (`Code 1`) per turn so secondary candidates never skew the distribution.
 - **Second review pass** — after every analysis, turns that stayed uncoded (within the selected speaker group) are automatically re-submitted to the LLM with an explicit care instruction: assign a code only if clearly supported, staying uncoded is legitimate. New codings merge into the table; a notification reports how many turns were re-checked and how many codes were added.
 - **Codebook priority hierarchy** — priority line, explicit column, or codebook order

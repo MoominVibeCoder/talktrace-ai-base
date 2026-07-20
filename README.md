@@ -120,7 +120,7 @@ The first screen on launch. A workflow strip (Audio → Transcript → Analysis 
 
 Document Input panel:
 - **Transcript** *(required)* — must follow the [noScribe](https://github.com/kaixxx/noScribe) format. The interactive multi-stage converter handles transcripts from other tools (e.g. [aTrain](https://github.com/JuergenFleiss/aTrain)) — speaker-label detection, timestamp stripping, bracket-annotation review, per-speaker mapping, side-by-side preview.
-- **Codebook** *(required for qualitative analysis)* — see the [example codebook](images/Example%20Codebook.docx). Codes apply to **all speakers** (teacher and students). Alternatively, load the built-in **T-SEDA template** with one click (official [T-SEDA](https://camtree.learnworlds.com/t-seda) codes for dialogic classroom talk, DE/EN; T-SEDA Collective 2023, University of Cambridge, CC BY) — it also presets teacher-only coding and multi-coding with confidence.
+- **Codebook** *(required for qualitative analysis)* — see the [example codebook](images/Example%20Codebook.docx). Codes apply to **all speakers** (teacher and students). Alternatively, load the built-in **T-SEDA template** with one click (official [T-SEDA](https://camtree.learnworlds.com/t-seda) codes for dialogic classroom talk, DE/EN; T-SEDA Collective 2023, University of Cambridge, CC BY) — it also presets coding of teacher **and** student turns (context-aware) plus multi-coding with confidence.
 - **Teacher name** *(optional)* — if present in the transcript, enables teacher-specific metrics.
 - **Group identifier and metadata** — used for report labelling.
 

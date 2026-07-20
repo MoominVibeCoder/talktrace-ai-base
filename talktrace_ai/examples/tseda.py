@@ -45,13 +45,16 @@ TSEDA_ATTRIBUTION = (
     "Analysis (T-SEDA). v.9. University of Cambridge. CC BY."
 )
 
-# Pre-sets applied when the template is loaded: T-SEDA's most common use in
-# this app is formative feedback on the *teacher's* dialogic moves, and
+# Pre-sets applied when the template is loaded. T-SEDA codes dialogic moves
+# of ALL participants — dialogue quality is co-constructed, and a teacher
+# move (e.g. an invitation to reason) is only interpretable against the
+# student turns around it. Both speaker groups are therefore ON by default
+# (changed 2026-07: was teacher-only in the first template revision).
 # T-SEDA is a multi-code scheme (up to two codes per turn).
 TSEDA_PRESETS = {
     "llm_switch": True,
     "analyse_teacher_switch": True,
-    "analyse_students_switch": False,
+    "analyse_students_switch": True,
     "multi_coding_switch": True,
 }
 
