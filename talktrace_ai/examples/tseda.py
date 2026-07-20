@@ -21,11 +21,18 @@ the English original):
 
 Two project-specific sharpenings beyond the official slides:
 
-1. **Speaker typicality** (the slides are speaker-neutral): ``EI/EN/ZK/L``
-   (EN: ``IB/IR/CA/G``) carry a note that they are TEACHER moves in
-   whole-class talk, assignable to student turns only in teacher-less
-   peer/group settings. Finding from trial run 5: models assigned
-   invite/guide codes to plain student turns in a teacher-led discussion.
+1. **Speaker typicality** (the slides are speaker-neutral): ``EN/ZK/L``
+   (EN: ``IR/CA/G``) carry a note that they are TEACHER moves in whole-class
+   talk, assignable to student turns only in teacher-less peer/group
+   settings. Finding from trial run 5: models assigned invite/guide codes to
+   plain student turns in a teacher-led discussion.
+   ``EI``/``IB`` was **deliberately taken back out** of this group after
+   trial run 8 and marked speaker-neutral instead: a request for
+   clarification is not a teacher-privileged act, and students asking each
+   other to be more precise is a *positive* dialogic indicator. The German
+   label "Ermutigen, auf Ideen aufzubauen" reads more teacher-like than the
+   original "Invite to build on ideas" — a translation artefact that had
+   made the typicality intuition stick to this code in the first place.
 2. **``EN``/``IR`` narrowed to eliciting a JUSTIFICATION**, and its keyword
    "Kannst du das genauer erklären?" / "Can you explain that in more
    detail?" replaced by justification-seeking wording. Rationale (trial run
@@ -99,9 +106,10 @@ TSEDA_CODEBOOK = {
              "Abgrenzung: lädt zum Begründen ein → EN. Organisatorische "
              "Fragen zum Arbeitsauftrag sind keine dialogischen Züge und "
              "bleiben uncodiert. "
-             "Im Klassengespräch ein Zug der LEHRKRAFT — bei Schüler:innen "
-             "nur plausibel, wenn keine Lehrkraft am Gespräch beteiligt ist "
-             "(z. B. Gruppenarbeit)."
+             "SPRECHERNEUTRAL: Auch eine Klärungs- oder Verständnisfrage von "
+             "Schüler:innen („Gilt das auch für …?“, „Meinst du damit, dass "
+             "…?“) ist ein EI — um Präzisierung zu bitten ist kein Zug, der "
+             "der Lehrkraft vorbehalten wäre."
          )},
         {"Code": "H", "Bezeichnung": "Herausfordern",
          "Beschreibung": (
@@ -219,9 +227,10 @@ TSEDA_CODEBOOK = {
              "Distinction: invites justification → IR. Organisational "
              "questions about the task are not dialogic moves and stay "
              "uncoded. "
-             "In whole-class talk a TEACHER move — plausible for student "
-             "turns only when no teacher takes part in the conversation "
-             "(e.g. group work)."
+             "SPEAKER-NEUTRAL: a clarification or comprehension question "
+             "from a student ('Does that apply to … as well?', 'Do you mean "
+             "that …?') is an IB too — asking for precision is not a "
+             "teacher-reserved move."
          )},
         {"Code": "CH", "Label": "Challenge",
          "Description": (

@@ -144,20 +144,32 @@ def test_tseda_attribution_names_cambridge():
 
 
 def test_teacher_typical_codes_carry_speaker_note():
-    # EI/EN/ZK/L (EN: IB/IR/CA/G) sind im Klassengespräch Lehrkraft-Züge —
-    # bei Schüler:innen nur ohne beteiligte Lehrkraft plausibel (Befund
+    # EN/ZK/L (EN: IR/CA/G) sind im Klassengespräch Lehrkraft-Züge — bei
+    # Schüler:innen nur ohne beteiligte Lehrkraft plausibel (Befund
     # Testrunde 5: Modelle vergaben Einlade-/Leitungs-Codes an Schülerturns).
     de_map = {e["Code"]: e["Beschreibung"] for e in TSEDA_CODEBOOK["de"]}
     en_map = {e["Code"]: e["Description"] for e in TSEDA_CODEBOOK["en"]}
-    for c in ("EI", "EN", "ZK", "L"):
+    for c in ("EN", "ZK", "L"):
         assert "Klassengespräch" in de_map[c], c
-    for c in ("IB", "IR", "CA", "G"):
+    for c in ("IR", "CA", "G"):
         assert "whole-class" in en_map[c], c
-    # Die übrigen Codes bleiben sprecherneutral (offizielle Fassung).
-    for c in ("I", "H", "N", "R", "V", "ÄN"):
+    # Die übrigen Codes bleiben sprecherneutral (offizielle Fassung) — EI/IB
+    # bewusst darunter (Testrunde 8): eine Klärungsfrage ist kein
+    # lehrkraft-privilegierter Zug.
+    for c in ("I", "EI", "H", "N", "R", "V", "ÄN"):
         assert "Klassengespräch" not in de_map[c], c
-    for c in ("B", "CH", "R", "RD", "C", "E"):
+    for c in ("B", "IB", "CH", "R", "RD", "C", "E"):
         assert "whole-class" not in en_map[c], c
+
+
+def test_invite_to_build_is_explicitly_speaker_neutral():
+    # Testrunde 8: die vier Schüler-Klärungsfragen wanderten von EN nach EI —
+    # funktional korrekt. EI trägt die Sprecherneutralität jetzt explizit,
+    # damit die Sperre nicht über die Lehrkraft-Notiz zurückkommt.
+    de = {e["Code"]: e["Beschreibung"] for e in TSEDA_CODEBOOK["de"]}["EI"]
+    en = {e["Code"]: e["Description"] for e in TSEDA_CODEBOOK["en"]}["IB"]
+    assert "SPRECHERNEUTRAL" in de
+    assert "SPEAKER-NEUTRAL" in en
 
 
 # ---------------------------------------------------------------------------
