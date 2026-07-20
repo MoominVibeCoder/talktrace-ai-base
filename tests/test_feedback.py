@@ -112,6 +112,23 @@ def test_build_feedback_prompts_basic(lang):
         assert heads[key] in sys_p
 
 
+@pytest.mark.parametrize("lang", ["de", "en"])
+def test_system_prompt_demands_author_and_year(lang):
+    # Befund aus dem Feedback-Text: Belege trugen nur den Autornamen ohne
+    # Jahr. Ursache war doppelt — es gab keine Formatvorgabe für Belege im
+    # Fließtext, UND die Einleitungszeile machte das jahreslose Muster vor
+    # ("Alexander; Mercer & Littleton"). Beides muss gefixt bleiben.
+    sys_p, _ = fb.build_feedback_prompts(lang=lang)
+    assert "(Alexander 2020)" in sys_p
+    assert "(Mercer & Littleton 2007)" in sys_p
+    # Kein jahresloses Vorbild mehr in der Einleitung.
+    assert "(Alexander; Mercer & Littleton)" not in sys_p
+    # Die Jahre stammen aus der kuratierten Liste — kein erfundenes Jahr.
+    refs = " ".join(fb.REFERENCES)
+    assert "Alexander, R. J. (2020)" in refs
+    assert "Littleton, K. (2007)" in refs
+
+
 def test_build_feedback_prompts_langs_differ():
     de_sys, _ = fb.build_feedback_prompts(lang="de")
     en_sys, _ = fb.build_feedback_prompts(lang="en")
