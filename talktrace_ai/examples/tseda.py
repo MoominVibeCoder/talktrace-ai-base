@@ -19,11 +19,23 @@ the English original):
   "make the learning trajectory explicit via outside references" clause
   belongs to ``V`` (as in the English original: RD vs. C).
 
-One project-specific sharpening beyond the official slides (which are
-speaker-neutral): ``EI/EN/ZK/L`` (EN: ``IB/IR/CA/G``) carry a note that they
-are TEACHER moves in whole-class talk, assignable to student turns only in
-teacher-less peer/group settings. Finding from trial run 5: models assigned
-invite/guide codes to plain student turns in a teacher-led discussion.
+Two project-specific sharpenings beyond the official slides:
+
+1. **Speaker typicality** (the slides are speaker-neutral): ``EI/EN/ZK/L``
+   (EN: ``IB/IR/CA/G``) carry a note that they are TEACHER moves in
+   whole-class talk, assignable to student turns only in teacher-less
+   peer/group settings. Finding from trial run 5: models assigned
+   invite/guide codes to plain student turns in a teacher-led discussion.
+2. **``EN``/``IR`` narrowed to eliciting a JUSTIFICATION**, and its keyword
+   "Kannst du das genauer erklären?" / "Can you explain that in more
+   detail?" replaced by justification-seeking wording. Rationale (trial run
+   7): that keyword is functionally a request for *clarification*, which the
+   scheme already covers under ``EI``/``IB`` ("ausbauen, umformulieren,
+   klären"); it pulled student comprehension questions into ``EN``. Such
+   questions are now coded by their dialogic function (``I``/``H``/``N``),
+   and organisational questions about the task stay uncoded. This follows
+   the English original's own contrast: *invite reasoning* vs. *invite to
+   build on ideas*.
 
 Language handling differs from ``DEMO_CODEBOOK``: the demo keeps the German
 abbreviations in both languages (they label the same demo data), while this
@@ -84,7 +96,9 @@ TSEDA_CODEBOOK = {
              "Schlüsselwörter: „Was?“, „Sag mir“, „Kannst du das "
              "umformulieren?“, „Meinst du, dass …?“, „Stimmst du zu?“, "
              "„Kannst du ergänzen …?“. "
-             "Abgrenzung: lädt zum Begründen ein → EN. "
+             "Abgrenzung: lädt zum Begründen ein → EN. Organisatorische "
+             "Fragen zum Arbeitsauftrag sind keine dialogischen Züge und "
+             "bleiben uncodiert. "
              "Im Klassengespräch ein Zug der LEHRKRAFT — bei Schüler:innen "
              "nur plausibel, wenn keine Lehrkraft am Gespräch beteiligt ist "
              "(z. B. Gruppenarbeit)."
@@ -107,11 +121,19 @@ TSEDA_CODEBOOK = {
          )},
         {"Code": "EN", "Bezeichnung": "Ermutigen zum Nachdenken und Erklären",
          "Beschreibung": (
-             "Andere auffordern, eigene oder fremde Ideen zu erklären, zu "
-             "begründen und/oder Alternativen zu suchen. "
-             "Schlüsselwörter: „Warum?“, „Wie?“, „Meinst du?“, „Kannst du "
-             "das genauer erklären?“. "
-             "Abgrenzung: lädt nur zum Ausbauen ein → EI. "
+             "Das Gegenüber auffordern, eine BEGRÜNDUNG zu liefern — eigene "
+             "oder fremde Ideen zu erklären, zu begründen und/oder "
+             "Alternativen zu suchen. "
+             "Schlüsselwörter: „Warum?“, „Wieso?“, „Wie kommst du darauf?“, "
+             "„Kannst du das begründen?“. "
+             "Abgrenzung: lädt nur zum Ausbauen oder Klären ein → EI. Eine "
+             "inhaltliche Verständnis- oder Rückfrage ist KEIN EN — sie wird "
+             "nach ihrer dialogischen Funktion codiert: greift sie eine Idee "
+             "auf → I; steckt Zweifel oder Ablehnung darin → H; liefert sie "
+             "selbst eine Begründung oder Alternative → N. Organisatorische "
+             "Fragen zum Arbeitsauftrag („Sollen wir das aufschreiben?“, „Wo "
+             "tragen wir das ein?“) sind keine dialogischen Züge und bleiben "
+             "uncodiert. "
              "Im Klassengespräch ein Zug der LEHRKRAFT — bei Schüler:innen "
              "nur plausibel, wenn keine Lehrkraft am Gespräch beteiligt ist "
              "(z. B. Gruppenarbeit)."
@@ -194,7 +216,9 @@ TSEDA_CODEBOOK = {
              "comment on their own or others' ideas. "
              "Keywords: 'What?', 'Tell me', 'Can you rephrase that?', "
              "'Do you mean that …?', 'Do you agree?', 'Can you add …?'. "
-             "Distinction: invites justification → IR. "
+             "Distinction: invites justification → IR. Organisational "
+             "questions about the task are not dialogic moves and stay "
+             "uncoded. "
              "In whole-class talk a TEACHER move — plausible for student "
              "turns only when no teacher takes part in the conversation "
              "(e.g. group work)."
@@ -216,11 +240,18 @@ TSEDA_CODEBOOK = {
          )},
         {"Code": "IR", "Label": "Invite reasoning",
          "Description": (
-             "Invite others to explain, justify and/or explore alternatives "
-             "regarding their own or others' ideas. "
-             "Keywords: 'Why?', 'How?', 'Do you mean?', 'Can you explain "
-             "that in more detail?'. "
-             "Distinction: invites mere elaboration → IB. "
+             "Invite the other party to supply a JUSTIFICATION — to explain, "
+             "justify and/or explore alternatives regarding their own or "
+             "others' ideas. "
+             "Keywords: 'Why?', 'How come?', 'What makes you say that?', "
+             "'Can you justify that?'. "
+             "Distinction: invites mere elaboration or clarification → IB. A "
+             "content or comprehension question is NOT IR — code it by its "
+             "dialogic function: taking up an idea → B; carrying doubt or "
+             "rejection → CH; supplying reasoning or an alternative itself → "
+             "R. Organisational questions about the task ('Should we write "
+             "this down?', 'Where do we put this?') are not dialogic moves "
+             "and stay uncoded. "
              "In whole-class talk a TEACHER move — plausible for student "
              "turns only when no teacher takes part in the conversation "
              "(e.g. group work)."

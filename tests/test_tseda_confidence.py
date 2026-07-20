@@ -91,6 +91,26 @@ def test_context_prompt_keys_exist_in_both_languages():
             assert TRANSLATIONS[lang]["sidebar"][key].strip()
 
 
+def test_invite_reasoning_is_narrowed_to_justification():
+    # Testrunde 7: Schüler-Verständnisfragen landeten auf EN, weil das
+    # offizielle Schlüsselwort „Kannst du das genauer erklären?" funktional
+    # eine KLÄRUNGS-Bitte ist (die das Schema unter EI führt). EN meint das
+    # Einfordern einer BEGRÜNDUNG; Rückfragen werden nach ihrer Funktion
+    # codiert (I/H/N), Organisationsfragen bleiben uncodiert.
+    de = {e["Code"]: e["Beschreibung"] for e in TSEDA_CODEBOOK["de"]}["EN"]
+    en = {e["Code"]: e["Description"] for e in TSEDA_CODEBOOK["en"]}["IR"]
+    assert "BEGRÜNDUNG" in de and "JUSTIFICATION" in en
+    # Das mehrdeutige Klärungs-Keyword ist raus …
+    assert "genauer erklären" not in de
+    assert "explain that in more detail" not in en
+    # … und die Umleitung auf I/H/N bzw. B/CH/R ist benannt.
+    for token in ("→ I", "→ H", "→ N"):
+        assert token in de, token
+    for token in ("→ B", "→ CH", "→ R"):
+        assert token in en, token
+    assert "uncodiert" in de and "uncoded" in en  # Organisationsfragen
+
+
 def test_relevance_rule_is_scoped_and_takes_precedence():
     # Zwei Präzisierungen aus Testrunde 6, beide sprachübergreifend:
     # (1) Scoping — die Quittungs-Regel gilt nur für Beiträge, die
