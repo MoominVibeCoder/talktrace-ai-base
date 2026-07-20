@@ -545,6 +545,11 @@ STRINGS = {
                          "coded) instead of this session's analysis.",
         "import_teacher_label": "\"{label}\" is counted as the teacher (taken from the "
                                 "report).",
+        "import_legend": "Codebook taken from the report legend ({codes} codes).",
+        "import_legend_active": "The code meanings come from the report legend ({codes} "
+                                "codes). A codebook loaded in the Analysis tab would "
+                                "take precedence — it also carries the full "
+                                "descriptions.",
         "import_clear": "Discard",
         "import_cleared": "Uploaded report discarded.",
         "import_no_codebook": "No codebook loaded — the model then only sees the code "

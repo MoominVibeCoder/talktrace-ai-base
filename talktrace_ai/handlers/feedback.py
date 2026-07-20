@@ -18,6 +18,7 @@ from ..utils.report_import import (
     ReportImportError,
     coded_turn_count,
     detect_teacher_label,
+    parse_legend,
     parse_report,
     turns_to_transcript,
 )
@@ -35,6 +36,7 @@ def register(state):
     feedback_busy = reactive.value(False)  # True while the LLM call is in flight
     feedback_cost = reactive.value(None)   # per-call cost estimate in EUR
     imported_report = reactive.value(None)  # hand-checked coding table, or None
+    imported_codebook = reactive.value(None)  # codes read off the report legend
 
     def _S():
         return TRANSLATIONS[current_lang.get()]["feedback"]
@@ -129,11 +131,21 @@ def register(state):
             imported_report.set(None)
             return
         imported_report.set(frame)
+        # Der Report trägt seine Legende ("I: Auf Ideen aufbauen; …") als
+        # eigene Sektion mit — daraus lässt sich das Codebuch rekonstruieren,
+        # sodass der Report-Einstieg ohne weitere Vorbereitung auskommt.
+        # Fehlt die Sektion, bleibt es bei None (kein Grund zu scheitern).
+        imported_codebook.set(parse_legend(info["datapath"], info.get("name")))
         feedback_text.set(None)   # altes Feedback passt nicht mehr zur Quelle
         feedback_cost.set(None)
         message = t("feedback", "import_ok").format(
             turns=len(frame), coded=coded_turn_count(frame),
         )
+        legend = imported_codebook.get()
+        if legend and not fb.extract_code_definitions(state.codebook_data.get()):
+            message += " " + t("feedback", "import_legend").format(
+                codes=len(legend),
+            )
         # Weicht das Lehrkraft-Label im Report von der Einstellung ab, wird es
         # übernommen (sonst stimmen die Redeanteile nicht) — aber sichtbar,
         # nicht still: der Name steuert, was als Lehrkraft-Beitrag zählt.
@@ -144,10 +156,21 @@ def register(state):
             )
         ui.notification_show(message, type="message", duration=8)
 
+    def _code_definitions():
+        """Code-Definitionen: geladenes Codebuch, sonst die Report-Legende.
+
+        Ein im Analyse-Tab geladenes Codebuch hat Vorrang — es ist die
+        vollständige Fassung mit Beschreibungen, die Legende trägt nur die
+        Bezeichnungen.
+        """
+        defs = fb.extract_code_definitions(state.codebook_data.get())
+        return defs or fb.extract_code_definitions(imported_codebook.get())
+
     @reactive.effect
     @reactive.event(input.feedback_import_clear)
     def _clear_report_import():
         imported_report.set(None)
+        imported_codebook.set(None)
         feedback_text.set(None)
         feedback_cost.set(None)
         ui.notification_show(t("feedback", "import_cleared"),
@@ -182,13 +205,22 @@ def register(state):
                 class_="alert alert-success py-2 px-3", role="alert",
                 style="font-size:0.9rem;",
             ))
-            # Ohne Codebuch kennt das Modell nur die Kürzel, nicht ihre
-            # Bedeutung — im Report-Einstieg ist das der Normalfall.
-            if not fb.extract_code_definitions(state.codebook_data.get()):
+            # Ohne Code-Definitionen kennt das Modell nur die Kürzel, nicht
+            # ihre Bedeutung. Trägt der Report seine Legende mit, ist das
+            # gedeckt — sonst der Hinweis, ein Codebuch zu laden.
+            legend = imported_codebook.get()
+            if not _code_definitions():
                 parts.append(ui.div(
                     icon_svg("triangle-exclamation"), " ",
                     t("feedback", "import_no_codebook"),
                     class_="alert alert-warning py-2 px-3", role="alert",
+                    style="font-size:0.9rem;",
+                ))
+            elif legend and not fb.extract_code_definitions(state.codebook_data.get()):
+                parts.append(ui.div(
+                    icon_svg("book"), " ",
+                    t("feedback", "import_legend_active").format(codes=len(legend)),
+                    class_="alert alert-secondary py-2 px-3", role="alert",
                     style="font-size:0.9rem;",
                 ))
         return ui.div(*parts, class_="mb-3")
@@ -390,7 +422,7 @@ def register(state):
             return
 
         teacher = _teacher_name()
-        code_defs = fb.extract_code_definitions(state.codebook_data.get())
+        code_defs = _code_definitions()
         # Ein importierter Report gewinnt gegen die laufende Analyse: er ist
         # die bewusst hochgeladene, von Hand geprüfte Fassung.
         source = _report_source()

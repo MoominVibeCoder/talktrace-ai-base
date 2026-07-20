@@ -258,3 +258,97 @@ def test_teacher_label_drives_the_metrics_split(tmp_path):
     bad = dialog_stats(transcript, "LEHRER")
     assert bad["Anzahl_Beitraege"].sum() == 2      # die 3 "L:"-Turns fehlen
     assert "L" not in bad["Sprecher"].tolist()
+
+
+# ---------------------------------------------------------------------------
+# Codebuch aus der Report-Legende
+# ---------------------------------------------------------------------------
+
+def _legend_report(tmp_path, legend):
+    """Report mit Legenden-Sektion exportieren."""
+    table = _table()
+    generate_report2(
+        str(tmp_path / "legend.docx"), "G", 22, 6, 27.3,
+        {"num": 3, "words": 60, "mean_sd": "20.0 (2.0)"},
+        {"num": 3, "words": 30, "mean_sd": "10.0 (1.0)"},
+        None, len(table), caption=legend,
+        plot_impulse_coding=build_qual_plot(table, _rt, "light", TEACHER),
+        impulse_table=table,
+        sections={"quant": False, "quali": True, "legend": True},
+        output_format="docx",
+    )
+    return tmp_path / "legend.docx"
+
+
+def test_parse_legend_rebuilds_a_codebook(tmp_path):
+    from talktrace_ai.utils.feedback_section import extract_code_definitions
+    from talktrace_ai.utils.report_import import parse_legend
+
+    path = _legend_report(
+        tmp_path,
+        "EN: Zum Nachdenken ermutigen; N: Nachdenken und Erklären; L: Leiten",
+    )
+    codebook = parse_legend(str(path))
+    assert [e["Code"] for e in codebook] == ["EN", "N", "L"]
+    assert codebook[0]["Bezeichnung"] == "Zum Nachdenken ermutigen"
+    # Gleiche Form wie ein Codebuch-Import — direkt weiterverwendbar.
+    assert extract_code_definitions(codebook)[0] == (
+        "EN", "Zum Nachdenken ermutigen", "",
+    )
+
+
+def test_parse_legend_returns_none_without_legend_section(tmp_path):
+    # Die Legende ist eine abwählbare Report-Sektion. Fehlt sie, darf der
+    # Import nicht scheitern — das Feedback läuft dann ohne Definitionen.
+    from talktrace_ai.utils.report_import import parse_legend
+
+    path = _export(tmp_path / "report.docx", "docx")   # sections: legend=False
+    assert parse_legend(str(path)) is None
+
+
+@pytest.mark.parametrize("text", [
+    "",
+    "Ein ganz normaler Fließtext, der einen Doppelpunkt enthält: nämlich hier.",
+    "NurEinEintrag: zu wenig",                     # unter _MIN_LEGEND_ENTRIES
+    "Methodentext: Die Analyse erfolgte mit; einem Modell: das codiert",
+])
+def test_legend_parser_rejects_non_legends(text):
+    # Lieber gar kein Codebuch als ein erfundenes: der Teil vor dem
+    # Doppelpunkt muss wie ein Kürzel aussehen, und ein einziger Ausreißer
+    # verwirft den ganzen String.
+    from talktrace_ai.utils.report_import import _legend_from_text
+    assert _legend_from_text(text) is None
+
+
+def test_legend_parser_accepts_value_without_prefix():
+    # In XLSX/CSV steht der Legenden-Wert ohne "Legende: "-Präfix in einer
+    # Zelle — erkannt wird deshalb an der Struktur, nicht am Präfix.
+    from talktrace_ai.utils.report_import import _legend_from_text
+
+    with_prefix = _legend_from_text("Legende: I: Aufbauen; H: Herausfordern")
+    without = _legend_from_text("I: Aufbauen; H: Herausfordern")
+    assert with_prefix == without
+    assert [e["Code"] for e in without] == ["I", "H"]
+
+
+@pytest.mark.parametrize("fmt,suffix", [
+    ("xlsx", ".xlsx"), ("csv", ".zip"), ("html", ".html"),
+])
+def test_parse_legend_across_formats(tmp_path, fmt, suffix):
+    from talktrace_ai.utils.report_import import parse_legend
+
+    table = _table()
+    path = tmp_path / f"legend{suffix}"
+    generate_report2(
+        str(path), "G", 22, 6, 27.3,
+        {"num": 3, "words": 60, "mean_sd": "20.0 (2.0)"},
+        {"num": 3, "words": 30, "mean_sd": "10.0 (1.0)"},
+        None, len(table), caption="I: Aufbauen; H: Herausfordern; L: Leiten",
+        plot_impulse_coding=build_qual_plot(table, _rt, "light", TEACHER),
+        impulse_table=table,
+        sections={"quant": False, "quali": True, "legend": True},
+        output_format=fmt,
+    )
+    codebook = parse_legend(str(path))
+    assert codebook is not None, f"{fmt}: keine Legende gefunden"
+    assert [e["Code"] for e in codebook] == ["I", "H", "L"]

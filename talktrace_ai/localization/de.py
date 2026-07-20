@@ -550,6 +550,11 @@ STRINGS = {
                          "{coded} codiert) statt der Analyse in dieser Sitzung.",
         "import_teacher_label": "Als Lehrkraft wird „{label}“ gezählt (aus dem Report "
                                 "übernommen).",
+        "import_legend": "Codebuch aus der Report-Legende übernommen ({codes} Codes).",
+        "import_legend_active": "Die Code-Bedeutungen stammen aus der Legende des "
+                                "Reports ({codes} Codes). Ein im Tab „Analyse“ "
+                                "geladenes Codebuch hätte Vorrang — es enthält auch "
+                                "die ausführlichen Beschreibungen.",
         "import_clear": "Verwerfen",
         "import_cleared": "Hochgeladener Report verworfen.",
         "import_no_codebook": "Kein Codebuch geladen — das Modell kennt dann nur die "

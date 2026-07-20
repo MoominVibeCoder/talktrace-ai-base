@@ -284,6 +284,140 @@ def _suffix_of(name) -> str:
     return match.group(1).lower() if match else ""
 
 
+# --- Codebuch aus der Report-Legende ---------------------------------------
+# Der Report führt seine Legende als "CODE: Bezeichnung; CODE: Bezeichnung"
+# mit (im DOCX/HTML) vorangestelltem "Legende: ". In XLSX/CSV steht derselbe
+# Wert ohne Präfix in einer Zelle. Erkannt wird deshalb an der STRUKTUR, nicht
+# am Präfix — sonst müsste jedes Format einzeln behandelt werden.
+_LEGEND_ENTRY_RE = re.compile(r"^\s*([^\s:;]{1,12})\s*:\s*(.+?)\s*$")
+_MIN_LEGEND_ENTRIES = 2
+
+
+def _legend_from_text(text):
+    """Codebuch-Einträge aus einem Legenden-String, oder None.
+
+    Bewusst streng: mindestens zwei Einträge, und der Teil vor dem Doppel-
+    punkt muss wie ein Kürzel aussehen (kurz, ohne Leerzeichen). Sonst
+    würde ein beliebiger Fließtext mit Doppelpunkten als Codebuch
+    durchgehen — lieber gar kein Codebuch als ein erfundenes.
+    """
+    raw = str(text or "").strip()
+    if not raw:
+        return None
+    # Optionales "Legende: "-Präfix in beiden Sprachen abstreifen.
+    for lang in ("de", "en"):
+        prefix = TRANSLATIONS.get(lang, {}).get("report", {}).get("caption")
+        if prefix and raw.lower().startswith(f"{prefix.lower()}:"):
+            raw = raw[len(prefix) + 1:].strip()
+            break
+    entries = []
+    seen = set()
+    for chunk in raw.split(";"):
+        match = _LEGEND_ENTRY_RE.match(chunk)
+        if not match:
+            return None          # ein einziger Ausreißer verwirft das Ganze
+        code, label = match.group(1).strip(), match.group(2).strip()
+        if code in seen:
+            continue
+        seen.add(code)
+        # Gleiche Form wie ein Codebuch-Import aus DOCX (list[dict]); die
+        # Legende trägt nur die Bezeichnung, keine ausformulierte
+        # Beschreibung — extract_code_definitions kommt damit zurecht.
+        entries.append({"Code": code, "Bezeichnung": label, "Beschreibung": ""})
+    if len(entries) < _MIN_LEGEND_ENTRIES:
+        return None
+    return entries
+
+
+def _texts_from_docx(path):
+    from docx import Document
+
+    doc = Document(path)
+    texts = [p.text for p in doc.paragraphs]
+    for table in doc.tables:                     # Legende kann in einer Zelle stehen
+        for row in table.rows:
+            texts.extend(c.text for c in row.cells)
+    return texts
+
+
+def _texts_from_xlsx(path):
+    sheets = pd.read_excel(path, sheet_name=None, dtype=str)
+    texts = []
+    for frame in sheets.values():
+        texts.extend(frame.fillna("").astype(str).values.ravel().tolist())
+    return texts
+
+
+def _texts_from_csv_zip(path):
+    texts = []
+    if zipfile.is_zipfile(path):
+        with zipfile.ZipFile(path) as zf:
+            for name in zf.namelist():
+                if name.lower().endswith(".csv"):
+                    with zf.open(name) as fh:
+                        texts.extend(_cells_from_csv_bytes(fh.read()))
+        return texts
+    with open(path, "rb") as fh:
+        return _cells_from_csv_bytes(fh.read())
+
+
+def _cells_from_csv_bytes(raw):
+    for encoding in ("utf-8-sig", "utf-8", "cp1252"):
+        try:
+            text = raw.decode(encoding)
+            break
+        except UnicodeDecodeError:
+            continue
+    else:
+        return []
+    return [cell for row in csv.reader(io.StringIO(text)) for cell in row]
+
+
+def _texts_from_html(path):
+    with open(path, "r", encoding="utf-8", errors="replace") as fh:
+        content = fh.read()
+    # Tags entfernen, Blöcke an den Grenzen trennen — die Legende steht in
+    # einem eigenen Absatz.
+    content = re.sub(r"<(script|style)[^>]*>.*?</\1>", " ", content,
+                     flags=re.DOTALL | re.IGNORECASE)
+    blocks = re.split(r"<(?:/p|/h\d|/li|/td|/th|br\s*/?)>", content,
+                      flags=re.IGNORECASE)
+    return [re.sub(r"<[^>]+>", "", b).replace("&nbsp;", " ").strip()
+            for b in blocks]
+
+
+_TEXT_READERS = {
+    ".docx": _texts_from_docx,
+    ".xlsx": _texts_from_xlsx,
+    ".csv": _texts_from_csv_zip,
+    ".zip": _texts_from_csv_zip,
+    ".html": _texts_from_html,
+    ".htm": _texts_from_html,
+}
+
+
+def parse_legend(path, filename=None):
+    """Codebuch aus der Legende eines Reports, oder None.
+
+    Absichtlich fehlertolerant statt werfend: die Legende ist eine
+    Report-SEKTION, die beim Export abgewählt sein kann. Fehlt sie, läuft
+    das Feedback ohne Code-Definitionen weiter — der Import selbst soll
+    daran nicht scheitern.
+    """
+    reader = _TEXT_READERS.get(_suffix_of(filename or path))
+    if reader is None:
+        return None
+    try:
+        texts = reader(path)
+    except Exception:
+        return None
+    for text in texts:
+        entries = _legend_from_text(text)
+        if entries:
+            return entries
+    return None
+
+
 _STUDENT_LABEL_RE = re.compile(r"^s\d{1,3}$", re.IGNORECASE)
 
 
