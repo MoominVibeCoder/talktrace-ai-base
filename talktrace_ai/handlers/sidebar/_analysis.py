@@ -568,6 +568,7 @@ def register(state):
             try:
                 session_data = {
                     "transcript_data": transcript_data.get(),
+                    "teacher_name": input.name_teacher(),
                     "num_participants": num_participants.get(),
                     "participation_rate": participation_rate.get(),
                     "stats": stats.get(),

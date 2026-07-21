@@ -683,7 +683,11 @@ def register(state):
     def make_qualitative_stats_df():
         req(llm_analysis_data.get())
         analysis_df = llm_analysis_data.get()[-1].copy()
-        is_multi = _is_multi_coding_on(input)
+        # Multi-Coding aus dem Switch ODER aus den Daten ableiten: bei einer
+        # geladenen Session ist der (nur bei aktivem llm_switch gerenderte)
+        # Switch aus, aber mehrfach codierte Daten tragen eine "Konfidenz"-
+        # Spalte — sonst kollabierte die Anzeige auf eine einzige Code-Spalte.
+        is_multi = _is_multi_coding_on(input) or ("Konfidenz" in analysis_df.columns)
 
         # Transkript auflösen (mit Fallback auf das konvertierte Wizard-
         # Ergebnis), damit die pure Merge-Funktion und die Edit-Applikation

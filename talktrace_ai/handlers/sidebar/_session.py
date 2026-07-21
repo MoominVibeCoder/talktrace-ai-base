@@ -36,7 +36,21 @@ def register(state):
     # ausgelöst (Geld!) und in jedem Fall die Statistik unnötig neu berechnet,
     # obwohl wir sie bereits aus dem Pickle haben.
     def _restore_session_state(session_data):
-        teacher_name = input.name_teacher() or t("analysis", "name_teacher_var")
+        # Lehrername NICHT aus dem aktuellen Eingabefeld nehmen: beim Laden
+        # einer Fremdsession steht dort der Default, der nicht zum Transkript
+        # passt. Dann matcht _parse_turns die Lehrerzeilen nicht — die Tabelle
+        # zeigt nur Schülerturns und der Sprecher-Farbsplit fällt weg.
+        # Priorität: explizit gespeicherter Name → aus stats abgeleitet (alte
+        # Pickles: der Sprecher != "Schüler:innen") → aktuelles Feld.
+        _df_stats = session_data.get("stats")
+        _stored = session_data.get("teacher_name")
+        if not _stored and _df_stats is not None and not _df_stats.empty \
+                and "Sprecher" in _df_stats:
+            _others = [s for s in _df_stats["Sprecher"] if s != "Schüler:innen"]
+            _stored = _others[0] if _others else None
+        teacher_name = _stored or input.name_teacher() or t("analysis", "name_teacher_var")
+        if _stored:
+            ui.update_text("name_teacher", value=_stored)
 
         transcript_data.set(session_data.get("transcript_data"))
         num_participants.set(session_data.get("num_participants"))
@@ -124,6 +138,7 @@ def register(state):
     def button_export_session():
         session_data = {
             "transcript_data": transcript_data.get(),
+            "teacher_name": input.name_teacher(),
             "num_participants": num_participants.get(),
             "participation_rate": participation_rate.get(),
             "stats": stats.get(),
@@ -235,6 +250,7 @@ def register(state):
             return
         session_data = {
             "transcript_data": transcript_data.get(),
+            "teacher_name": input.name_teacher(),
             "num_participants": num_participants.get(),
             "participation_rate": participation_rate.get(),
             "stats": stats.get(),
