@@ -188,17 +188,19 @@ def register(state):
             # Provider-Dispatch-Tabelle. Pro Provider: reaktive API-Key-Quelle,
             # Client-Factory, Stream-/Non-Stream-Coding-Funktion, ob Streaming
             # das `language`-kwarg braucht, und optionale Extra-Positional-Args
-            # für den Non-Stream-Call. Keyless Provider (ollama) haben
-            # key/client = None. Neuer Provider = eine Zeile, statt zwei
-            # parallele if/elif-Ketten zu pflegen. Custom-Provider bleiben ein
-            # eigener Zweig (dynamische Key-/Base-URL-Auflösung).
+            # für den Non-Stream-Call. Neuer Provider = eine Zeile. Custom-
+            # Provider bleiben ein eigener Zweig (dynamische Key-/Base-URL-
+            # Auflösung).
+            # Nur aktive Provider aus KNOWN_PROVIDERS: das Dict-Literal wird bei
+            # jedem Lauf ausgewertet, also müssen ALLE referenzierten Namen im
+            # Namespace existieren. Zum Reaktivieren eines deaktivierten
+            # Providers (groq/ollama/openrouter, config_manager.KNOWN_PROVIDERS)
+            # zuerst dessen get_*_client + llm_analysis_*[ _stream] in _common
+            # exportieren, dann hier eine Zeile ergänzen.
             PROVIDERS = {
                 # provider:  (key_rv, client_fn, stream_fn, nonstream_fn, stream_lang, nonstream_extra)
-                "groq":       (state.api_key_groq,       get_groq_client,       llm_analysis_groq_stream,       llm_analysis_groq,       True,  ()),
                 "openai":     (state.api_key_openai,     get_openai_client,     llm_analysis_openai_stream,     llm_analysis_openai,     False, ()),
                 "anthropic":  (state.api_key_anthropic,  get_anthropic_client,  llm_analysis_anthropic_stream,  llm_analysis_anthropic,  False, (_stream_progress,)),
-                "ollama":     (None,                     None,                  llm_analysis_ollama_stream,     llm_analysis_ollama,     True,  ()),
-                "openrouter": (state.api_key_openrouter, get_openrouter_client, llm_analysis_openrouter_stream, llm_analysis_openrouter, True,  ()),
                 "mistral":    (state.api_key_mistral,    get_mistral_client,    llm_analysis_mistral_stream,    llm_analysis_mistral,    True,  ()),
                 "deepseek":   (state.api_key_deepseek,   get_deepseek_client,   llm_analysis_deepseek_stream,   llm_analysis_deepseek,   True,  ()),
                 "localmind":  (state.api_key_localmind,  get_localmind_client,  llm_analysis_localmind_stream,  llm_analysis_localmind,  True,  ()),

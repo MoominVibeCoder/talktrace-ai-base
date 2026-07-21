@@ -136,6 +136,18 @@ def aggregate_multicoded(coded):
     return out
 
 
+def _with_confidence(codes, confidences):
+    """Shortcodes als "CODE (NN %)" formatieren — gleiches Anzeigeformat wie
+    aggregate_multicoded, damit Report-Shading (confidence_band_of_cell) und
+    strip_confidence auch im Single-Coding greifen. Leere Codes bzw. fehlende
+    Konfidenzen bleiben unformatiert."""
+    conf = pd.to_numeric(confidences, errors="coerce")
+    return [
+        f"{str(c).strip()} ({int(v)} %)" if str(c).strip() and pd.notna(v) else str(c).strip()
+        for c, v in zip(codes, conf)
+    ]
+
+
 def collect_codes(df, t):
     """Serie einzelner reiner Codes aus einer Ergebnis-Tabelle — ALLE
     Kandidaten, inklusive Nebencodes.
@@ -394,6 +406,9 @@ def build_qual_stats_df(
     if not transcript_text:
         # Fallback ohne Transkript: rohe codierte Items (eine Zeile pro Code)
         # in der klassischen 4-Spalten-Form — unabhängig vom Multi-Schalter.
+        if "Konfidenz" in analysis_df.columns:
+            analysis_df["Shortcode"] = _with_confidence(
+                analysis_df["Shortcode"], analysis_df["Konfidenz"])
         analysis_df["#"] = analysis_df.reset_index().index + 1
         analysis_df = analysis_df[["#", "Sprecher", "Impuls", "Shortcode"]]
         analysis_df.columns = [
@@ -447,6 +462,10 @@ def build_qual_stats_df(
         return merged
     coded = coded.drop_duplicates(subset=["__key__"], keep="first")
     coded = coded.drop(columns=["__priority__"])
+    # Single-Coding: die eine überlebende Code-Zelle trägt jetzt ebenfalls die
+    # Konfidenz (falls das Modell eine geliefert hat) — "CODE (NN %)".
+    if "Konfidenz" in coded.columns:
+        coded["Shortcode"] = _with_confidence(coded["Shortcode"], coded["Konfidenz"])
     merged = pd.merge(
         all_turns_df,
         coded[["__key__", "Shortcode"]],

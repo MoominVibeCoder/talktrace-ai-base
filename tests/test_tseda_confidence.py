@@ -534,7 +534,7 @@ def test_build_qual_stats_df_multicoding_wide_columns():
     assert merged[c2].tolist() == ["L (61 %)", ""]
 
 
-def test_build_qual_stats_df_single_coding_ignores_confidence():
+def test_build_qual_stats_df_single_coding_keeps_confidence():
     transcript = "LEHRER: Warum sollte das so sein?"
     analysis_df = analysis_items_to_df([
         {"#": 1, "Sprecher": "LEHRER", "Shortcode": "L",
@@ -547,11 +547,28 @@ def test_build_qual_stats_df_single_coding_ignores_confidence():
         multi_coding=False, t=_t,
     )
     sc_col = _t("report", "shortcode")
-    # Single-Coding bleibt beim Hierarchie-Kontrakt: EN steht im Codebuch
-    # vor L und gewinnt unabhängig von der Konfidenz — kein Suffix, und
-    # die klassische Einzel-Spalte (keine Code-1..3-Spalten).
-    assert merged[sc_col].tolist() == ["EN"]
+    # Hierarchie-Kontrakt gilt weiter: EN steht im Codebuch vor L und gewinnt
+    # unabhängig von der Konfidenz. NEU: die überlebende Einzel-Zelle trägt
+    # jetzt die Konfidenz des gewinnenden Codes ("CODE (NN %)"), weiterhin in
+    # der klassischen Einzel-Spalte (keine Code-1..3-Spalten).
+    assert merged[sc_col].tolist() == ["EN (70 %)"]
     assert not any(c in merged.columns for c in code_column_names(_t))
+
+
+def test_build_qual_stats_df_single_coding_without_confidence_stays_plain():
+    # Kein Konfidenz-Feld (Single-Coding-Prompt hat keine angefordert / altes
+    # Pickle): die Zelle bleibt der reine Code, ohne "(NN %)"-Suffix.
+    transcript = "LEHRER: Warum sollte das so sein?"
+    analysis_df = analysis_items_to_df([
+        {"#": 1, "Sprecher": "LEHRER", "Shortcode": "EN",
+         "Impuls": "Warum sollte das so sein?"},
+    ])
+    assert "Konfidenz" not in analysis_df.columns
+    merged = build_qual_stats_df(
+        analysis_df, transcript, "LEHRER", TSEDA_CODEBOOK["de"],
+        multi_coding=False, t=_t,
+    )
+    assert merged[_t("report", "shortcode")].tolist() == ["EN"]
 
 
 # ---------------------------------------------------------------------------
