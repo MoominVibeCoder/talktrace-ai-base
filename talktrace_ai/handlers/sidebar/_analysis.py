@@ -10,7 +10,11 @@ import time
 from .._common import *
 
 from ...utils.llm_analysis._core import run_llm_coding_once
-from ...utils.qualitative import norm_impuls, uncoded_turns
+from ...utils.qualitative import (
+    filter_second_pass_items,
+    teacher_in_transcript,
+    uncoded_turns,
+)
 
 
 def _streaming_progress(current_items: int, total_turns: int) -> tuple[int, int]:
@@ -48,9 +52,6 @@ def register(state):
     config = state.config
     transcript_data = state.transcript_data
     codebook_data = state.codebook_data
-    api_key_groq = state.api_key_groq
-    api_key_openai = state.api_key_openai
-    api_key_anthropic = state.api_key_anthropic
     num_participants = state.num_participants
     participation_rate = state.participation_rate
     t_turns = state.t_turns
@@ -139,23 +140,8 @@ def register(state):
         teacher_name = input.name_teacher()
         transcript = transcript_data.get()
         teacher_on, students_on = state._speaker_flags()
-        if teacher_on:
-            # Simple check: exact or case-insensitive word boundary match.
-            search_name = re.escape(teacher_name) if teacher_name else ""
-            found = False
-            if search_name:
-                # Check as a standalone speaker label ("Name:" pattern) anywhere in the text.
-                pattern = re.compile(rf"^\s*" + search_name + r"\s*:", re.IGNORECASE | re.MULTILINE)
-                if pattern.search(transcript):
-                    found = True
-                # Also allow plain substring match as a fallback.
-                elif teacher_name.lower() in transcript.lower():
-                    found = True
-            if not found:
-                return t("analysis", "teacher_not_found")
-
-        transcript = transcript_data.get()
-        teacher_name = input.name_teacher()
+        if teacher_on and not teacher_in_transcript(transcript, teacher_name):
+            return t("analysis", "teacher_not_found")
 
         # Quantitative Stats in Threads rechnen, damit der Event-Loop frei
         # bleibt und sie ggf. parallel zum LLM-Call laufen können.
@@ -199,131 +185,51 @@ def register(state):
             def _stream_progress(n):
                 stream_chunks["n"] = n
 
-            if streaming_enabled:
-                # Streaming-Pfad: Generator-Args zwischenspeichern, Ausführung
-                # erfolgt sequentiell nach der Stats-Berechnung. Items werden
-                # progressiv in den DataFrame geschoben.
-                lang = config.get_localization().get("current_language", "de")
-                if current_api == "groq":
-                    req(api_key_groq.get() != None)
-                    client = get_groq_client(api_key_groq.get())
-                    stream_gen_args = (
-                        llm_analysis_groq_stream,
-                        (sys_p, usr_p, mdl, transcript, cb, client),
-                        {"language": lang},
-                    )
-                elif current_api == "openai":
-                    req(api_key_openai.get() != None)
-                    client = get_openai_client(api_key_openai.get())
-                    stream_gen_args = (
-                        llm_analysis_openai_stream,
-                        (sys_p, usr_p, mdl, transcript, cb, client),
-                        {},
-                    )
-                elif current_api == "anthropic":
-                    req(api_key_anthropic.get() != None)
-                    client = get_anthropic_client(api_key_anthropic.get())
-                    stream_gen_args = (
-                        llm_analysis_anthropic_stream,
-                        (sys_p, usr_p, mdl, transcript, cb, client),
-                        {},
-                    )
-                elif current_api == "ollama":
-                    stream_gen_args = (
-                        llm_analysis_ollama_stream,
-                        (sys_p, usr_p, mdl, transcript, cb),
-                        {"language": lang},
-                    )
-                elif current_api == "openrouter":
-                    req(state.api_key_openrouter.get() != None)
-                    client = get_openrouter_client(state.api_key_openrouter.get())
-                    stream_gen_args = (
-                        llm_analysis_openrouter_stream,
-                        (sys_p, usr_p, mdl, transcript, cb, client),
-                        {"language": lang},
-                    )
-                elif current_api == "mistral":
-                    req(state.api_key_mistral.get() != None)
-                    client = get_mistral_client(state.api_key_mistral.get())
-                    stream_gen_args = (
-                        llm_analysis_mistral_stream,
-                        (sys_p, usr_p, mdl, transcript, cb, client),
-                        {"language": lang},
-                    )
-                elif current_api == "deepseek":
-                    req(state.api_key_deepseek.get() != None)
-                    client = get_deepseek_client(state.api_key_deepseek.get())
-                    stream_gen_args = (
-                        llm_analysis_deepseek_stream,
-                        (sys_p, usr_p, mdl, transcript, cb, client),
-                        {"language": lang},
-                    )
-                elif current_api == "localmind":
-                    req(state.api_key_localmind.get() != None)
-                    client = get_localmind_client(state.api_key_localmind.get())
-                    stream_gen_args = (
-                        llm_analysis_localmind_stream,
-                        (sys_p, usr_p, mdl, transcript, cb, client),
-                        {"language": lang},
-                    )
-                elif is_custom_provider(current_api):
-                    _key = api_key_for(state, current_api)
-                    _burl = config.custom_base_url(current_api)
-                    req(_key is not None)
-                    req(bool(_burl))
-                    client = get_custom_client(_key, _burl)
-                    stream_gen_args = (
-                        llm_analysis_custom_stream,
-                        (sys_p, usr_p, mdl, transcript, cb, client),
-                        {"language": lang},
-                    )
-            else:
-                if current_api == "groq":
-                    req(api_key_groq.get() != None)
-                    client = get_groq_client(api_key_groq.get())
+            # Provider-Dispatch-Tabelle. Pro Provider: reaktive API-Key-Quelle,
+            # Client-Factory, Stream-/Non-Stream-Coding-Funktion, ob Streaming
+            # das `language`-kwarg braucht, und optionale Extra-Positional-Args
+            # für den Non-Stream-Call. Keyless Provider (ollama) haben
+            # key/client = None. Neuer Provider = eine Zeile, statt zwei
+            # parallele if/elif-Ketten zu pflegen. Custom-Provider bleiben ein
+            # eigener Zweig (dynamische Key-/Base-URL-Auflösung).
+            PROVIDERS = {
+                # provider:  (key_rv, client_fn, stream_fn, nonstream_fn, stream_lang, nonstream_extra)
+                "groq":       (state.api_key_groq,       get_groq_client,       llm_analysis_groq_stream,       llm_analysis_groq,       True,  ()),
+                "openai":     (state.api_key_openai,     get_openai_client,     llm_analysis_openai_stream,     llm_analysis_openai,     False, ()),
+                "anthropic":  (state.api_key_anthropic,  get_anthropic_client,  llm_analysis_anthropic_stream,  llm_analysis_anthropic,  False, (_stream_progress,)),
+                "ollama":     (None,                     None,                  llm_analysis_ollama_stream,     llm_analysis_ollama,     True,  ()),
+                "openrouter": (state.api_key_openrouter, get_openrouter_client, llm_analysis_openrouter_stream, llm_analysis_openrouter, True,  ()),
+                "mistral":    (state.api_key_mistral,    get_mistral_client,    llm_analysis_mistral_stream,    llm_analysis_mistral,    True,  ()),
+                "deepseek":   (state.api_key_deepseek,   get_deepseek_client,   llm_analysis_deepseek_stream,   llm_analysis_deepseek,   True,  ()),
+                "localmind":  (state.api_key_localmind,  get_localmind_client,  llm_analysis_localmind_stream,  llm_analysis_localmind,  True,  ()),
+            }
+
+            prompt_args = (sys_p, usr_p, mdl, transcript, cb)
+            if current_api in PROVIDERS:
+                key_rv, client_fn, stream_fn, nonstream_fn, stream_lang, nonstream_extra = PROVIDERS[current_api]
+                if key_rv is not None:
+                    req(key_rv.get() != None)
+                client = client_fn(key_rv.get()) if client_fn is not None else None
+                call_args = (*prompt_args, client) if client is not None else prompt_args
+                if streaming_enabled:
+                    lang = config.get_localization().get("current_language", "de")
+                    stream_gen_args = (stream_fn, call_args, {"language": lang} if stream_lang else {})
+                else:
                     llm_task = asyncio.create_task(asyncio.to_thread(
-                        llm_analysis_groq, sys_p, usr_p, mdl, transcript, cb, client))
-                elif current_api == "openai":
-                    req(api_key_openai.get() != None)
-                    client = get_openai_client(api_key_openai.get())
+                        nonstream_fn, *call_args, *nonstream_extra))
+            elif is_custom_provider(current_api):
+                _key = api_key_for(state, current_api)
+                _burl = config.custom_base_url(current_api)
+                req(_key is not None)
+                req(bool(_burl))
+                client = get_custom_client(_key, _burl)
+                call_args = (sys_p, usr_p, mdl, transcript, cb, client)
+                if streaming_enabled:
+                    lang = config.get_localization().get("current_language", "de")
+                    stream_gen_args = (llm_analysis_custom_stream, call_args, {"language": lang})
+                else:
                     llm_task = asyncio.create_task(asyncio.to_thread(
-                        llm_analysis_openai, sys_p, usr_p, mdl, transcript, cb, client))
-                elif current_api == "anthropic":
-                    req(api_key_anthropic.get() != None)
-                    client = get_anthropic_client(api_key_anthropic.get())
-                    llm_task = asyncio.create_task(asyncio.to_thread(
-                        llm_analysis_anthropic, sys_p, usr_p, mdl, transcript, cb, client, _stream_progress))
-                elif current_api == "ollama":
-                    llm_task = asyncio.create_task(asyncio.to_thread(
-                        llm_analysis_ollama, sys_p, usr_p, mdl, transcript, cb))
-                elif current_api == "openrouter":
-                    req(state.api_key_openrouter.get() != None)
-                    client = get_openrouter_client(state.api_key_openrouter.get())
-                    llm_task = asyncio.create_task(asyncio.to_thread(
-                        llm_analysis_openrouter, sys_p, usr_p, mdl, transcript, cb, client))
-                elif current_api == "mistral":
-                    req(state.api_key_mistral.get() != None)
-                    client = get_mistral_client(state.api_key_mistral.get())
-                    llm_task = asyncio.create_task(asyncio.to_thread(
-                        llm_analysis_mistral, sys_p, usr_p, mdl, transcript, cb, client))
-                elif current_api == "deepseek":
-                    req(state.api_key_deepseek.get() != None)
-                    client = get_deepseek_client(state.api_key_deepseek.get())
-                    llm_task = asyncio.create_task(asyncio.to_thread(
-                        llm_analysis_deepseek, sys_p, usr_p, mdl, transcript, cb, client))
-                elif current_api == "localmind":
-                    req(state.api_key_localmind.get() != None)
-                    client = get_localmind_client(state.api_key_localmind.get())
-                    llm_task = asyncio.create_task(asyncio.to_thread(
-                        llm_analysis_localmind, sys_p, usr_p, mdl, transcript, cb, client))
-                elif is_custom_provider(current_api):
-                    _key = api_key_for(state, current_api)
-                    _burl = config.custom_base_url(current_api)
-                    req(_key is not None)
-                    req(bool(_burl))
-                    client = get_custom_client(_key, _burl)
-                    llm_task = asyncio.create_task(asyncio.to_thread(
-                        llm_analysis_custom, sys_p, usr_p, mdl, transcript, cb, client))
+                        llm_analysis_custom, *call_args))
 
         # Zuerst Statistik einsammeln (läuft parallel zum LLM-Call).
         stats_result = await stats_task
@@ -609,23 +515,8 @@ def register(state):
                     )
                     if df2 is not None and not df2.empty:
                         # Sicherheitsnetz: nur Items akzeptieren, die einem der
-                        # vorgelegten Turns entsprechen (Matching wie der
-                        # Ergebnis-Merge) — keine Doppel-Codierung bereits
-                        # codierter Turns.
-                        _aliases = {"lehrperson", "lehrer", "lehrkraft", "teacher",
-                                    str(teacher_name).lower()}
-                        allowed = {f"{spk} :: {norm_impuls(utt)}" for spk, utt in pending}
-                        for it in df2.to_dict("records"):
-                            spk = str(it.get("Sprecher", ""))
-                            spk_c = teacher_name if spk.lower() in _aliases else spk
-                            if f"{spk_c} :: {norm_impuls(it.get('Impuls', ''))}" not in allowed:
-                                continue
-                            # NaN-Konfidenz (Spalte existiert, Wert fehlt)
-                            # nicht als Wert verschleppen.
-                            konf = it.get("Konfidenz")
-                            if konf is None or (isinstance(konf, float) and pd.isna(konf)):
-                                it.pop("Konfidenz", None)
-                            new_items.append(it)
+                        # vorgelegten Turns entsprechen — keine Doppel-Codierung.
+                        new_items = filter_second_pass_items(df2, pending, teacher_name)
                     elif err2 and "0 coded items" not in str(err2):
                         # "0 coded items" ist hier ein VALIDES Ergebnis (alles
                         # geprüft, nichts nachcodiert) — nur echte Fehler loggen.

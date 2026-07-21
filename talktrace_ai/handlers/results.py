@@ -1,10 +1,10 @@
 """Results section: quantitative + qualitative output panels."""
 from ._common import *
 
-from ..utils.codebook_hierarchy import build_priority_lookup, priority_for
+from ..utils.codebook_hierarchy import build_priority_lookup
 from ..utils.qualitative import (
-    aggregate_multicoded,
     build_qual_plot,
+    build_qual_stats_df,
     code_column_names,
     primary_code_over_time,
     primary_code_series,
@@ -670,129 +670,52 @@ def register(state):
             return "; ".join(str(v).strip() for _, v in items if str(v).strip())
         return _edit
 
+    def _apply_code_edits_single(df, num_col, sc_col, edits):
+        """Manuelle Korrekturen auf die klassische Einzel-Shortcode-Spalte
+        anwenden (Single-Coding und der transkriptlose Fallback)."""
+        for _turn, _edit in edits.items():
+            _mask = df[num_col] == _turn
+            if _mask.any():
+                df.loc[_mask, sc_col] = _edit_as_single_cell(_edit)
+
     # Create a DataFrame for qualitative statistics
     @reactive.calc
     def make_qualitative_stats_df():
         req(llm_analysis_data.get())
         analysis_df = llm_analysis_data.get()[-1].copy()
         is_multi = _is_multi_coding_on(input)
-        code_cols = code_column_names(t)
-        # Multi-Coding: bis zu drei Code-Spalten; Single: die klassische eine.
-        cols = ['#', t("report", "speaker"), t("report", "teacher_statement")]
-        cols = cols + code_cols if is_multi else cols + [t("report", "shortcode")]
-        # Empty analysis (no codable turns) -> return empty, properly-named df
-        if analysis_df.empty:
-            empty_df = pd.DataFrame(columns=cols)
-            qual_stats_df.set(empty_df)
-            return empty_df
-        # Back-fill Sprecher column if missing (older sessions)
-        if "Sprecher" not in analysis_df.columns:
-            analysis_df["Sprecher"] = ""
 
+        # Transkript auflösen (mit Fallback auf das konvertierte Wizard-
+        # Ergebnis), damit die pure Merge-Funktion und die Edit-Applikation
+        # dieselbe Basis sehen.
         transcript_text = transcript_data.get()
         if not transcript_text:
-            # Fallback: converted transcript (format wizard result)
             conv = converted_transcript.get()
             if conv and conv.get("text"):
                 transcript_text = conv["text"]
-        if transcript_text:
-            teacher_name = input.name_teacher() or t("analysis", "name_teacher_var")
-            turns = _parse_turns(transcript_text, teacher_name)
-            all_turns_df = pd.DataFrame(turns, columns=["Sprecher", "Impuls"])
-            # Normalize parsed speaker to canonical teacher_name (case-insensitive
-            # regex may produce the verbatim transcript casing, e.g. "Lehrer" vs "LEHRER").
-            all_turns_df["Sprecher"] = all_turns_df["Sprecher"].apply(
-                lambda s: teacher_name if s.lower() == teacher_name.lower() else s
-            )
-            all_turns_df['#'] = range(1, len(all_turns_df) + 1)
-            # Build a tolerant merge key: lowercase, strip surrounding punctuation
-            # and collapse internal whitespace. LLMs frequently return Impulse
-            # text with minor edits (trimmed trailing periods, normalized
-            # quotes, collapsed whitespace) — exact-match on the raw string
-            # would leave every Shortcode cell empty for real-LLM runs.
-            def _norm_impuls(s):
-                t_ = re.sub(r"\s+", " ", str(s)).strip()
-                return re.sub(r"^[\s\"'„“”»«()\[\]\.…!?,:;-]+|[\s\"'„“”»«()\[\]\.…!?,:;-]+$", "", t_).lower()
-            all_turns_df["__key__"] = all_turns_df["Sprecher"] + " :: " + all_turns_df["Impuls"].apply(_norm_impuls)
-            coded_cols = ["Sprecher", "Impuls", "Shortcode"]
-            if "Konfidenz" in analysis_df.columns:
-                coded_cols.append("Konfidenz")
-            coded = analysis_df[coded_cols].copy()
-            # Normalize teacher speaker name: LLMs sometimes return "Lehrperson" or
-            # "Lehrer" even when the transcript uses the configured teacher_name (e.g.
-            # "LEHRER"). Map any case-insensitive match to the canonical name so the
-            # join key aligns with all_turns_df.
-            _teacher_aliases = {"lehrperson", "lehrer", "lehrkraft", "teacher", teacher_name.lower()}
-            coded["Sprecher"] = coded["Sprecher"].apply(
-                lambda s: teacher_name if str(s).lower() in _teacher_aliases else s
-            )
-            coded["__key__"] = coded["Sprecher"] + " :: " + coded["Impuls"].apply(_norm_impuls)
-            # Hierarchie aus dem Codebuch ableiten (Position oder explizite
-            # Priorität-Spalte). Codes ausserhalb des Codebuchs landen ans Ende.
-            _priority_lookup = build_priority_lookup(codebook_data.get())
-            coded["__priority__"] = coded["Shortcode"].apply(
-                lambda c: priority_for(_priority_lookup, str(c).strip())
-            )
-            # Stabiler Sort: nach Priorität (aufsteigend = höhere Priorität zuerst).
-            coded = coded.sort_values("__priority__", kind="mergesort")
-            if is_multi:
-                # Mehrfach-Codierung: Top-3 pro Turn auf eigene Spalten
-                # (Konfidenz absteigend, "CODE (NN %)"-Anzeige, ohne Schwelle).
-                coded = aggregate_multicoded(coded)
-                wide_cols = [c for c in coded.columns if c != "__key__"]
-                merged = pd.merge(all_turns_df, coded, on="__key__", how="left")
-                merged = merged.drop(columns=["__key__"])
-                merged = merged[['#', 'Sprecher', 'Impuls', *wide_cols]].copy()
-                for c in wide_cols:
-                    merged[c] = merged[c].fillna("").astype(str)
-                merged.columns = cols
-                # Human-in-the-loop: apply manual code corrections
-                _edits = code_edits.get()
-                if _edits:
-                    _apply_code_edits_wide(merged, cols[0], code_cols, _edits)
-                qual_stats_df.set(merged)
-                return merged
-            # Single-Coding: höchstpriore Code überlebt pro Turn.
-            coded = coded.drop_duplicates(subset=["__key__"], keep="first")
-            coded = coded.drop(columns=["__priority__"])
-            merged = pd.merge(
-                all_turns_df,
-                coded[["__key__", "Shortcode"]],
-                on="__key__",
-                how="left",
-            )
-            merged = merged.drop(columns=["__key__"])
-            merged = merged[['#', 'Sprecher', 'Impuls', 'Shortcode']].copy()
-            merged["Shortcode"] = merged["Shortcode"].fillna("").astype(str)
-            merged.columns = cols
-            # Human-in-the-loop: apply manual code corrections
-            _edits = code_edits.get()
-            if _edits:
-                _num_col, _sc_col = cols[0], cols[3]
-                for _turn, _code in _edits.items():
-                    _mask = merged[_num_col] == _turn
-                    if _mask.any():
-                        merged.loc[_mask, _sc_col] = _edit_as_single_cell(_code)
-            qual_stats_df.set(merged)
-            return merged
-        else:
-            # Fallback: just coded impulses (no transcript available) — rohe
-            # Items (eine Zeile pro Code) in der klassischen 4-Spalten-Form,
-            # unabhängig vom Multi-Schalter.
-            legacy_cols = ['#', t("report", "speaker"), t("report", "teacher_statement"), t("report", "shortcode")]
-            analysis_df['#'] = analysis_df.reset_index().index + 1
-            analysis_df = analysis_df[['#', "Sprecher", "Impuls", "Shortcode"]]
-            analysis_df.columns = legacy_cols
-            # Human-in-the-loop: apply manual code corrections
-            _edits = code_edits.get()
-            if _edits:
-                _num_col, _sc_col = legacy_cols[0], legacy_cols[3]
-                for _turn, _code in _edits.items():
-                    _mask = analysis_df[_num_col] == _turn
-                    if _mask.any():
-                        analysis_df.loc[_mask, _sc_col] = _edit_as_single_cell(_code)
-            qual_stats_df.set(analysis_df)
-            return analysis_df
+        teacher_name = input.name_teacher() or t("analysis", "name_teacher_var")
+
+        # Reine Merge-Logik lebt in utils/qualitative.build_qual_stats_df — hier
+        # nur reaktive Inputs einsammeln, danach die Human-in-the-loop-
+        # Korrekturen anwenden.
+        merged = build_qual_stats_df(
+            analysis_df, transcript_text, teacher_name,
+            codebook_data.get(), is_multi, t,
+        )
+
+        # Wide-Form (eigene Code-Spalten) nur bei Multi-Coding MIT Transkript;
+        # sonst die klassische Einzel-Shortcode-Spalte (auch im Fallback ohne
+        # Transkript, wo build_qual_stats_df auf die 4-Spalten-Form zurückfällt).
+        _edits = code_edits.get()
+        if _edits and not merged.empty:
+            cols = list(merged.columns)
+            if is_multi and transcript_text:
+                _apply_code_edits_wide(merged, cols[0], code_column_names(t), _edits)
+            else:
+                _apply_code_edits_single(merged, cols[0], cols[3], _edits)
+
+        qual_stats_df.set(merged)
+        return merged
 
 
 # DataFrame für qualitative Statistik generieren (editable DataGrid)

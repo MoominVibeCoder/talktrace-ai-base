@@ -305,6 +305,49 @@ def uncoded_turns(transcript_text, teacher_name, analysis_items,
     return out
 
 
+def teacher_in_transcript(transcript_text, teacher_name) -> bool:
+    """True, wenn die Lehrkraft im Transkript als Sprecher auftaucht.
+
+    Prüfung vor einer Lehrkraft-Analyse: erst als Sprecherlabel am Zeilen-
+    anfang ("Name:"), sonst als schlichter Substring-Fallback. Leerer Name
+    oder leeres Transkript → False.
+    """
+    if not teacher_name or not transcript_text:
+        return False
+    pattern = re.compile(r"^\s*" + re.escape(teacher_name) + r"\s*:",
+                         re.IGNORECASE | re.MULTILINE)
+    if pattern.search(transcript_text):
+        return True
+    return teacher_name.lower() in transcript_text.lower()
+
+
+def filter_second_pass_items(df2, pending, teacher_name):
+    """Nachcodierte Items behalten, die einem vorgelegten Turn entsprechen.
+
+    Sicherheitsnetz der zweiten Prüfrunde: das Modell darf ausschließlich die
+    gelisteten (uncodierten) Turns nachcodieren. Matching wie der Ergebnis-
+    Merge (norm_impuls + Lehrkraft-Aliasse); Sprecherlabels werden auf den
+    Lehrkraft-Namen kanonisiert. NaN-Konfidenz (Spalte existiert, Wert fehlt)
+    wird nicht verschleppt. Gibt die akzeptierten Item-Dicts zurück.
+    """
+    if df2 is None or df2.empty:
+        return []
+    teacher_name = str(teacher_name or "")
+    aliases = _TEACHER_ALIAS_BASE | {teacher_name.lower()}
+    allowed = {f"{spk} :: {norm_impuls(utt)}" for spk, utt in pending}
+    new_items = []
+    for it in df2.to_dict("records"):
+        spk = str(it.get("Sprecher", ""))
+        spk_c = teacher_name if spk.lower() in aliases else spk
+        if f"{spk_c} :: {norm_impuls(it.get('Impuls', ''))}" not in allowed:
+            continue
+        konf = it.get("Konfidenz")
+        if konf is None or (isinstance(konf, float) and pd.isna(konf)):
+            it.pop("Konfidenz", None)
+        new_items.append(it)
+    return new_items
+
+
 def build_qual_stats_df(
     analysis_df,
     transcript_text,

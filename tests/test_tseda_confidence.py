@@ -39,9 +39,11 @@ from talktrace_ai.utils.qualitative import (
     confidence_band_of_cell,
     extract_confidence,
     collect_codes,
+    filter_second_pass_items,
     primary_code_over_time,
     primary_code_series,
     strip_confidence,
+    teacher_in_transcript,
     uncoded_turns,
 )
 
@@ -457,6 +459,45 @@ def test_uncoded_turns_students_included_when_enabled():
 
 def test_uncoded_turns_empty_transcript():
     assert uncoded_turns("", "LEHRER", []) == []
+
+
+def test_teacher_in_transcript_label_and_case():
+    assert teacher_in_transcript(_TRANSCRIPT_2P, "LEHRER")
+    assert teacher_in_transcript(_TRANSCRIPT_2P, "lehrer")  # case-insensitive
+    assert not teacher_in_transcript(_TRANSCRIPT_2P, "FRAU X")
+    assert not teacher_in_transcript(_TRANSCRIPT_2P, "")
+    assert not teacher_in_transcript("", "LEHRER")
+
+
+def test_teacher_in_transcript_substring_fallback():
+    # Name nicht als Sprecherlabel am Zeilenanfang, aber im Text -> Fallback.
+    assert teacher_in_transcript("S1: Frag doch Herrn Meyer.\n", "Meyer")
+
+
+def test_filter_second_pass_keeps_only_listed_turns():
+    pending = [("LEHRER", "Fassen wir zusammen.")]
+    df2 = pd.DataFrame([
+        # Alias-Sprecher + tolerante Textabweichung -> akzeptiert.
+        {"Sprecher": "Lehrperson", "Shortcode": "ZK", "Impuls": "Fassen wir zusammen"},
+        # Nicht vorgelegter Turn -> verworfen.
+        {"Sprecher": "S1", "Shortcode": "EN", "Impuls": "Nicht vorgelegt"},
+    ])
+    kept = filter_second_pass_items(df2, pending, "LEHRER")
+    assert [it["Impuls"] for it in kept] == ["Fassen wir zusammen"]
+
+
+def test_filter_second_pass_drops_nan_confidence():
+    pending = [("LEHRER", "Fassen wir zusammen.")]
+    df2 = pd.DataFrame([
+        {"Sprecher": "LEHRER", "Shortcode": "ZK",
+         "Impuls": "Fassen wir zusammen", "Konfidenz": float("nan")},
+    ])
+    kept = filter_second_pass_items(df2, pending, "LEHRER")
+    assert "Konfidenz" not in kept[0]
+
+
+def test_filter_second_pass_empty_df():
+    assert filter_second_pass_items(pd.DataFrame(), [], "LEHRER") == []
 
 
 # ---------------------------------------------------------------------------

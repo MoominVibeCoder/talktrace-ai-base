@@ -1,4 +1,6 @@
 """Options section: API keys, model registry, prompts, parameters."""
+import ast
+
 from ._common import *
 
 
@@ -179,6 +181,19 @@ def register(state):
         ui.modal_remove()
         ui.notification_show(t("options", "provider_updated"), type="message", duration=5)
 
+    def _show_confirm_modal(message, title, confirm_id, confirm_label):
+        """Warn-Modal mit Bestätigen (btn-success) + Abbrechen (btn-danger).
+        Gemeinsames Muster der Löschen-/Zurücksetzen-Dialoge dieses Tabs."""
+        ui.modal_show(ui.modal(
+            ui.p(message),
+            title=title,
+            easy_close=True,
+            footer=(
+                ui.input_action_button(confirm_id, confirm_label, class_="btn-success"),
+                ui.modal_button(t("analysis", "modal_button_cancel"), class_="btn-danger"),
+            ),
+        ))
+
     @reactive.effect
     @reactive.event(input.button_delete_provider)
     def _delete_provider_modal():
@@ -186,13 +201,12 @@ def register(state):
         if not is_custom_provider(sel):
             return
         e = config.get_custom_provider(sel) or {}
-        ui.modal_show(ui.modal(
-            ui.p(t("options", "delete_provider_warning").format(name=e.get("name", sel))),
-            title=t("options", "delete_provider_title"),
-            easy_close=True,
-            footer=(ui.input_action_button("button_confirm_delete_provider", t("options", "delete_api_key_confirm"), class_="btn-success"),
-                    ui.modal_button(t("analysis", "modal_button_cancel"), class_="btn-danger")),
-        ))
+        _show_confirm_modal(
+            t("options", "delete_provider_warning").format(name=e.get("name", sel)),
+            t("options", "delete_provider_title"),
+            "button_confirm_delete_provider",
+            t("options", "delete_api_key_confirm"),
+        )
 
     @reactive.effect
     @reactive.event(input.button_confirm_delete_provider)
@@ -359,13 +373,12 @@ def register(state):
     @reactive.effect
     @reactive.event(input.button_delete_api_key)
     def delete_api_key():
-        m = ui.modal(
-            ui.p(t("options", "delete_api_key_warning")),
-            title=t("options", "delete_api_key_title"),
-            easy_close=True,
-            footer=(ui.input_action_button("button_confirm_delete_api_key", t("options", "delete_api_key_confirm"),  class_="btn-success"), ui.modal_button(t("analysis", "modal_button_cancel"),  class_="btn-danger")),
+        _show_confirm_modal(
+            t("options", "delete_api_key_warning"),
+            t("options", "delete_api_key_title"),
+            "button_confirm_delete_api_key",
+            t("options", "delete_api_key_confirm"),
         )
-        ui.modal_show(m)
 
 
     # Löschens des API-Keys bestätigen
@@ -483,7 +496,7 @@ def register(state):
         # behalten ihre gepflegten Preise, neue Modelle starten mit 0.0
         # (per "Modell hinzufügen" nachjustierbar).
         try:
-            current = {m["name"]: m for m in eval(config.config.get(
+            current = {m["name"]: m for m in ast.literal_eval(config.config.get(
                 "MODELS", config._models_key(provider), fallback="[]"))}
         except Exception:
             current = {}
@@ -563,13 +576,12 @@ def register(state):
     @reactive.effect
     @reactive.event(input.button_remove_model)
     def _():
-        m = ui.modal(
-        ui.p(t("options", "modal_remove_model_warning")),
-        title=t("options", "modal_remove_title"),
-        easy_close=True,
-        footer=(ui.input_action_button("model_delete_confirm", t("options", "modal_remove_confirm"),  class_="btn-success"), ui.modal_button(t("analysis", "modal_button_cancel"),  class_="btn-danger"))
+        _show_confirm_modal(
+            t("options", "modal_remove_model_warning"),
+            t("options", "modal_remove_title"),
+            "model_delete_confirm",
+            t("options", "modal_remove_confirm"),
         )
-        ui.modal_show(m)
 
     # Entfernen des Modells bestätigen
     @reactive.effect
@@ -596,13 +608,12 @@ def register(state):
     @reactive.effect
     @reactive.event(input.button_reset_model_selection)
     def reset_model_selection():
-        m = ui.modal(
-            ui.p(t("options", "reset_model_selection_confirm")),
-        title=t("options", "reset_model_selection_title"),
-        easy_close=True,
-        footer=(ui.input_action_button("button_reset_model_selection_confirm", t("options", "modal_model_reset_confirm"),  class_="btn-success"), ui.modal_button(t("analysis", "modal_button_cancel"),  class_="btn-danger")),
+        _show_confirm_modal(
+            t("options", "reset_model_selection_confirm"),
+            t("options", "reset_model_selection_title"),
+            "button_reset_model_selection_confirm",
+            t("options", "modal_model_reset_confirm"),
         )
-        ui.modal_show(m)
 
     # Zurücksetzen der Modellauswahl bestätigen
     @reactive.effect
@@ -667,13 +678,12 @@ def register(state):
     @reactive.effect
     @reactive.event(input.button_reset_system_prompt)
     def reset_system_prompt():
-        m = ui.modal(
-            ui.p(t("options", "reset_system_prompt_confirm")),
-        title=t("options", "reset_system_prompt_title"),
-        easy_close=True,
-        footer=(ui.input_action_button("button_reset_system_prompt_confirm", t("analysis", "modal_confirm_reset"),  class_="btn-success"), ui.modal_button(t("analysis", "modal_button_cancel"),  class_="btn-danger")),
+        _show_confirm_modal(
+            t("options", "reset_system_prompt_confirm"),
+            t("options", "reset_system_prompt_title"),
+            "button_reset_system_prompt_confirm",
+            t("analysis", "modal_confirm_reset"),
         )
-        ui.modal_show(m)
 
     # Zurücksetzen des System Prompts Bestätigen
     @reactive.effect
@@ -728,13 +738,12 @@ def register(state):
     @reactive.effect
     @reactive.event(input.button_reset_user_prompt)
     def reset_user_prompt():
-        m = ui.modal(
-            ui.p(t("options", "reset_user_prompt_confirm")),
-        title=t("options", "reset_user_prompt_title"),
-        easy_close=True,
-        footer=(ui.input_action_button("button_reset_user_prompt_confirm", t("analysis", "modal_confirm_reset"), class_="btn-success"), ui.modal_button(t("analysis", "modal_button_cancel"), class_="btn-danger")),
+        _show_confirm_modal(
+            t("options", "reset_user_prompt_confirm"),
+            t("options", "reset_user_prompt_title"),
+            "button_reset_user_prompt_confirm",
+            t("analysis", "modal_confirm_reset"),
         )
-        ui.modal_show(m)
 
     # Zurücksetzen des User Prompts Bestätigen
     @reactive.effect
@@ -808,14 +817,13 @@ def register(state):
     # Button zum Zurücksetzen der Gruppen-Parameter
     @reactive.effect
     @reactive.event(input.button_reset_parameters)
-    def reset_user_prompt():
-        m = ui.modal(
-            ui.p(t("options", "reset_group_parameters_confirm")),
-        title=t("options", "reset_group_parameters_title"),
-        easy_close=True,
-        footer=(ui.input_action_button("button_reset_parameters_confirm", t("analysis", "modal_confirm_reset"), class_="btn-success"), ui.modal_button(t("analysis", "modal_button_cancel"), class_="btn-danger")),
+    def reset_parameters_modal():
+        _show_confirm_modal(
+            t("options", "reset_group_parameters_confirm"),
+            t("options", "reset_group_parameters_title"),
+            "button_reset_parameters_confirm",
+            t("analysis", "modal_confirm_reset"),
         )
-        ui.modal_show(m)
 
     # Zurücksetzen der Gruppen-Parameter bestätigen
     @reactive.effect
@@ -873,20 +881,11 @@ def register(state):
     @render.ui
     def loc_local_only_switch():
         # Big-4 demo (May 2026): Local-only mode requires the Ollama provider
-        # (the only local LLM backend), which is currently disabled in
-        # ``KNOWN_PROVIDERS``. Hiding the switch UI here prevents the user
-        # from toggling into a state with zero available providers.
-        # When restoring Ollama: drop this short-circuit return and the
-        # original switch UI below it will render again.
+        # (the only local LLM backend), currently disabled in ``KNOWN_PROVIDERS``.
+        # Switch hidden so the user can't toggle into a zero-provider state.
+        # To restore: bring back the switch UI + its persist effect together
+        # (both removed in this commit — recover from git history).
         return None
-        # return ui.div(
-        #     ui.input_switch(
-        #         "local_only_switch",
-        #         t("options", "local_only_switch"),
-        #         config.get_advanced().get("local_only", False),
-        #     ),
-        #     ui.tags.p(t("options", "local_only_switch_help"), class_="text-muted small"),
-        # )
 
     # ----- Cumulative cost tracker ----------------------------------------
     @render.ui
@@ -955,18 +954,12 @@ def register(state):
     @reactive.effect
     @reactive.event(input.button_cost_tracker_reset)
     def _confirm_cost_reset():
-        ui.modal_show(ui.modal(
-            ui.p(t("options", "cost_tracker_reset_confirm")),
-            title=t("options", "cost_tracker_reset_title"),
-            easy_close=True,
-            footer=(
-                ui.input_action_button("button_cost_tracker_reset_confirm",
-                                       t("analysis", "modal_confirm_reset"),
-                                       class_="btn-success"),
-                ui.modal_button(t("analysis", "modal_button_cancel"),
-                                class_="btn-danger"),
-            ),
-        ))
+        _show_confirm_modal(
+            t("options", "cost_tracker_reset_confirm"),
+            t("options", "cost_tracker_reset_title"),
+            "button_cost_tracker_reset_confirm",
+            t("analysis", "modal_confirm_reset"),
+        )
 
     @reactive.effect
     @reactive.event(input.button_cost_tracker_reset_confirm)
@@ -1064,27 +1057,8 @@ def register(state):
         )
     # ----- /Gold-standard self-test --------------------------------------
 
-    # Big-4 demo (May 2026): the local-only switch UI is hidden (see
-    # ``loc_local_only_switch`` above), so the input it would observe doesn't
-    # exist. Reactivating this effect without restoring the switch UI would
-    # crash on the missing input. Restore both together.
-    # @reactive.effect
-    # @reactive.event(input.local_only_switch)
-    # def _persist_local_only_switch():
-    #     new_val = bool(input.local_only_switch())
-    #     config.set_advanced("local_only", new_val)
-    #     state.local_only.set(new_val)
-    #     if new_val and config.get_current_api() != "ollama":
-    #         config.set_current_api("ollama")
-    #         current_api.set("ollama")
-    #         ui.update_select("api_select", choices={"ollama": "Ollama"}, selected="ollama")
-    #         ui.update_select("provider_select", choices={"ollama": "Ollama"}, selected="ollama")
-    #     if new_val:
-    #         local_models = config.get_models(provider="ollama", local_only=True)
-    #         current_model = config.get_current_model()
-    #         if local_models and current_model not in local_models:
-    #             config.set_current_model(local_models[0])
-    #             state.model.set(local_models[0])
-    #             ui.update_select("model_select", choices=local_models, selected=local_models[0])
+    # (Local-only-switch persist effect removed with the switch UI — see
+    #  ``loc_local_only_switch`` above; recover from git history when restoring
+    #  the Ollama provider.)
 
 

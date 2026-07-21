@@ -1,3 +1,4 @@
+import ast
 import configparser
 import json
 import os
@@ -206,13 +207,13 @@ class ConfigManager:
 
         if provider:
             models = self.config.get('MODELS', self._models_key(provider), fallback='[]')
-            return [v["name"] for v in _filter(provider, eval(models))]
+            return [v["name"] for v in _filter(provider, ast.literal_eval(models))]
           # Convert string representation to list
         else:
             # Return all models combined (built-ins + registered custom providers)
             all_models = []
             for p in self.all_providers():
-                entries = eval(self.config.get('MODELS', self._models_key(p), fallback='[]'))
+                entries = ast.literal_eval(self.config.get('MODELS', self._models_key(p), fallback='[]'))
                 all_models += _filter(p, entries)
             return [v["name"] for v in all_models]
 
@@ -249,7 +250,7 @@ class ConfigManager:
 
         # Safely load the existing models
         try:
-            current_models = eval(self.config.get('MODELS', key, fallback='[]'))
+            current_models = ast.literal_eval(self.config.get('MODELS', key, fallback='[]'))
         except Exception:
             current_models = []
 
@@ -292,7 +293,7 @@ class ConfigManager:
 
             # Load current models safely
             try:
-                current_models = eval(self.config.get('MODELS', key, fallback='[]'))
+                current_models = ast.literal_eval(self.config.get('MODELS', key, fallback='[]'))
             except Exception:
                 current_models = []
 
@@ -583,7 +584,7 @@ class ConfigManager:
             key = self._models_key(provider)
             models_str = self.config.get('MODELS', key, fallback='[]')
             try:
-                models = eval(models_str)  # convert to list of dicts
+                models = ast.literal_eval(models_str)  # convert to list of dicts
             except Exception:
                 models = []
 
