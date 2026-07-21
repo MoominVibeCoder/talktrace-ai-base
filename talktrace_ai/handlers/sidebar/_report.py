@@ -38,7 +38,10 @@ def register(state):
             "button_report_open",
             t("sidebar", "download_report"),
             icon=icon_svg("download"),
-            class_="btn-sm",
+            # w-100: input_action_button ist per Default inline-block und würde
+            # sonst inhaltsbreit rendern statt auf volle Sidebar-Breite wie die
+            # Nachbar-Buttons.
+            class_="btn-sm w-100",
         ),
 
 
