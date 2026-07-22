@@ -119,14 +119,15 @@ def build_analysis_schema(
                         "Sprecher": sprecher_field,
                         "Shortcode": shortcode_field,
                         "Impuls": {"type": "string", "description": "Wörtliche Äußerung."},
-                        # Nullable + required: OpenAI-strict verlangt, dass jede
-                        # property in required steht — optionale Felder werden
-                        # über einen null-Union-Typ modelliert. Konfidenz wird
-                        # per Prompt in beiden Modi angefordert (Single wie
-                        # Multi); liefert das Modell keine, emittiert es null.
+                        # Konfidenz wird per Prompt in BEIDEN Modi (Single wie
+                        # Multi) angefordert und ist daher fest verlangt — kein
+                        # null-Union mehr. Die frühere null-Ausfahrt ließ schwache
+                        # Modelle (z. B. gpt-3.5) durchweg null emittieren, sodass
+                        # die Konfidenz-Spalte nie entstand. Nicht-null erzwingen
+                        # heißt: der Wert erscheint zuverlässig, providerübergreifend.
                         "Konfidenz": {
-                            "type": ["integer", "null"],
-                            "description": "Konfidenz der Code-Zuordnung in Prozent (0-100); null, wenn keine Konfidenz verlangt ist.",
+                            "type": "integer",
+                            "description": "Konfidenz der Code-Zuordnung in Prozent (ganze Zahl 0-100). Immer angeben.",
                         },
                     },
                     "required": ["#", "Sprecher", "Shortcode", "Impuls", "Konfidenz"],

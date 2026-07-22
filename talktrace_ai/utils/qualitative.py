@@ -281,6 +281,23 @@ def norm_impuls(s):
     ).lower()
 
 
+def has_multicoded_turns(analysis_df) -> bool:
+    """True, wenn irgendein Turn mehr als einen Code trägt (echtes Multi-Coding).
+
+    Datengetriebenes Multi-Signal für geladene Sessions, deren Switch (nur bei
+    aktivem llm_switch gerendert) aus ist. Bewusst NICHT an der Konfidenz-Spalte
+    festgemacht: die trägt seit der Härtung auch Single-Coding, taugt also nicht
+    mehr als Unterscheidung. Multi-Coding emittiert denselben Turn (Sprecher +
+    Impuls) mehrfach mit verschiedenem Shortcode — genau das prüfen wir."""
+    if analysis_df is None or analysis_df.empty:
+        return False
+    if not {"Sprecher", "Impuls"}.issubset(analysis_df.columns):
+        return False
+    key = analysis_df["Sprecher"].astype(str) + " :: " + \
+        analysis_df["Impuls"].apply(norm_impuls)
+    return bool(key.duplicated().any())
+
+
 def uncoded_turns(transcript_text, teacher_name, analysis_items,
                   *, teacher_on=True, students_on=True):
     """Turns der gewählten Sprechergruppe, die (noch) keine Codierung tragen.

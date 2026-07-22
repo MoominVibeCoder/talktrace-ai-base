@@ -6,6 +6,7 @@ from ..utils.qualitative import (
     build_qual_plot,
     build_qual_stats_df,
     code_column_names,
+    has_multicoded_turns,
     primary_code_over_time,
     primary_code_series,
     strip_confidence,
@@ -685,9 +686,9 @@ def register(state):
         analysis_df = llm_analysis_data.get()[-1].copy()
         # Multi-Coding aus dem Switch ODER aus den Daten ableiten: bei einer
         # geladenen Session ist der (nur bei aktivem llm_switch gerenderte)
-        # Switch aus, aber mehrfach codierte Daten tragen eine "Konfidenz"-
-        # Spalte — sonst kollabierte die Anzeige auf eine einzige Code-Spalte.
-        is_multi = _is_multi_coding_on(input) or ("Konfidenz" in analysis_df.columns)
+        # Switch aus. Signal sind mehrfach codierte Turns selbst — NICHT die
+        # Konfidenz-Spalte, die seit der Schema-Härtung auch Single-Coding trägt.
+        is_multi = _is_multi_coding_on(input) or has_multicoded_turns(analysis_df)
 
         # Transkript auflösen (mit Fallback auf das konvertierte Wizard-
         # Ergebnis), damit die pure Merge-Funktion und die Edit-Applikation

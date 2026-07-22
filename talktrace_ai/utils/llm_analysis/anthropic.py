@@ -84,12 +84,11 @@ def _build_analysis_tool(codebook, transcript):
                             "Sprecher": sprecher_field,
                             "Shortcode": shortcode_field,
                             "Impuls": {"type": "string", "description": "The verbatim utterance text."},
-                            # Optional (not in required): only requested by the
-                            # multi-coding prompt suffix; single-coding output
-                            # simply omits it.
-                            "Konfidenz": {"type": "integer", "description": "Confidence 0-100 that this code applies. Include only when the instructions request a confidence per code."},
+                            # Requested by both prompt modes (single and multi),
+                            # so it is required — the model must always supply it.
+                            "Konfidenz": {"type": "integer", "description": "Confidence 0-100 that this code applies. Always provide it."},
                         },
-                        "required": ["#", "Sprecher", "Shortcode", "Impuls"],
+                        "required": ["#", "Sprecher", "Shortcode", "Impuls", "Konfidenz"],
                     },
                 },
             },

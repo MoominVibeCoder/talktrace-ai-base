@@ -40,6 +40,7 @@ from talktrace_ai.utils.qualitative import (
     extract_confidence,
     collect_codes,
     filter_second_pass_items,
+    has_multicoded_turns,
     primary_code_over_time,
     primary_code_series,
     strip_confidence,
@@ -184,16 +185,37 @@ def test_invite_to_build_is_explicitly_speaker_neutral():
 
 
 # ---------------------------------------------------------------------------
-# Schema: Konfidenz nullable + required (OpenAI-strict-kompatibel)
+# Schema: Konfidenz fest verlangt (nicht-null), in beiden Modi angefordert
 # ---------------------------------------------------------------------------
 
-def test_schema_has_nullable_required_confidence():
+def test_schema_requires_non_null_confidence():
+    # Konfidenz wird in Single- wie Multi-Coding immer angefordert; die frühere
+    # null-Ausfahrt ließ schwache Modelle durchweg null liefern (keine Spalte).
     schema = build_analysis_schema(TSEDA_CODEBOOK["de"], "LEHRER: Hallo.\nS01: Hi.")
     items = schema["properties"]["analysis"]["items"]
-    assert items["properties"]["Konfidenz"]["type"] == ["integer", "null"]
+    assert items["properties"]["Konfidenz"]["type"] == "integer"
     assert "Konfidenz" in items["required"]
     # Konfidenz als LETZTES Feld definiert (Recovery-Parser-Kontrakt).
     assert list(items["properties"].keys())[-1] == "Konfidenz"
+
+
+def test_has_multicoded_turns_detects_duplicate_coded_turns():
+    import pandas as pd
+    # Single-Coding MIT Konfidenz: ein Code pro Turn — NICHT als Multi werten
+    # (sonst rutschte Single seit der Schema-Härtung in die Mehrspalten-Anzeige).
+    single = pd.DataFrame([
+        {"Sprecher": "LEHRER", "Impuls": "Warum?", "Shortcode": "EN", "Konfidenz": 80},
+        {"Sprecher": "S01", "Impuls": "Weil.", "Shortcode": "IB", "Konfidenz": 60},
+    ])
+    assert has_multicoded_turns(single) is False
+    # Multi-Coding: derselbe Turn zweimal mit verschiedenem Code.
+    multi = pd.DataFrame([
+        {"Sprecher": "LEHRER", "Impuls": "Warum?", "Shortcode": "EN", "Konfidenz": 80},
+        {"Sprecher": "LEHRER", "Impuls": "Warum?", "Shortcode": "IR", "Konfidenz": 55},
+    ])
+    assert has_multicoded_turns(multi) is True
+    # Leere / spaltenarme Frames kippen nicht um.
+    assert has_multicoded_turns(pd.DataFrame()) is False
 
 
 # ---------------------------------------------------------------------------
