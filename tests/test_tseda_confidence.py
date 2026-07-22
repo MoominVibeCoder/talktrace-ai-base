@@ -214,6 +214,13 @@ def test_has_multicoded_turns_detects_duplicate_coded_turns():
         {"Sprecher": "LEHRER", "Impuls": "Warum?", "Shortcode": "IR", "Konfidenz": 55},
     ])
     assert has_multicoded_turns(multi) is True
+    # Wiederholte identische Äußerung, je EINMAL mit DEMSELBEN Code codiert:
+    # kein Multi-Coding (sonst würde Single fälschlich in die Wide-Anzeige rutschen).
+    repeated = pd.DataFrame([
+        {"Sprecher": "S01", "Impuls": "Genau.", "Shortcode": "IB", "Konfidenz": 40},
+        {"Sprecher": "S01", "Impuls": "Genau.", "Shortcode": "IB", "Konfidenz": 45},
+    ])
+    assert has_multicoded_turns(repeated) is False
     # Leere / spaltenarme Frames kippen nicht um.
     assert has_multicoded_turns(pd.DataFrame()) is False
 

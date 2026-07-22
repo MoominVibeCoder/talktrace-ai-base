@@ -282,20 +282,27 @@ def norm_impuls(s):
 
 
 def has_multicoded_turns(analysis_df) -> bool:
-    """True, wenn irgendein Turn mehr als einen Code trägt (echtes Multi-Coding).
+    """True, wenn irgendein Turn ≥2 VERSCHIEDENE Codes trägt (echtes Multi-Coding).
 
     Datengetriebenes Multi-Signal für geladene Sessions, deren Switch (nur bei
     aktivem llm_switch gerendert) aus ist. Bewusst NICHT an der Konfidenz-Spalte
-    festgemacht: die trägt seit der Härtung auch Single-Coding, taugt also nicht
-    mehr als Unterscheidung. Multi-Coding emittiert denselben Turn (Sprecher +
-    Impuls) mehrfach mit verschiedenem Shortcode — genau das prüfen wir."""
+    festgemacht: die trägt seit der Härtung auch Single-Coding.
+
+    Zählt DISTINKTE Shortcodes pro Turn, nicht bloße Zeilen-Duplikate: Kommt
+    dieselbe kurze Äußerung („Genau.") mehrfach vor und wird je einmal codiert,
+    ist das kein Multi-Coding — nur ein Turn mit mehreren verschiedenen Codes
+    ist es."""
     if analysis_df is None or analysis_df.empty:
         return False
-    if not {"Sprecher", "Impuls"}.issubset(analysis_df.columns):
+    if not {"Sprecher", "Impuls", "Shortcode"}.issubset(analysis_df.columns):
         return False
-    key = analysis_df["Sprecher"].astype(str) + " :: " + \
-        analysis_df["Impuls"].apply(norm_impuls)
-    return bool(key.duplicated().any())
+    df = analysis_df[["Sprecher", "Impuls", "Shortcode"]].copy()
+    df["__key__"] = df["Sprecher"].astype(str) + " :: " + df["Impuls"].apply(norm_impuls)
+    df["__sc__"] = df["Shortcode"].astype(str).str.strip()
+    df = df[df["__sc__"] != ""]
+    if df.empty:
+        return False
+    return bool((df.groupby("__key__")["__sc__"].nunique() > 1).any())
 
 
 def uncoded_turns(transcript_text, teacher_name, analysis_items,
