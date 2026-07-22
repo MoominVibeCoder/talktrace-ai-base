@@ -4,6 +4,8 @@
 [![Python](https://img.shields.io/pypi/pyversions/talktrace-ai-base)](https://pypi.org/project/talktrace-ai-base/)
 [![License](https://img.shields.io/pypi/l/talktrace-ai-base)](LICENSE)
 
+📖 **English** · [Deutsch](README.de.md)
+
 <p align="left">
     <picture>
         <source media="(prefers-color-scheme: light)" srcset="images/light.png">
@@ -32,7 +34,7 @@ A FLOSS, platform-independent web app for analysing verbal interaction in classr
 
 ## Download (Windows, no Python needed)
 
-Grab the latest **TalkTraceAI-base-v1.1.0-win64.zip** from [GitHub Releases](https://github.com/MoominVibeCoder/talktrace-ai-base/releases), unzip, and double-click `TalkTraceAI.exe`. No Python installation required.
+Grab the latest **TalkTraceAI-base-v1.2.0-win64.zip** from [GitHub Releases](https://github.com/MoominVibeCoder/talktrace-ai-base/releases), unzip, and double-click `TalkTraceAI.exe`. No Python installation required.
 
 > For macOS / Linux or if you prefer running from source, see the Quickstart below.
 
@@ -148,6 +150,8 @@ Generate **research-grounded, formative feedback for the teacher** after an anal
 
 The generated text is **fully editable** in-place — you can tighten, rephrase, or strip sections before exporting to **Word (.docx)** or **PDF**. A live cost estimate and the cumulative cost tracker (in *Options*) apply here too.
 
+You can also **upload a corrected report** (DOCX / XLSX / CSV / HTML) so the feedback rests on the codings you reviewed in Word or Excel rather than the model's raw output — it doubles as a **standalone entry point** in a fresh session (codes *and* metrics come out of the document, and the codebook is rebuilt from the report legend if present).
+
 It is an **aid, not a verdict** — clearly framed as formative scaffolding for self-reflection, not summative assessment.
 
 </details>
@@ -170,7 +174,7 @@ Split into quantitative and qualitative sections.
 
 **Quantitative** (deterministic): participation metrics, conversation shares (absolute + relative), per-speaker turn stats (count / mean / median), three-segment over-time view.
 
-**Qualitative** (LLM-coded): per-speaker coding (every turn carries a `Sprecher` label), code distribution plot **stacked by speaker group** (teacher vs. students, with the matching code × speaker-group table in the report), coded-impulse table, over-time code distribution, **Markov-style code-transition heatmap**, and an **auto-generated methods paragraph** for paper manuscripts (copy-to-clipboard, EN/DE). With **multi-coding** enabled, each turn shows its **top 2 candidate codes in dedicated columns** (matching T-SEDA's 0–2-codes-per-turn rule), each with the model's confidence (e.g. `EN (92 %)` · `L (61 %)`) — uncertain candidates stay visible, the human judges. A **second review pass** automatically re-submits uncoded turns to the LLM for a careful re-check, and every cell stays hand-editable. All turns of the conversation appear in the table and reports, coded or not.
+**Qualitative** (LLM-coded): per-speaker coding (every turn carries a `Sprecher` label), code distribution plot **stacked by speaker group** (teacher vs. students, with the matching code × speaker-group table in the report), coded-impulse table, over-time code distribution, **Markov-style code-transition heatmap**, and an **auto-generated methods paragraph** for paper manuscripts (copy-to-clipboard, EN/DE). **Every coding carries the model's confidence** (e.g. `EN (92 %)`) — in single-coding on the one code, and with **multi-coding** enabled across the **top 2 candidate codes in dedicated columns** (matching T-SEDA's 0–2-codes-per-turn rule), ranked by confidence; uncertain candidates stay visible, the human judges. The DOCX/HTML report **shades the certainty edges** of each code cell (≥ 90 % and < 50 %) using the same anchors the prompt calibrates against. A **second review pass** automatically re-submits uncoded turns to the LLM for a careful re-check, and every cell stays hand-editable. All turns of the conversation appear in the table and reports, coded or not.
 
 </details>
 
